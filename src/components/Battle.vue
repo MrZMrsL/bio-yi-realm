@@ -1,5 +1,5 @@
 <template>
-  <div class="battle-container">
+  <div class="battle-container" :class="{ 'screen-shake': store.comboActive }">
     <div class="battle-header">
       <span class="floor-badge">第 {{ store.floor }} 层</span>
       <div class="enemy-info">
@@ -10,6 +10,21 @@
           {{ store.enemy?.elementLabel }}
         </span>
       </div>
+    </div>
+    
+    <!-- 连击计数器 -->
+    <div v-if="store.comboCount > 0" class="combo-counter" :class="{ 'critical-flash': store.comboCount >= 3 }">
+      <span v-if="store.comboCount >= 3" class="combo-icon critical">⚡</span>
+      <span v-else-if="store.comboCount === 2" class="combo-icon">🔥</span>
+      <span v-else class="combo-icon">🔥</span>
+      <span v-if="store.comboCount >= 3" class="combo-text critical">CRITICAL!</span>
+      <span v-else-if="store.comboCount === 2" class="combo-text">x2</span>
+      <span v-else class="combo-text">x1</span>
+    </div>
+    
+    <!-- 暴击特效覆盖层 -->
+    <div v-if="store.comboActive" class="critical-overlay">
+      <div class="critical-overlay-text">⚡ 三连暴击！伤害×3！</div>
     </div>
     
     <div class="battlefield">
@@ -247,6 +262,114 @@ function revive() {
 </script>
 
 <style scoped>
+/* 连击系统 */
+.combo-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  animation: combo-pop 0.3s ease-out;
+}
+
+.combo-icon {
+  font-size: 20px;
+}
+
+.combo-icon.critical {
+  font-size: 28px;
+  animation: flash 0.5s ease-in-out infinite;
+}
+
+.combo-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: #e74c3c;
+}
+
+.combo-text.critical {
+  font-size: 18px;
+  color: #f1c40f;
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.6);
+}
+
+.combo-counter.critical-flash {
+  animation: critical-flash 0.5s ease-in-out infinite;
+}
+
+/* 屏幕震动 */
+.screen-shake {
+  animation: screen-shake 0.5s ease-in-out;
+}
+
+/* 暴击闪光覆盖层 */
+.critical-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  animation: fade-in-out 1.5s ease-in-out;
+  pointer-events: none;
+}
+
+.critical-overlay-text {
+  font-size: 32px;
+  font-weight: bold;
+  color: #f1c40f;
+  text-shadow: 0 0 20px rgba(241, 196, 15, 0.8);
+  animation: critical-zoom 0.5s ease-out;
+}
+
+@keyframes combo-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes critical-flash {
+  0%, 100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(241, 196, 15, 0.8); }
+}
+
+@keyframes screen-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-5px); }
+  20% { transform: translateX(5px); }
+  30% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  50% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+  90% { transform: translateX(-1px); }
+}
+
+@keyframes fade-in-out {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes critical-zoom {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .battle-container {
   padding: 20px;
   background: #2a2a2a;

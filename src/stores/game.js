@@ -67,6 +67,11 @@ export const useGameStore = defineStore('game', () => {
   // 战斗掉落
   const drop = ref(null) // { type: 'equipment' | 'consumable', item: object }
 
+  // 连击系统
+  const comboCount = ref(0)
+  const comboActive = ref(false)
+  const consecutiveCorrect = ref(0)
+
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
   const hpPercent = computed(() => (hp.value / maxHp.value) * 100)
@@ -170,19 +175,51 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // 连击系统
+  function resetCombo() {
+    consecutiveCorrect.value = 0
+    comboCount.value = 0
+    comboActive.value = false
+  }
+
+  function triggerCriticalEffect() {
+    // 屏幕震动效果标记
+    comboActive.value = true
+    setTimeout(() => { comboActive.value = false }, 1500)
+  }
+
   // 答题攻击
   function answerAttack(correct) {
     if (!enemy.value) return
     
     if (correct) {
+      // 连击逻辑：连续答对增加连击数
+      consecutiveCorrect.value++
+      comboCount.value = consecutiveCorrect.value
+      
       // 计算元素克制
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
       let multiplier = 1.5 * (elementEffect?.multiplier || 1.0)
       
+      // 连击加成：每连击一次增加0.5倍伤害
+      const comboMultiplier = 1 + consecutiveCorrect.value * 0.5
+      multiplier *= comboMultiplier
+      
       const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
       enemy.value.hp -= damage
       
-      let logMsg = `回答正确！造成 ${damage} 点暴击伤害！`
+      let logMsg = ''
+      if (consecutiveCorrect.value >= 3) {
+        // 三连暴击
+        logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
+        triggerCriticalEffect()
+        resetCombo()
+      } else if (consecutiveCorrect.value === 2) {
+        logMsg = `🔥 连击x2！造成 ${damage} 点伤害！`
+      } else {
+        logMsg = `🧠 知识攻击命中！造成 ${damage} 点伤害！`
+      }
+      
       if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
       battleLog.value.push(logMsg)
       
@@ -192,6 +229,8 @@ export const useGameStore = defineStore('game', () => {
         battleState.value = 'idle'
       }
     } else {
+      // 答错重置连击
+      resetCombo()
       battleLog.value.push('回答错误！受到反噬！')
       enemyAttack()
     }
@@ -513,6 +552,7 @@ export const useGameStore = defineStore('game', () => {
     captureQuestions.value = []
     captureIndex.value = 0
     captureCorrectCount.value = 0
+    resetCombo()
   }
 
   // 装备物品
@@ -754,6 +794,7 @@ export const useGameStore = defineStore('game', () => {
     equipment, consumables, equipped, inventory,
     farm, activeMonster, captureMonsterData, captureQuestions, captureIndex, captureCorrectCount,
     drop,
+    comboCount, comboActive, consecutiveCorrect,
     fishingLevel, recentCatches, fishCollection,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
