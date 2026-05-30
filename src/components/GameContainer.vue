@@ -1,6 +1,14 @@
 <template>
   <div id="game-container">
-    <!-- 顶部状态栏 -->
+    <!-- 新发现通知 -->
+  <div class="discovery-notifications">
+    <div v-for="(notif, idx) in store.newDiscoveries" :key="notif.time + idx" class="discovery-notif">
+      <div class="discovery-notif-title">📖 新发现！</div>
+      <div class="discovery-notif-text">发现{{ notif.type }}"{{ notif.name }}"</div>
+    </div>
+  </div>
+
+  <!-- 顶部状态栏 -->
     <div id="status-bar">
       <div class="stat-box">
         <div class="stat-title" title="点击查看人物简史">{{ store.title }}</div>
@@ -228,8 +236,69 @@
           
           <!-- 图鉴面板 -->
           <div v-if="activeSettingsTab === 'encyclopedia'" class="settings-content">
-            <div class="encyclopedia-placeholder">
-              📖 图鉴系统开发中...
+            <div class="encyclopedia-tabs">
+              <button 
+                v-for="cat in encyclopediaCategories" 
+                :key="cat.key"
+                class="enc-tab-btn"
+                :class="{ active: activeEncCategory === cat.key }"
+                @click="activeEncCategory = cat.key"
+              >
+                {{ cat.label }} ({{ getEncProgress(cat.key) }})
+              </button>
+            </div>
+            
+            <!-- 怪物图鉴 -->
+            <div v-if="activeEncCategory === 'monsters'" class="enc-list">
+              <div v-for="m in allMonsters" :key="m.name" class="enc-item" :class="{ discovered: isDiscovered('monsters', m.name) }">
+                <div class="enc-item-header">
+                  <span class="enc-icon">{{ isDiscovered('monsters', m.name) ? '👹' : '❓' }}</span>
+                  <span class="enc-name">{{ isDiscovered('monsters', m.name) ? m.name : '???' }}</span>
+                  <span class="enc-category">{{ m.category }}</span>
+                  <span class="enc-count" v-if="getDiscoveryCount('monsters', m.name) > 0">×{{ getDiscoveryCount('monsters', m.name) }}</span>
+                </div>
+                <p class="enc-lore" v-if="isDiscovered('monsters', m.name)">{{ m.lore }}</p>
+                <p class="enc-lore hidden" v-else>尚未发现此怪物...</p>
+              </div>
+            </div>
+            
+            <!-- 材料图鉴 -->
+            <div v-if="activeEncCategory === 'materials'" class="enc-list">
+              <div v-for="mat in allMaterials" :key="mat.name" class="enc-item" :class="{ discovered: isDiscovered('materials', mat.name) }">
+                <div class="enc-item-header">
+                  <span class="enc-icon">{{ isDiscovered('materials', mat.name) ? '💎' : '❓' }}</span>
+                  <span class="enc-name">{{ isDiscovered('materials', mat.name) ? mat.name : '???' }}</span>
+                  <span class="enc-count" v-if="getDiscoveryCount('materials', mat.name) > 0">×{{ getDiscoveryCount('materials', mat.name) }}</span>
+                </div>
+                <p class="enc-lore" v-if="isDiscovered('materials', mat.name)">{{ mat.lore }}</p>
+                <p class="enc-lore hidden" v-else>尚未发现此材料...</p>
+              </div>
+            </div>
+            
+            <!-- 鱼类图鉴 -->
+            <div v-if="activeEncCategory === 'fishes'" class="enc-list">
+              <div v-for="fish in allFishes" :key="fish.name" class="enc-item" :class="{ discovered: isDiscovered('fishes', fish.name) }">
+                <div class="enc-item-header">
+                  <span class="enc-icon">{{ isDiscovered('fishes', fish.name) ? '🐟' : '❓' }}</span>
+                  <span class="enc-name">{{ isDiscovered('fishes', fish.name) ? fish.name : '???' }}</span>
+                  <span class="enc-count" v-if="getDiscoveryCount('fishes', fish.name) > 0">×{{ getDiscoveryCount('fishes', fish.name) }}</span>
+                </div>
+                <p class="enc-lore" v-if="isDiscovered('fishes', fish.name)">{{ fish.lore }}</p>
+                <p class="enc-lore hidden" v-else>尚未钓获此鱼...</p>
+              </div>
+            </div>
+            
+            <!-- 书籍图鉴 -->
+            <div v-if="activeEncCategory === 'books'" class="enc-list">
+              <div v-for="book in allBooks" :key="book.name" class="enc-item" :class="{ discovered: isDiscovered('books', book.name) }">
+                <div class="enc-item-header">
+                  <span class="enc-icon">{{ isDiscovered('books', book.name) ? '📖' : '❓' }}</span>
+                  <span class="enc-name">{{ isDiscovered('books', book.name) ? book.name : '???' }}</span>
+                  <span class="enc-count" v-if="getDiscoveryCount('books', book.name) > 0">×{{ getDiscoveryCount('books', book.name) }}</span>
+                </div>
+                <p class="enc-lore" v-if="isDiscovered('books', book.name)">{{ book.lore }}</p>
+                <p class="enc-lore hidden" v-else>尚未发现此古籍...</p>
+              </div>
             </div>
           </div>
           
@@ -264,6 +333,7 @@
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { TITLE_TABLE } from '../data/titles.js'
+import { ENCYCLOPEDIA_DATA, getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/cyclopedia.js'
 import Battle from './Battle.vue'
 import Inventory from './Inventory.vue'
 import Farm from './Farm.vue'
@@ -274,13 +344,38 @@ import { FORGE_RECIPES, canForge } from '../data/forge.js'
 const store = useGameStore()
 const activePanel = ref(null)
 const activeSettingsTab = ref('title')
+const activeEncCategory = ref('monsters')
 const allTitles = TITLE_TABLE
+const allMonsters = getAllMonsters()
+const allMaterials = getAllMaterials()
+const allFishes = getAllFishes()
+const allBooks = getAllBooks()
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
   { key: 'encyclopedia', label: '图鉴' },
   { key: 'save', label: '存档' }
 ]
+
+const encyclopediaCategories = [
+  { key: 'monsters', label: '怪物' },
+  { key: 'materials', label: '材料' },
+  { key: 'fishes', label: '鱼类' },
+  { key: 'books', label: '古籍' }
+]
+
+function isDiscovered(type, id) {
+  return store.isDiscovered(type, id)
+}
+
+function getDiscoveryCount(type, id) {
+  return store.getDiscoveryCount(type, id)
+}
+
+function getEncProgress(type) {
+  const progress = store.getCyclopediaProgress(type)
+  return `${progress.found}/${progress.total}`
+}
 
 const panelTitle = computed(() => {
   const titles = {
@@ -936,10 +1031,139 @@ function resetGame() {
 }
 
 /* 图鉴 */
-.encyclopedia-placeholder {
-  text-align: center;
+.encyclopedia-tabs {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  overflow-x: auto;
+}
+
+.enc-tab-btn {
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
   color: #888;
-  padding: 40px 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.enc-tab-btn.active {
+  background: rgba(212,168,83,0.15);
+  border-color: rgba(212,168,83,0.3);
+  color: #d4a853;
+}
+
+.enc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.enc-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 12px;
+  transition: all 0.2s;
+}
+
+.enc-item.discovered {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(212,168,83,0.15);
+}
+
+.enc-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.enc-icon {
+  font-size: 20px;
+}
+
+.enc-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: bold;
+  color: #e0e0e0;
+}
+
+.enc-item:not(.discovered) .enc-name {
+  color: #666;
+}
+
+.enc-category {
+  font-size: 11px;
+  color: #888;
+  background: rgba(255,255,255,0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.enc-count {
+  font-size: 11px;
+  color: #d4a853;
+  background: rgba(212,168,83,0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.enc-lore {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a0a0a0;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 8px;
+}
+
+.enc-lore.hidden {
+  color: #666;
+  font-style: italic;
+}
+
+/* 新发现通知 */
+.discovery-notifications {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.discovery-notif {
+  background: linear-gradient(135deg, #d4a853, #e8c67a);
+  color: #1a1a2e;
+  padding: 12px 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  animation: notif-pop 0.3s ease;
+  max-width: 220px;
+}
+
+.discovery-notif-title {
   font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.discovery-notif-text {
+  font-size: 13px;
+}
+
+@keyframes notif-pop {
+  0% { transform: translateX(100px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
 }
 </style>

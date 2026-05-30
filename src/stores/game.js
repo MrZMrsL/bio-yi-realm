@@ -3,10 +3,10 @@ import { ref, computed } from 'vue'
 import { ALL_QUESTIONS, getQuestionsForFloor } from '../data/questions.js'
 import { ENEMIES, getEnemyForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
-import { 
-  createFarmMonster, 
-  generateMonsterAbility, 
-  getUpgradeMaterialName, 
+import {
+  createFarmMonster,
+  generateMonsterAbility,
+  getUpgradeMaterialName,
   checkElementCounter,
   ELEMENT_SUBJECT_MAP,
   FARM_MAX_CAPACITY,
@@ -15,6 +15,7 @@ import {
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { SHOP_ITEMS } from '../data/shop.js'
 import { getTitleData } from '../data/titles.js'
+import { getTotalCount } from '../data/cyclopedia.js'
 
 const SAVE_KEY = 'bioyi_realm_save'
 
@@ -46,14 +47,14 @@ export const useGameStore = defineStore('game', () => {
   const equipment = ref([])
   const consumables = ref([])
   const equipped = ref({ weapon: null, armor: null, accessory: null })
-  
+
   // 材料背包
   const inventory = ref({}) // { '水之精华': 5, '火焰核心': 3, ... }
 
   // 农场系统
   const farm = ref([])
   const activeMonster = ref(null)
-  
+
   // 捕捉状态（多题模式）
   const captureMonsterData = ref(null) // 待捕捉的怪物数据
   const captureQuestions = ref([]) // 捕捉题目数组（3题）
@@ -72,6 +73,10 @@ export const useGameStore = defineStore('game', () => {
   const comboCount = ref(0)
   const comboActive = ref(false)
   const consecutiveCorrect = ref(0)
+
+  // 图鉴系统
+  const cyclopedia = ref({ monsters: {}, materials: {}, fishes: {}, books: {}, titles: {} })
+  const newDiscoveries = ref([]) // 新发现通知队列
 
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -115,11 +120,11 @@ export const useGameStore = defineStore('game', () => {
   function initBattle() {
     const e = getEnemyForFloor(floor.value)
     const q = getQuestionsForFloor(floor.value, 1)[0]
-    
+
     const el = DUNGEON_ELEMENTS[e.element] || DUNGEON_ELEMENTS.water
-    enemy.value = { 
-      ...e, 
-      maxHp: e.hp, 
+    enemy.value = {
+      ...e,
+      maxHp: e.hp,
       subjectLabel: e.subject === 'chem' ? '化学' : e.subject === 'bio' ? '生物' : '易学',
       elementLabel: el.name
     }
@@ -132,18 +137,18 @@ export const useGameStore = defineStore('game', () => {
   // 攻击
   function attack() {
     if (!enemy.value || battleState.value !== 'idle') return
-    
+
     // 计算元素克制
     const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
     let multiplier = elementEffect?.multiplier || 1.0
-    
+
     const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
     enemy.value.hp -= damage
-    
+
     let logMsg = `你对 ${enemy.value.name} 造成 ${damage} 点伤害！`
     if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
     battleLog.value.push(logMsg)
-    
+
     if (enemy.value.hp <= 0) {
       winBattle()
     } else {
@@ -164,11 +169,11 @@ export const useGameStore = defineStore('game', () => {
     } else {
       multiplier = 1.0
     }
-    
+
     const damage = Math.max(1, Math.floor((enemy.value.atk - totalDef.value) * multiplier))
     hp.value -= damage
     battleLog.value.push(`${enemy.value.name} 对你造成 ${damage} 点伤害！`)
-    
+
     if (hp.value <= 0) {
       hp.value = 0
       battleState.value = 'lost'
@@ -192,23 +197,23 @@ export const useGameStore = defineStore('game', () => {
   // 答题攻击
   function answerAttack(correct) {
     if (!enemy.value) return
-    
+
     if (correct) {
       // 连击逻辑：连续答对增加连击数
       consecutiveCorrect.value++
       comboCount.value = consecutiveCorrect.value
-      
+
       // 计算元素克制
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
       let multiplier = 1.5 * (elementEffect?.multiplier || 1.0)
-      
+
       // 连击加成：每连击一次增加0.5倍伤害
       const comboMultiplier = 1 + consecutiveCorrect.value * 0.5
       multiplier *= comboMultiplier
-      
+
       const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
       enemy.value.hp -= damage
-      
+
       let logMsg = ''
       if (consecutiveCorrect.value >= 3) {
         // 三连暴击
@@ -220,10 +225,10 @@ export const useGameStore = defineStore('game', () => {
       } else {
         logMsg = `🧠 知识攻击命中！造成 ${damage} 点伤害！`
       }
-      
+
       if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
       battleLog.value.push(logMsg)
-      
+
       if (enemy.value.hp <= 0) {
         winBattle()
       } else {
@@ -241,7 +246,7 @@ export const useGameStore = defineStore('game', () => {
   function usePotion(itemId) {
     const idx = consumables.value.findIndex(i => i.id === itemId)
     if (idx === -1) return false
-    
+
     const item = consumables.value[idx]
     if (item.type === 'heal') {
       const heal = Math.floor(maxHp.value * item.ratio)
@@ -251,7 +256,7 @@ export const useGameStore = defineStore('game', () => {
       atk.value += item.bonusAtk
       battleLog.value.push(`使用 ${item.name}，攻击力提升 ${item.bonusAtk} 点！`)
     }
-    
+
     consumables.value.splice(idx, 1)
     saveGame()
     return true
@@ -262,11 +267,11 @@ export const useGameStore = defineStore('game', () => {
     battleState.value = 'won'
     const expGain = Math.floor(20 * (1 + floor.value * 0.1))
     const goldGain = Math.floor(10 * (1 + floor.value * 0.1))
-    
+
     exp.value += expGain
     gold.value += goldGain
     battleLog.value.push(`击败 ${enemy.value.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
-    
+
     // 检查升级
     while (exp.value >= maxExp.value) {
       exp.value -= maxExp.value
@@ -277,16 +282,16 @@ export const useGameStore = defineStore('game', () => {
       def.value += 1
       battleLog.value.push(`升级了！到达 ${level.value} 级！`)
     }
-    
+
     // 材料掉落（根据敌人元素）
     const matName = getUpgradeMaterialName(enemy.value.element)
     const matDrop = Math.floor(1 + floor.value * 0.3)
     inventory.value[matName] = (inventory.value[matName] || 0) + matDrop
     battleLog.value.push(`掉落 ${matDrop} 个 ${matName}！`)
-    
+
     // 自动存档
     saveGame()
-    
+
     // 装备/消耗品掉落
     const itemDrop = generateDrop()
     if (itemDrop) {
@@ -301,6 +306,16 @@ export const useGameStore = defineStore('game', () => {
       return
     }
     
+    // 记录图鉴和统计
+    if (enemy.value?.name) {
+      addToCyclopedia('monsters', enemy.value.name)
+    }
+    updateStats('totalWins', 1)
+    if (floor.value > stats.value.maxFloor) {
+      stats.value.maxFloor = floor.value
+    }
+    updateStats('totalBattles', 1)
+
     // 检查是否可以捕捉（概率触发，非100%）
     if (farm.value.length < FARM_MAX_CAPACITY) {
       const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
@@ -312,7 +327,7 @@ export const useGameStore = defineStore('game', () => {
           floor.value++
           return
         }
-        
+
         // 准备捕捉数据
         captureMonsterData.value = {
           name: enemy.value.name,
@@ -323,7 +338,7 @@ export const useGameStore = defineStore('game', () => {
           baseDef: enemy.value.def,
           captureFloor: floor.value
         }
-        
+
         // 准备3道题（按怪物元素对应学科）
         const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
         const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
@@ -338,12 +353,12 @@ export const useGameStore = defineStore('game', () => {
         }
         captureIndex.value = 0
         captureCorrectCount.value = 0
-        
+
         // 楼层递增在捕捉完成后进行
         return
       }
     }
-    
+
     // 不能捕捉，直接递增楼层
     floor.value++
   }
@@ -351,7 +366,7 @@ export const useGameStore = defineStore('game', () => {
   // 生成战斗掉落
   function generateDrop() {
     const roll = Math.random()
-    
+
     // 40% 掉消耗品
     if (roll < 0.4) {
       const pick = CONSUMABLES[Math.floor(Math.random() * CONSUMABLES.length)]
@@ -360,17 +375,17 @@ export const useGameStore = defineStore('game', () => {
       consumables.value.push(consumable)
       return { type: 'consumable', item: consumable }
     }
-    
+
     // 30% 掉装备
     if (roll < 0.7) {
       const type = Math.random() < 0.4 ? 'weapon' : Math.random() < 0.7 ? 'armor' : 'accessory'
       const candidates = EQUIPMENT.filter(e => e.type === type)
       if (candidates.length === 0) return null
-      
+
       const pick = candidates[Math.floor(Math.random() * candidates.length)]
       const level = Math.floor(floor.value / 5) + 1
       const multiplier = 1 + (floor.value * 0.05)
-      
+
       const gear = {
         ...pick,
         id: `${pick.id}_${floor.value}_${Math.floor(Math.random() * 10000)}`,
@@ -380,11 +395,11 @@ export const useGameStore = defineStore('game', () => {
         desc: `${pick.desc} (Lv.${level})`,
         price: Math.floor(pick.price * multiplier)
       }
-      
+
       equipment.value.push(gear)
       return { type: 'equipment', item: gear }
     }
-    
+
     return null
   }
 
@@ -405,16 +420,16 @@ export const useGameStore = defineStore('game', () => {
   // 提交捕捉答题（多题模式）
   function submitCaptureAnswer(index) {
     if (captureIndex.value >= captureQuestions.value.length) return
-    
+
     const q = captureQuestions.value[captureIndex.value]
     const correct = index === q.answer
-    
+
     if (correct) {
       captureCorrectCount.value++
     }
-    
+
     captureIndex.value++
-    
+
     // 提前终止：如果剩余题数 + 已答对 < 3，不可能成功
     const remaining = captureQuestions.value.length - captureIndex.value
     if (captureCorrectCount.value + remaining < 3) {
@@ -426,7 +441,7 @@ export const useGameStore = defineStore('game', () => {
       floor.value++
       return
     }
-    
+
     // 全部答完
     if (captureIndex.value >= captureQuestions.value.length) {
       if (captureCorrectCount.value >= 3) {
@@ -479,19 +494,19 @@ export const useGameStore = defineStore('game', () => {
   function upgradeMonster(idx) {
     const m = farm.value[idx]
     if (!m) return
-    
+
     // 检查经验是否足够
     if (m.exp < m.maxExp) {
       // 检查材料
       const matCost = Math.floor(m.level * 2)
       const matName = getUpgradeMaterialName(m.element)
       const matCount = inventory.value[matName] || 0
-      
+
       if (matCount < matCost) {
         battleLog.value.push(`${matName} 不足 (${matCount}/${matCost})`)
         return false
       }
-      
+
       // 消耗材料
       inventory.value[matName] -= matCost
       if (inventory.value[matName] <= 0) {
@@ -501,11 +516,11 @@ export const useGameStore = defineStore('game', () => {
       // 经验足够，消耗经验升级
       m.exp -= m.maxExp
     }
-    
+
     // 升级
     m.level++
     m.maxExp = Math.floor(50 * Math.pow(1.3, m.level - 1))
-    
+
     // 重新计算能力
     const newAbility = generateMonsterAbility(m.element, m.captureFloor)
     const levelMultiplier = 1 + (m.level - 1) * 0.2
@@ -513,7 +528,7 @@ export const useGameStore = defineStore('game', () => {
     newAbility.defBonus = Math.floor(newAbility.defBonus * levelMultiplier)
     newAbility.desc = `攻击+${newAbility.atkBonus} 防御+${newAbility.defBonus}`
     m.ability = newAbility
-    
+
     saveGame()
     return true
   }
@@ -522,16 +537,16 @@ export const useGameStore = defineStore('game', () => {
   function releaseMonster(idx) {
     const m = farm.value[idx]
     if (!m) return
-    
+
     // 如果放生的是当前跟随的怪物，取消跟随
     if (activeMonster.value && activeMonster.value.name === m.name) {
       activeMonster.value = null
     }
-    
+
     // 获得材料回报
     const returnMat = getUpgradeMaterialName(m.element)
     inventory.value[returnMat] = (inventory.value[returnMat] || 0) + Math.floor(m.level)
-    
+
     farm.value.splice(idx, 1)
     saveGame()
   }
@@ -682,6 +697,60 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // 图鉴系统
+  function addToCyclopedia(type, id) {
+    if (!cyclopedia.value[type]) cyclopedia.value[type] = {}
+    if (!cyclopedia.value[type][id]) {
+      cyclopedia.value[type][id] = { found: true, count: 1 }
+      showNewDiscovery(type, id)
+    } else {
+      cyclopedia.value[type][id].count++
+    }
+  }
+
+  function showNewDiscovery(type, id) {
+    const typeNames = { monsters: '怪物', materials: '材料', fishes: '鱼类', books: '古籍', titles: '人物' }
+    const name = id
+    newDiscoveries.value.push({ type: typeNames[type], name, time: Date.now() })
+    // 3秒后自动移除通知
+    setTimeout(() => {
+      newDiscoveries.value.shift()
+    }, 3000)
+  }
+
+  function getCyclopediaProgress(type) {
+    const data = cyclopedia.value[type] || {}
+    const found = Object.keys(data).filter(k => data[k].found).length
+    const total = getTotalCount(type)
+    return { found, total, pct: total > 0 ? Math.round(found / total * 100) : 0 }
+  }
+
+  function isDiscovered(type, id) {
+    return cyclopedia.value[type]?.[id]?.found || false
+  }
+
+  function getDiscoveryCount(type, id) {
+    return cyclopedia.value[type]?.[id]?.count || 0
+  }
+
+  // 统计系统
+  const stats = ref({
+    totalCorrect: 0,
+    totalWrong: 0,
+    maxCombo: 0,
+    maxFloor: 1,
+    totalBattles: 0,
+    totalWins: 0,
+    totalFishes: 0,
+    totalForges: 0
+  })
+
+  function updateStats(key, value) {
+    if (stats.value[key] !== undefined) {
+      stats.value[key] += value
+    }
+  }
+
   // 钓鱼相关方法
   function recordFishCatch(fish) {
     if (!fish) return
@@ -695,6 +764,9 @@ export const useGameStore = defineStore('game', () => {
     // 钓鱼经验（每10条升1级）
     const totalCatches = Object.values(fishCollection.value).reduce((a, b) => a + b, 0)
     fishingLevel.value = Math.floor(totalCatches / 10) + 1
+    // 记录图鉴
+    addToCyclopedia('fishes', fish.name)
+    updateStats('totalFishes', 1)
     saveGame()
   }
 
@@ -740,10 +812,10 @@ export const useGameStore = defineStore('game', () => {
   function loadGame() {
     const saveStr = localStorage.getItem(SAVE_KEY)
     if (!saveStr) return false
-    
+
     try {
       const saveData = JSON.parse(saveStr)
-      
+
       gameStarted.value = saveData.gameStarted || false
       activeTab.value = saveData.activeTab || 'dungeon'
       level.value = saveData.level || 1
@@ -770,7 +842,7 @@ export const useGameStore = defineStore('game', () => {
       captureQuestions.value = saveData.captureQuestions || []
       captureIndex.value = saveData.captureIndex || 0
       captureCorrectCount.value = saveData.captureCorrectCount || 0
-      
+
       return true
     } catch (e) {
       console.error('存档加载失败:', e)
@@ -802,6 +874,7 @@ export const useGameStore = defineStore('game', () => {
     farm, activeMonster, captureMonsterData, captureQuestions, captureIndex, captureCorrectCount,
     drop,
     comboCount, comboActive, consecutiveCorrect,
+    cyclopedia, newDiscoveries, stats,
     fishingLevel, recentCatches, fishCollection,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
@@ -813,6 +886,8 @@ export const useGameStore = defineStore('game', () => {
     buyItem,
     claimDrop,
     recordFishCatch, removeFishFromRecent,
+    addToCyclopedia, getCyclopediaProgress, isDiscovered, getDiscoveryCount,
+    updateStats,
     saveGame, loadGame, hasSave, deleteSave
   }
 })
