@@ -33,7 +33,55 @@ export const ALL_QUESTIONS = [
   ...YI_QUESTIONS
 ]
 
-// 按难度和学科筛选题目
+// 为每道题添加唯一 id（基于题目文本的哈希，不依赖外部 id）
+function getQuestionId(q) {
+  // 用题目文本 + 答案选项拼接后的简单 hash
+  const str = (q.q || '') + (q.options ? q.options.join('|') : '') + (q.answer ?? '')
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i)
+    h |= 0
+  }
+  return 'q_' + Math.abs(h).toString(36)
+}
+
+// 给所有题目添加 id 和 _hash（一次性计算）
+ALL_QUESTIONS.forEach(q => {
+  q.id = getQuestionId(q)
+})
+
+// 已用题目记录：按 difficulty 维护已用 id 集合
+// 注意：这是全局单例，游戏生命周期内持续有效，刷新页面重置
+const usedQuestions = {
+  easy: new Set(),
+  medium: new Set(),
+  hard: new Set(),
+  all: new Set()  // 跨难度的全局已用记录（可选）
+}
+
+// 重置已用记录（如用户要求重新开始、或所有题目用完了）
+export function resetUsedQuestions(difficulty = null) {
+  if (difficulty) {
+    usedQuestions[difficulty] = new Set()
+  } else {
+    usedQuestions.easy = new Set()
+    usedQuestions.medium = new Set()
+    usedQuestions.hard = new Set()
+    usedQuestions.all = new Set()
+  }
+}
+
+// 获取已用记录数量（调试）
+export function getUsedCount() {
+  return {
+    easy: usedQuestions.easy.size,
+    medium: usedQuestions.medium.size,
+    hard: usedQuestions.hard.size,
+    all: usedQuestions.all.size
+  }
+}
+
+// 按难度和学科筛选题目，优先从未使用过的题目中抽取
 export function getQuestions(subject, difficulty, count = 5) {
   let pool = ALL_QUESTIONS.filter(q => {
     const matchSubject = subject === 'all' || q.subject === subject
@@ -41,9 +89,43 @@ export function getQuestions(subject, difficulty, count = 5) {
     return matchSubject && matchDiff
   })
   
-  // 随机抽取
-  const shuffled = [...pool].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
+  if (pool.length === 0) return []
+  
+  // 先筛选出未使用过的题目
+  const usedSet = usedQuestions[difficulty] || usedQuestions.all
+  let unusedPool = pool.filter(q => !usedSet.has(q.id))
+  
+  // 如果未使用的题目不够，且池子总数量 > count，则只从 unused 中抽取（宁可数量少也不重复）
+  // 如果 unused 为空，说明全部用完了，重置该难度的已用记录
+  if (unusedPool.length === 0) {
+    // 全部用完了，清空记录重新来
+    if (difficulty !== 'all') {
+      usedQuestions[difficulty] = new Set()
+    } else {
+      usedQuestions.all = new Set()
+    }
+    unusedPool = pool
+  }
+  
+  // Fisher-Yates 洗牌算法，比 sort(() => Math.random() - 0.5) 更均匀
+  const shuffled = [...unusedPool]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  
+  const selected = shuffled.slice(0, Math.min(count, shuffled.length))
+  
+  // 记录已用
+  selected.forEach(q => {
+    usedSet.add(q.id)
+    // 同时记录到对应难度的集合中
+    if (q.diff && usedQuestions[q.diff]) {
+      usedQuestions[q.diff].add(q.id)
+    }
+  })
+  
+  return selected
 }
 
 // 按楼层获取题目（难度递增）
