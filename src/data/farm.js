@@ -29,7 +29,13 @@ export const ELEMENT_NAME_MAP = {
 // 升级材料映射
 export const UPGRADE_MATERIALS = {
   water: '水之精华', fire: '火焰核心', acid: '酸液结晶',
-  electric: '雷电石', ice: '冰霜碎片', wind: '风之羽毛'
+  electric: '雷电石', ice: '冰霜碎片', wind: '风之羽毛',
+  earth: '大地岩晶', light: '光之棱镜', dark: '暗物质微粒',
+  metal: '金属合金', nature: '自然精华', spirit: '灵气结晶',
+  // 新增材料用于更高级的锻造
+  mercury_essence: '汞精华', sulfur_crystal: '硫晶体', salt_essence: '盐精华',
+  bio_cell: '细胞样本', enzyme_extract: '酶提取物', gene_fragment: '基因片段',
+  hexagram_powder: '六爻粉末', yin_yang_orb: '阴阳珠', trigram_stone: '卦石',
 }
 
 // 元素学科映射（捕捉时出题用）

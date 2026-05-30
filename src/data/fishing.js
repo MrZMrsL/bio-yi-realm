@@ -2103,6 +2103,69 @@ export const FISH_BY_RARITY = {
     "rarity": "special",
     "knowledge": "生化易界专属：能自我复制增殖的鲤鱼，如同PCR反应般指数增长。",
     "healHp": 47
+  },
+  {
+    "name": "苯环鲤",
+    "icon": "⭕",
+    "rarity": "rare",
+    "knowledge": "生化易界专属：鳞片呈正六边形排列如苯环，游动时散发芳香烃气息。",
+    "healHp": 24
+  },
+  {
+    "name": "肽链鳗",
+    "icon": "🔗",
+    "rarity": "rare",
+    "knowledge": "生化易界专属：身体由氨基酸链组成，每个关节代表一个肽键。",
+    "healHp": 22
+  },
+  {
+    "name": "噬菌体鱼",
+    "icon": "🦠",
+    "rarity": "epic",
+    "knowledge": "生化易界专属：头部呈二十面体、尾部有尾鞘的奇特鱼类，能感染其他鱼。",
+    "healHp": 35
+  },
+  {
+    "name": "电子云鱼",
+    "icon": "☁️",
+    "rarity": "rare",
+    "knowledge": "生化易界专属：身体被电子云包围，无法确定具体位置，只能测概率。",
+    "healHp": 23
+  },
+  {
+    "name": "中心法则鳟",
+    "icon": "🔄",
+    "rarity": "epic",
+    "knowledge": "生化易界专属：DNA→RNA→蛋白质，游动时展示遗传信息的流动。",
+    "healHp": 38
+  },
+  {
+    "name": "卦象鳐",
+    "icon": "☯️",
+    "rarity": "legendary",
+    "knowledge": "生化易界专属：背部浮现六爻卦象的鳐鱼，每变幻一次卦象就改变颜色。",
+    "healHp": 50
+  },
+  {
+    "name": "五行轮转鲷",
+    "icon": "🌈",
+    "rarity": "legendary",
+    "knowledge": "生化易界专属：金木水火土五色轮转的鲷鱼，五行相生时发出璀璨光芒。",
+    "healHp": 55
+  },
+  {
+    "name": "纳甲六亲鳗",
+    "icon": "👨‍👩‍👧‍👦",
+    "rarity": "epic",
+    "knowledge": "生化易界专属：六条触须分别代表父母、兄弟、子孙、妻财、官鬼的鳗鱼。",
+    "healHp": 40
+  },
+  {
+    "name": "动爻变卦鱼",
+    "icon": "⚡",
+    "rarity": "rare",
+    "knowledge": "生化易界专属：游动时不断变换卦象的鱼，动爻变化时产生电火花。",
+    "healHp": 25
   }
 ],
 };

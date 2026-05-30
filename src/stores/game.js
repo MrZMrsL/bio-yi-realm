@@ -118,6 +118,7 @@ export const useGameStore = defineStore('game', () => {
     enemy.value = {
       ...e,
       maxHp: e.hp,
+      def: e.def || 0,
       subjectLabel: e.subject === 'chem' ? '化学' : e.subject === 'bio' ? '生物' : '易学',
       elementLabel: el.name
     }

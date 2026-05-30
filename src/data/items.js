@@ -1,14 +1,48 @@
 export const EQUIPMENT = [
+  // 武器
   { id: 'chem_pen', name: '化学之笔', type: 'weapon', atk: 5, desc: '书写化学方程式的专用笔，攻击+5', price: 50 },
   { id: 'bio_glass', name: '生物显微镜', type: 'weapon', atk: 8, desc: '洞察微观世界的神器，攻击+8', price: 100 },
   { id: 'yi_compass', name: '罗盘', type: 'weapon', atk: 6, desc: '古人寻龙点穴之法器，攻击+6', price: 75 },
+  { id: 'burette', name: '滴定管', type: 'weapon', atk: 7, desc: '精确控制液滴的神器，攻击+7', price: 80 },
+  { id: 'centrifuge', name: '离心机', type: 'weapon', atk: 10, desc: '高速旋转产生的离心力可撕裂敌人，攻击+10', price: 120 },
+  { id: 'pipette', name: '移液枪', type: 'weapon', atk: 4, desc: '精准取样的移液枪，攻击+4', price: 40 },
+  { id: 'crispr_scissors', name: 'CRISPR剪刀', type: 'weapon', atk: 12, desc: '基因编辑专用工具，能精准剪切DNA，攻击+12', price: 150 },
+  { id: 'gene_gun', name: '基因枪', type: 'weapon', atk: 9, desc: '将DNA导入细胞的武器，攻击+9', price: 110 },
+  { id: 'hexagram_mirror', name: '六爻镜', type: 'weapon', atk: 8, desc: '映出六爻卦象的古镜，能预测敌人动作，攻击+8', price: 100 },
+  { id: 'tai_chi_sword', name: '太极剑', type: 'weapon', atk: 11, desc: '以阴阳二气淬炼的剑，刚柔并济，攻击+11', price: 140 },
+  { id: 'bagua_fan', name: '八卦扇', type: 'weapon', atk: 7, desc: '绘有八卦的折扇，扇动间可引动风雷，攻击+7', price: 85 },
+  // 防具
   { id: 'lab_coat', name: '白大褂', type: 'armor', def: 5, desc: '实验室标配，防御+5', price: 60 },
   { id: 'safety_goggles', name: '护目镜', type: 'armor', def: 3, desc: '保护你的眼睛，防御+3', price: 40 },
+  { id: 'hazmat_suit', name: '防化服', type: 'armor', def: 8, desc: '隔绝化学危害的全身防护服，防御+8', price: 100 },
+  { id: 'cell_membrane', name: '细胞膜盾', type: 'armor', def: 6, desc: '模拟细胞膜的选择透过性，防御+6', price: 70 },
+  { id: 'biohazard_helmet', name: '生物安全头盔', type: 'armor', def: 4, desc: '防护生物气溶胶的头盔，防御+4', price: 50 },
+  { id: 'yi_robe', name: '道袍', type: 'armor', def: 5, desc: '道家长袍，内蕴八卦之力，防御+5', price: 65 },
+  { id: 'yin_yang_shield', name: '阴阳盾', type: 'armor', def: 9, desc: '阴阳二气凝结的护盾，防御+9', price: 110 },
+  // 饰品
   { id: 'periodic_table', name: '元素周期表', type: 'accessory', atk: 2, def: 2, desc: '随身携带的知识宝库，攻击+2 防御+2', price: 80 },
+  { id: 'dna_amulet', name: 'DNA项链', type: 'accessory', atk: 3, def: 1, desc: '双螺旋结构项链，蕴含生命密码，攻击+3 防御+1', price: 90 },
+  { id: 'trigram_ring', name: '三才戒', type: 'accessory', atk: 2, def: 3, desc: '天地人三才合一的戒指，攻击+2 防御+3', price: 85 },
+  { id: 'molecular_model', name: '分子模型', type: 'accessory', atk: 3, def: 2, desc: '甲烷分子模型，四个氢原子如卫星般旋转，攻击+3 防御+2', price: 95 },
+  { id: 'chlorophyll_badge', name: '叶绿素徽章', type: 'accessory', atk: 1, def: 4, desc: '吸收光能转化为战斗力的徽章，攻击+1 防御+4', price: 75 },
+  { id: 'iching_coin', name: '铜钱', type: 'accessory', atk: 2, def: 2, desc: '三枚铜钱可占卜吉凶，攻击+2 防御+2', price: 70 },
+  { id: 'enzyme_bracelet', name: '酶手链', type: 'accessory', atk: 3, def: 1, desc: '催化反应加速的手链，攻击+3 防御+1', price: 80 },
+  { id: 'mitochondria_pendant', name: '线粒体吊坠', type: 'accessory', atk: 1, def: 3, desc: '细胞的能量工厂，提供持续动力，攻击+1 防御+3', price: 70 },
 ];
 
 export const CONSUMABLES = [
   { id: 'hp_potion', name: '生命药水', type: 'potion', effect: 'hp', value: 30, desc: '恢复30点生命值', price: 15 },
   { id: 'elixir', name: '精力药剂', type: 'potion', effect: 'hp', value: 60, desc: '恢复60点生命值', price: 30 },
   { id: 'exp_scroll', name: '经验卷轴', type: 'scroll', effect: 'exp', value: 50, desc: '获得50点经验值', price: 25 },
+  { id: 'small_hp', name: '小型试剂', type: 'potion', effect: 'hp', value: 15, desc: '恢复15点生命值', price: 8 },
+  { id: 'large_hp', name: '大型试剂', type: 'potion', effect: 'hp', value: 100, desc: '恢复100点生命值', price: 45 },
+  { id: 'atp_boost', name: 'ATP能量块', type: 'potion', effect: 'hp', value: 45, desc: '细胞能量货币，恢复45点生命值', price: 20 },
+  { id: 'glucose_bar', name: '葡萄糖棒', type: 'potion', effect: 'hp', value: 25, desc: '快速补充血糖，恢复25点生命值', price: 12 },
+  { id: 'antibiotic', name: '抗生素', type: 'potion', effect: 'hp', value: 80, desc: '杀灭病原菌，恢复80点生命值', price: 50 },
+  { id: 'alkali_neutral', name: '中和液', type: 'potion', effect: 'hp', value: 55, desc: '酸碱中和，恢复55点生命值', price: 28 },
+  { id: 'buff_atk', name: '催化剂', type: 'buff', effect: 'atk', value: 5, desc: '攻击+5，持续3场战斗', price: 35 },
+  { id: 'buff_def', name: '缓冲液', type: 'buff', effect: 'def', value: 5, desc: '防御+5，持续3场战斗', price: 35 },
+  { id: 'buff_crit', name: '引燃剂', type: 'buff', effect: 'crit', value: 20, desc: '暴击率+20%，持续3场战斗', price: 40 },
+  { id: 'yi_charm', name: '符咒', type: 'buff', effect: 'def', value: 8, desc: '易学符咒，防御+8，持续3场战斗', price: 45 },
+  { id: 'mercury_pill', name: '汞丸', type: 'buff', effect: 'atk', value: 10, desc: '古代炼丹产物，攻击+10，持续3场战斗', price: 60 },
 ];
