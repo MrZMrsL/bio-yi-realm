@@ -38,8 +38,8 @@
       </div>
 
       <!-- 其他标签占位 -->
-      <div v-if="store.activeTab === 'fishing'" class="placeholder">
-        🎣 钓鱼系统待接入...
+      <div v-if="store.activeTab === 'fishing'">
+        <Fishing />
       </div>
       <div v-if="store.activeTab === 'inventory'">
         <Inventory />
@@ -56,12 +56,15 @@
       <div v-if="store.activeTab === 'review'" class="placeholder">
         📚 复习系统待接入...
       </div>
+      <div v-if="store.activeTab === 'shop'">
+        <Shop />
+      </div>
     </div>
 
     <!-- 底部菜单 -->
     <div id="bottom-menu">
       <button
-        v-for="item in menuItems"
+        v-for="item in mainMenuItems"
         :key="item.key"
         class="menu-btn"
         :class="{ active: store.activeTab === item.key }"
@@ -70,25 +73,56 @@
         <span class="menu-icon">{{ item.icon }}</span>
         <span>{{ item.label }}</span>
       </button>
+      <button
+        class="menu-btn"
+        :class="{ active: showMoreMenu }"
+        @click="showMoreMenu = !showMoreMenu"
+      >
+        <span class="menu-icon">⋯</span>
+        <span>更多</span>
+      </button>
+    </div>
+
+    <!-- 更多菜单弹窗 -->
+    <div v-if="showMoreMenu" class="more-overlay" @click="showMoreMenu = false">
+      <div class="more-menu" @click.stop>
+        <button
+          v-for="item in moreMenuItems"
+          :key="item.key"
+          class="more-item"
+          @click="onMoreItemClick(item.key)"
+        >
+          <span class="more-icon">{{ item.icon }}</span>
+          <span class="more-label">{{ item.label }}</span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import Battle from './Battle.vue'
 import Inventory from './Inventory.vue'
 import Farm from './Farm.vue'
+import Fishing from './Fishing.vue'
+import Shop from './Shop.vue'
 
 const store = useGameStore()
+const showMoreMenu = ref(false)
 
-const menuItems = [
+const mainMenuItems = [
   { key: 'dungeon', icon: '🏰', label: '地牢' },
   { key: 'fishing', icon: '🎣', label: '钓鱼' },
   { key: 'inventory', icon: '🎒', label: '背包' },
+  { key: 'farm', icon: '🏡', label: '农场' },
+]
+
+const moreMenuItems = [
+  { key: 'shop', icon: '🏪', label: '商店' },
   { key: 'achievements', icon: '🏆', label: '成就' },
   { key: 'encyclopedia', icon: '📖', label: '图鉴' },
-  { key: 'farm', icon: '🏡', label: '农场' },
   { key: 'review', icon: '📚', label: '复习' },
 ]
 
@@ -98,6 +132,12 @@ function onMenuClick(key) {
     return
   }
   store.setTab(key)
+  showMoreMenu.value = false
+}
+
+function onMoreItemClick(key) {
+  store.setTab(key)
+  showMoreMenu.value = false
 }
 </script>
 
@@ -270,5 +310,66 @@ function onMenuClick(key) {
 
 .menu-icon {
   font-size: 18px;
+}
+
+/* 更多菜单弹窗 */
+.more-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.more-menu {
+  background: #0f3460;
+  border-radius: 16px 16px 0 0;
+  padding: 16px 24px 24px;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 70px;
+}
+
+.more-item:hover {
+  background: rgba(212, 168, 83, 0.15);
+  border-color: rgba(212, 168, 83, 0.4);
+  color: #d4a853;
+}
+
+.more-icon {
+  font-size: 24px;
+}
+
+.more-label {
+  font-size: 11px;
 }
 </style>

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ALL_QUESTIONS, getQuestionsForFloor } from '../data/questions.js'
 import { ENEMIES, getEnemyForFloor } from '../data/enemies.js'
+import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import { 
   createFarmMonster, 
   generateMonsterAbility, 
@@ -11,6 +12,8 @@ import {
   FARM_MAX_CAPACITY,
   DUNGEON_ELEMENTS
 } from '../data/farm.js'
+import { FORGE_RECIPES, canForge } from '../data/forge.js'
+import { SHOP_ITEMS } from '../data/shop.js'
 
 const SAVE_KEY = 'bioyi_realm_save'
 
@@ -50,9 +53,19 @@ export const useGameStore = defineStore('game', () => {
   const farm = ref([])
   const activeMonster = ref(null)
   
-  // 捕捉状态
+  // 捕捉状态（多题模式）
   const captureMonsterData = ref(null) // 待捕捉的怪物数据
-  const captureQuestion = ref(null) // 捕捉答题题目
+  const captureQuestions = ref([]) // 捕捉题目数组（3题）
+  const captureIndex = ref(0) // 当前答题索引
+  const captureCorrectCount = ref(0) // 答对计数
+
+  // 钓鱼系统
+  const fishingLevel = ref(1)
+  const recentCatches = ref([])
+  const fishCollection = ref({}) // { common: 5, rare: 2, ... }
+
+  // 战斗掉落
+  const drop = ref(null) // { type: 'equipment' | 'consumable', item: object }
 
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -234,10 +247,32 @@ export const useGameStore = defineStore('game', () => {
     // 自动存档
     saveGame()
     
-    // 检查是否可以捕捉
+    // 装备/消耗品掉落
+    const itemDrop = generateDrop()
+    if (itemDrop) {
+      drop.value = itemDrop
+      if (itemDrop.type === 'equipment') {
+        battleLog.value.push(`获得装备 ${itemDrop.item.name}！`)
+      } else {
+        battleLog.value.push(`获得 ${itemDrop.item.name} ×${itemDrop.item.count}！`)
+      }
+      battleState.value = 'drop' // 先展示掉落，再进入 won
+      saveGame()
+      return
+    }
+    
+    // 检查是否可以捕捉（概率触发，非100%）
     if (farm.value.length < FARM_MAX_CAPACITY) {
       const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
       if (!alreadyHas) {
+        // 概率触发：基础30% + 楼层×2%，上限60%
+        const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
+        if (Math.random() > triggerChance) {
+          // 没触发，直接递增楼层
+          floor.value++
+          return
+        }
+        
         // 准备捕捉数据
         captureMonsterData.value = {
           name: enemy.value.name,
@@ -248,6 +283,22 @@ export const useGameStore = defineStore('game', () => {
           baseDef: enemy.value.def,
           captureFloor: floor.value
         }
+        
+        // 准备3道题（按怪物元素对应学科）
+        const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
+        const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
+        const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
+        captureQuestions.value = []
+        const usedIndices = new Set()
+        for (let i = 0; i < 3 && i < qPool.length; i++) {
+          let idx
+          do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
+          usedIndices.add(idx)
+          captureQuestions.value.push(qPool[idx])
+        }
+        captureIndex.value = 0
+        captureCorrectCount.value = 0
+        
         // 楼层递增在捕捉完成后进行
         return
       }
@@ -257,56 +308,117 @@ export const useGameStore = defineStore('game', () => {
     floor.value++
   }
 
-  // 开始捕捉流程
-  function startCapture() {
-    if (!captureMonsterData.value) return
+  // 生成战斗掉落
+  function generateDrop() {
+    const roll = Math.random()
     
-    // 获取捕捉题目（按怪物元素对应的学科）
-    const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
-    const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
-    if (questions.length > 0) {
-      captureQuestion.value = questions[Math.floor(Math.random() * questions.length)]
-    } else {
-      captureQuestion.value = ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+    // 40% 掉消耗品
+    if (roll < 0.4) {
+      const pick = CONSUMABLES[Math.floor(Math.random() * CONSUMABLES.length)]
+      const count = Math.floor(1 + Math.random() * 2)
+      const consumable = { ...pick, count, slot: Math.random() }
+      consumables.value.push(consumable)
+      return { type: 'consumable', item: consumable }
     }
     
+    // 30% 掉装备
+    if (roll < 0.7) {
+      const type = Math.random() < 0.4 ? 'weapon' : Math.random() < 0.7 ? 'armor' : 'accessory'
+      const candidates = EQUIPMENT.filter(e => e.type === type)
+      if (candidates.length === 0) return null
+      
+      const pick = candidates[Math.floor(Math.random() * candidates.length)]
+      const level = Math.floor(floor.value / 5) + 1
+      const multiplier = 1 + (floor.value * 0.05)
+      
+      const gear = {
+        ...pick,
+        id: `${pick.id}_${floor.value}_${Math.floor(Math.random() * 10000)}`,
+        level,
+        atk: Math.floor((pick.atk || 0) * multiplier),
+        def: Math.floor((pick.def || 0) * multiplier),
+        desc: `${pick.desc} (Lv.${level})`,
+        price: Math.floor(pick.price * multiplier)
+      }
+      
+      equipment.value.push(gear)
+      return { type: 'equipment', item: gear }
+    }
+    
+    return null
+  }
+
+  // 领取掉落
+  function claimDrop() {
+    drop.value = null
+    battleState.value = 'won'
+  }
+
+  // 开始捕捉流程
+  function startCapture() {
+    if (!captureMonsterData.value || captureQuestions.value.length === 0) return
+    captureIndex.value = 0
+    captureCorrectCount.value = 0
     battleState.value = 'captureQuiz'
   }
 
-  // 提交捕捉答题
+  // 提交捕捉答题（多题模式）
   function submitCaptureAnswer(index) {
-    if (!captureQuestion.value || !captureMonsterData.value) return
+    if (captureIndex.value >= captureQuestions.value.length) return
     
-    const correct = index === captureQuestion.value.answer
+    const q = captureQuestions.value[captureIndex.value]
+    const correct = index === q.answer
+    
     if (correct) {
-      // 捕捉成功
-      const monster = createFarmMonster(
-        captureMonsterData.value.name,
-        captureMonsterData.value.icon,
-        captureMonsterData.value.element,
-        captureMonsterData.value.baseHp,
-        captureMonsterData.value.baseAtk,
-        captureMonsterData.value.baseDef,
-        captureMonsterData.value.captureFloor
-      )
-      farm.value.push(monster)
-      battleLog.value.push(`收养成功！${monster.name} 成为你的伙伴！`)
-      battleState.value = 'captureSuccess'
-    } else {
-      battleLog.value.push('答题失败，怪物逃跑了...')
-      battleState.value = 'captureFail'
+      captureCorrectCount.value++
     }
     
-    // 递增楼层
-    floor.value++
-    captureMonsterData.value = null
-    captureQuestion.value = null
+    captureIndex.value++
+    
+    // 提前终止：如果剩余题数 + 已答对 < 3，不可能成功
+    const remaining = captureQuestions.value.length - captureIndex.value
+    if (captureCorrectCount.value + remaining < 3) {
+      battleState.value = 'captureFail'
+      captureMonsterData.value = null
+      captureQuestions.value = []
+      captureIndex.value = 0
+      captureCorrectCount.value = 0
+      floor.value++
+      return
+    }
+    
+    // 全部答完
+    if (captureIndex.value >= captureQuestions.value.length) {
+      if (captureCorrectCount.value >= 3) {
+        const monster = createFarmMonster(
+          captureMonsterData.value.name,
+          captureMonsterData.value.icon,
+          captureMonsterData.value.element,
+          captureMonsterData.value.baseHp,
+          captureMonsterData.value.baseAtk,
+          captureMonsterData.value.baseDef,
+          captureMonsterData.value.captureFloor
+        )
+        farm.value.push(monster)
+        battleLog.value.push(`收养成功！${monster.name} 成为你的伙伴！`)
+        battleState.value = 'captureSuccess'
+      } else {
+        battleState.value = 'captureFail'
+      }
+      captureMonsterData.value = null
+      captureQuestions.value = []
+      captureIndex.value = 0
+      captureCorrectCount.value = 0
+      floor.value++
+    }
   }
 
   // 跳过捕捉
   function skipCapture() {
     captureMonsterData.value = null
-    captureQuestion.value = null
+    captureQuestions.value = []
+    captureIndex.value = 0
+    captureCorrectCount.value = 0
     battleState.value = 'idle'
     floor.value++
     exitBattle()
@@ -398,7 +510,9 @@ export const useGameStore = defineStore('game', () => {
     battleLog.value = []
     battleState.value = ''
     captureMonsterData.value = null
-    captureQuestion.value = null
+    captureQuestions.value = []
+    captureIndex.value = 0
+    captureCorrectCount.value = 0
   }
 
   // 装备物品
@@ -426,6 +540,130 @@ export const useGameStore = defineStore('game', () => {
     inventory.value[name] = (inventory.value[name] || 0) + count
   }
 
+  // 锻造（合成）
+  function forgeItem(recipeId) {
+    const recipe = FORGE_RECIPES.find(r => r.id === recipeId)
+    if (!recipe) return false
+
+    if (!canForge(recipe, inventory.value, gold.value)) {
+      return false
+    }
+
+    // 扣除材料
+    for (const [mat, need] of Object.entries(recipe.materials)) {
+      inventory.value[mat] -= need
+      if (inventory.value[mat] <= 0) delete inventory.value[mat]
+    }
+
+    // 扣除金币
+    gold.value -= recipe.gold
+
+    // 生成物品
+    if (recipe.type === 'potion') {
+      const item = {
+        id: `${recipe.id}_${Math.floor(Math.random() * 10000)}`,
+        name: recipe.name,
+        type: recipe.type === 'potion' ? 'heal' : 'buff',
+        ratio: recipe.ratio,
+        bonusAtk: recipe.bonusAtk,
+        desc: recipe.desc,
+        count: 1,
+        slot: Math.random()
+      }
+      consumables.value.push(item)
+    } else {
+      // 装备
+      const gear = {
+        id: `${recipe.id}_${Math.floor(Math.random() * 10000)}`,
+        name: recipe.name,
+        type: recipe.type,
+        icon: recipe.icon,
+        atk: recipe.atk || 0,
+        def: recipe.def || 0,
+        desc: recipe.desc,
+        level: recipe.unlockLevel
+      }
+      equipment.value.push(gear)
+    }
+
+    saveGame()
+    return true
+  }
+
+  // 商店购买
+  function buyItem(shopItem) {
+    if (gold.value < shopItem.price) return false
+
+    gold.value -= shopItem.price
+
+    if (shopItem.type === 'consumable') {
+      const item = {
+        id: `${shopItem.id}_${Math.floor(Math.random() * 10000)}`,
+        name: shopItem.name,
+        type: shopItem.subtype,
+        count: 1,
+        slot: Math.random(),
+        desc: shopItem.desc
+      }
+      if (shopItem.subtype === 'heal') {
+        item.value = shopItem.effect.hp
+      } else if (shopItem.subtype === 'exp') {
+        item.value = shopItem.effect.exp
+      } else if (shopItem.subtype === 'buff') {
+        item.bonusAtk = shopItem.effect.atk
+      }
+      consumables.value.push(item)
+    } else if (shopItem.type === 'equipment') {
+      const gear = {
+        id: `${shopItem.id}_${Math.floor(Math.random() * 10000)}`,
+        name: shopItem.name,
+        type: shopItem.subtype,
+        atk: shopItem.atk || 0,
+        def: shopItem.def || 0,
+        desc: shopItem.desc,
+        price: shopItem.price
+      }
+      equipment.value.push(gear)
+    } else if (shopItem.type === 'material') {
+      const materialMap = {
+        'shop_water_essence': '水之精华',
+        'shop_fire_core': '火焰核心',
+        'shop_acid_crystal': '酸液结晶',
+        'shop_thunder_stone': '雷电石',
+        'shop_ice_shard': '冰霜碎片',
+        'shop_wind_feather': '风之羽毛'
+      }
+      const matName = materialMap[shopItem.id] || shopItem.name
+      inventory.value[matName] = (inventory.value[matName] || 0) + 1
+    }
+
+    saveGame()
+    return true
+  }
+
+  // 钓鱼相关方法
+  function recordFishCatch(fish) {
+    if (!fish) return
+    recentCatches.value.push(fish)
+    // 只保留最近50条
+    if (recentCatches.value.length > 50) {
+      recentCatches.value = recentCatches.value.slice(-50)
+    }
+    // 更新图鉴计数
+    fishCollection.value[fish.rarity] = (fishCollection.value[fish.rarity] || 0) + 1
+    // 钓鱼经验（每10条升1级）
+    const totalCatches = Object.values(fishCollection.value).reduce((a, b) => a + b, 0)
+    fishingLevel.value = Math.floor(totalCatches / 10) + 1
+    saveGame()
+  }
+
+  function removeFishFromRecent(fish) {
+    const idx = recentCatches.value.findIndex(f => f.name === fish.name)
+    if (idx !== -1) {
+      recentCatches.value.splice(idx, 1)
+    }
+  }
+
   // 保存游戏
   function saveGame() {
     const saveData = {
@@ -446,7 +684,11 @@ export const useGameStore = defineStore('game', () => {
       equipped: equipped.value,
       inventory: inventory.value,
       farm: farm.value,
-      activeMonster: activeMonster.value,
+      captureMonsterData: captureMonsterData.value,
+      captureQuestions: captureQuestions.value,
+      captureIndex: captureIndex.value,
+      captureCorrectCount: captureCorrectCount.value,
+      drop: drop.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -479,6 +721,14 @@ export const useGameStore = defineStore('game', () => {
       inventory.value = saveData.inventory || {}
       farm.value = saveData.farm || []
       activeMonster.value = saveData.activeMonster || null
+      fishingLevel.value = saveData.fishingLevel || 1
+      recentCatches.value = saveData.recentCatches || []
+      fishCollection.value = saveData.fishCollection || {}
+      drop.value = saveData.drop || null
+      captureMonsterData.value = saveData.captureMonsterData || null
+      captureQuestions.value = saveData.captureQuestions || []
+      captureIndex.value = saveData.captureIndex || 0
+      captureCorrectCount.value = saveData.captureCorrectCount || 0
       
       return true
     } catch (e) {
@@ -502,13 +752,19 @@ export const useGameStore = defineStore('game', () => {
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title,
     enemy, question, battleLog,
     equipment, consumables, equipped, inventory,
-    farm, activeMonster, captureMonsterData, captureQuestion,
+    farm, activeMonster, captureMonsterData, captureQuestions, captureIndex, captureCorrectCount,
+    drop,
+    fishingLevel, recentCatches, fishCollection,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
     initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
     startCapture, submitCaptureAnswer, skipCapture,
     setFollowMonster, unfollowMonster, upgradeMonster, releaseMonster,
     equip, addItem, addMaterial,
+    forgeItem,
+    buyItem,
+    claimDrop,
+    recordFishCatch, removeFishFromRecent,
     saveGame, loadGame, hasSave, deleteSave
   }
 })

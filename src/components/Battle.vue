@@ -83,6 +83,33 @@
       <button @click="showPotionPanel = false" class="btn-cancel">取消</button>
     </div>
     
+    <!-- 掉落展示 -->
+    <div v-if="store.battleState === 'drop'" class="result drop">
+      <div class="result-title">🎁 发现战利品！</div>
+      <div class="drop-card" v-if="store.drop">
+        <div class="drop-icon" v-if="store.drop.type === 'equipment'"
+          :class="store.drop.item.type"
+        >
+          {{ store.drop.item.type === 'weapon' ? '⚔️' : store.drop.item.type === 'armor' ? '🛡️' : '💍' }}
+        </div>
+        <div class="drop-icon" v-else>🧪</div>
+        <div class="drop-info">
+          <div class="drop-name" v-if="store.drop.type === 'equipment'"
+            :style="{ color: qualityColor(store.drop.item.level) }"
+          >
+            {{ store.drop.item.name }} <span class="drop-level">Lv.{{ store.drop.item.level }}</span>
+          </div>
+          <div class="drop-name" v-else>{{ store.drop.item.name }} ×{{ store.drop.item.count }}</div>
+          <div class="drop-stats" v-if="store.drop.type === 'equipment'">
+            <span v-if="store.drop.item.atk">⚔️ {{ store.drop.item.atk }}</span>
+            <span v-if="store.drop.item.def">🛡️ {{ store.drop.item.def }}</span>
+          </div>
+          <div class="drop-desc">{{ store.drop.item.desc }}</div>
+        </div>
+      </div>
+      <button @click="store.claimDrop" class="btn-next">收下</button>
+    </div>
+
     <!-- 胜利 - 捕捉选项 -->
     <div v-if="store.battleState === 'won'" class="result won">
       <div class="result-title">🎉 胜利！</div>
@@ -91,7 +118,7 @@
           <span class="capture-icon">{{ store.captureMonsterData?.icon }}</span>
           <div class="capture-name">{{ store.captureMonsterData?.name }}</div>
           <div class="capture-hint">发现可收养的怪物！</div>
-          <div class="capture-hint-small">回答一道题目即可收养</div>
+          <div class="capture-hint-small">答对3道题目即可收养</div>
         </div>
         <div class="capture-actions">
           <button @click="store.startCapture" class="btn-capture">🐾 尝试收养</button>
@@ -105,12 +132,24 @@
     
     <!-- 捕捉答题 -->
     <div v-if="store.battleState === 'captureQuiz'" class="quiz-panel capture-quiz">
-      <div class="capture-title">🐾 收养考验</div>
-      <div class="question">{{ store.captureQuestion?.q }}</div>
+      <div class="capture-title">🐾 收养考验（{{ store.captureIndex + 1 }} / 3）</div>
+      <div class="capture-progress">
+        <div
+          v-for="i in 3"
+          :key="i"
+          class="progress-dot"
+          :class="{
+            correct: i <= store.captureCorrectCount,
+            current: i === store.captureIndex + 1 && store.captureIndex < 3,
+            wrong: i <= store.captureIndex && i > store.captureCorrectCount
+          }"
+        ></div>
+      </div>
+      <div class="question">{{ store.captureQuestions[store.captureIndex]?.q }}</div>
       <div class="options">
-        <button 
-          v-for="(opt, i) in store.captureQuestion?.options" 
-          :key="i" 
+        <button
+          v-for="(opt, i) in store.captureQuestions[store.captureIndex]?.options"
+          :key="i"
           @click="submitCaptureAnswer(i)"
           class="option-btn"
         >
@@ -191,6 +230,13 @@ function submitCaptureAnswer(index) {
 
 function nextBattle() {
   store.initBattle()
+}
+
+function qualityColor(level) {
+  if (level >= 5) return '#9b59b6' // 史诗
+  if (level >= 4) return '#3498db' // 稀有
+  if (level >= 3) return '#2ecc71' // 绿色
+  return '#e0e0e0' // 白色
 }
 
 function revive() {
@@ -393,7 +439,44 @@ function revive() {
   text-align: center;
   font-size: 1.2em;
   color: #d4a853;
+  margin-bottom: 8px;
+}
+
+.capture-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.progress-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #333;
+  border: 2px solid #555;
+  transition: all 0.3s;
+}
+
+.progress-dot.correct {
+  background: #2ecc71;
+  border-color: #2ecc71;
+}
+
+.progress-dot.wrong {
+  background: #e74c3c;
+  border-color: #e74c3c;
+}
+
+.progress-dot.current {
+  background: #d4a853;
+  border-color: #d4a853;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
 }
 
 .question {
@@ -461,6 +544,67 @@ function revive() {
 
 .result.won {
   background: rgba(78, 205, 196, 0.2);
+}
+
+.result.drop {
+  background: rgba(212, 168, 83, 0.2);
+  padding: 20px;
+}
+
+.drop-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(15, 52, 96, 0.6);
+  border-radius: 12px;
+  border: 2px solid rgba(212, 168, 83, 0.4);
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.drop-icon {
+  font-size: 40px;
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.drop-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.drop-name {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.drop-level {
+  font-size: 12px;
+  color: #888;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+.drop-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: #d4a853;
+}
+
+.drop-desc {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
 }
 
 .result.lost {

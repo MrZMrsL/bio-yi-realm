@@ -4,6 +4,7 @@
       <button class="inv-tab" :class="{ active: tab === 'equip' }" @click="tab = 'equip'">⚔️ 装备</button>
       <button class="inv-tab" :class="{ active: tab === 'item' }" @click="tab = 'item'">🧪 消耗品</button>
       <button class="inv-tab" :class="{ active: tab === 'mat' }" @click="tab = 'mat'">💎 材料</button>
+      <button class="inv-tab" :class="{ active: tab === 'forge' }" @click="tab = 'forge'">🔨 锻造</button>
     </div>
 
     <div class="inv-list" v-if="tab === 'equip'">
@@ -46,6 +47,31 @@
       </div>
     </div>
 
+    <div class="inv-list" v-if="tab === 'forge'">
+      <div v-if="availableRecipes.length === 0" class="empty-msg">
+        暂无可用配方，提升等级解锁更多锻造配方。
+      </div>
+      <div v-for="recipe in availableRecipes" :key="recipe.id" class="inv-item">
+        <div class="item-name">{{ recipe.icon }} {{ recipe.name }} <span class="recipe-level">Lv.{{ recipe.unlockLevel }}</span></div>
+        <div class="item-stats">
+          <span v-if="recipe.atk">⚔️ {{ recipe.atk }}</span>
+          <span v-if="recipe.def">🛡️ {{ recipe.def }}</span>
+          <span>💰 {{ recipe.gold }}</span>
+        </div>
+        <div class="materials-list">
+          <span v-for="(need, mat) in recipe.materials" :key="mat" class="mat-tag" :class="{ enough: (store.inventory[mat] || 0) >= need }">
+            {{ mat }} {{ store.inventory[mat] || 0 }}/{{ need }}
+          </span>
+        </div>
+        <div class="item-desc">{{ recipe.desc }}</div>
+        <div class="item-actions">
+          <button class="forge-btn" :disabled="!canForgeRecipe(recipe)" @click="doForge(recipe.id)">
+            {{ canForgeRecipe(recipe) ? '🔨 锻造' : '材料不足' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="equip-summary" v-if="store.equipped.weapon || store.equipped.armor || store.equipped.accessory">
       <div class="summary-title">当前装备</div>
       <div class="summary-row">
@@ -68,9 +94,25 @@
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { DUNGEON_ELEMENTS } from '../data/farm.js'
+import { FORGE_RECIPES, canForge } from '../data/forge.js'
 
 const store = useGameStore()
 const tab = ref('equip')
+
+const availableRecipes = computed(() => {
+  return FORGE_RECIPES.filter(r => r.unlockLevel <= store.level)
+})
+
+function canForgeRecipe(recipe) {
+  return canForge(recipe, store.inventory, store.gold)
+}
+
+function doForge(recipeId) {
+  const ok = store.forgeItem(recipeId)
+  if (ok) {
+    // 成功提示
+  }
+}
 
 const materialList = computed(() => {
   const icons = { '水之精华': '💧', '火焰核心': '🔥', '酸液结晶': '🧪', '雷电石': '⚡', '冰霜碎片': '❄️', '风之羽毛': '🌪️' }
@@ -219,6 +261,56 @@ function useItem(item) {
 
 .use-btn:hover {
   background: rgba(39,174,96,0.3);
+}
+
+.materials-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.mat-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.mat-tag.enough {
+  color: #2ecc71;
+  border-color: rgba(46, 204, 113, 0.3);
+}
+
+.recipe-level {
+  font-size: 11px;
+  color: #888;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+.forge-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: rgba(212, 168, 83, 0.2);
+  color: #d4a853;
+}
+
+.forge-btn:hover:not(:disabled) {
+  background: rgba(212, 168, 83, 0.3);
+}
+
+.forge-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.05);
+  color: #666;
 }
 
 .equip-summary {
