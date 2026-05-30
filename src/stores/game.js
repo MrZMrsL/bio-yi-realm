@@ -99,15 +99,8 @@ export const useGameStore = defineStore('game', () => {
   // 开始游戏
   function startGame() {
     gameStarted.value = true
-    // 初始测试材料（方便体验）
-    inventory.value = {
-      '水之精华': 5,
-      '火焰核心': 3,
-      '酸液结晶': 2,
-      '雷电石': 4,
-      '冰霜碎片': 3,
-      '风之羽毛': 2
-    }
+    // 初始材料归零，玩家自行积累
+    inventory.value = {}
     saveGame()
   }
 
@@ -170,7 +163,10 @@ export const useGameStore = defineStore('game', () => {
       multiplier = 1.0
     }
 
-    const damage = Math.max(1, Math.floor((enemy.value.atk - totalDef.value) * multiplier))
+    // 伤害保底：即使防御极高，至少造成 atk 的 40% 伤害（3点起）
+    let baseDmg = Math.floor((enemy.value.atk - totalDef.value) * multiplier)
+    const minDmg = Math.max(3, Math.floor(enemy.value.atk * 0.4 * multiplier))
+    const damage = Math.max(minDmg, baseDmg)
     hp.value -= damage
     battleLog.value.push(`${enemy.value.name} 对你造成 ${damage} 点伤害！`)
 
@@ -265,7 +261,7 @@ export const useGameStore = defineStore('game', () => {
   // 胜利（触发捕捉流程）
   function winBattle() {
     battleState.value = 'won'
-    const expGain = Math.floor(20 * (1 + floor.value * 0.1))
+    const expGain = Math.floor(15 * (1 + floor.value * 0.1))
     const goldGain = Math.floor(10 * (1 + floor.value * 0.1))
 
     exp.value += expGain
@@ -363,12 +359,25 @@ export const useGameStore = defineStore('game', () => {
     floor.value++
   }
 
-  // 生成战斗掉落
+  // 生成战斗掉落（按楼层分难度掉落率）
   function generateDrop() {
     const roll = Math.random()
 
-    // 40% 掉消耗品
-    if (roll < 0.4) {
+    // 掉落率按楼层递增：前期压低，后期放开
+    let consumableRate, equipmentRate
+    if (floor.value <= 5) {
+      consumableRate = 0.15
+      equipmentRate = 0.10
+    } else if (floor.value <= 10) {
+      consumableRate = 0.25
+      equipmentRate = 0.20
+    } else {
+      consumableRate = 0.40
+      equipmentRate = 0.30
+    }
+
+    // 先判定消耗品
+    if (roll < consumableRate) {
       const pick = CONSUMABLES[Math.floor(Math.random() * CONSUMABLES.length)]
       const count = Math.floor(1 + Math.random() * 2)
       const consumable = { ...pick, count, slot: Math.random() }
@@ -376,8 +385,8 @@ export const useGameStore = defineStore('game', () => {
       return { type: 'consumable', item: consumable }
     }
 
-    // 30% 掉装备
-    if (roll < 0.7) {
+    // 再判定装备
+    if (roll < consumableRate + equipmentRate) {
       const type = Math.random() < 0.4 ? 'weapon' : Math.random() < 0.7 ? 'armor' : 'accessory'
       const candidates = EQUIPMENT.filter(e => e.type === type)
       if (candidates.length === 0) return null
