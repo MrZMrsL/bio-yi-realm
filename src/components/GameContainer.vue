@@ -187,52 +187,71 @@
         
         <!-- 设置面板 -->
         <div v-if="activePanel === 'settings'" class="panel-settings">
-          <div class="settings-grid">
-            <div class="settings-card" @click="openSubPanel('achievements')">
-              <div class="settings-icon">🏆</div>
-              <div class="settings-name">成就</div>
-              <div class="settings-desc">查看已获得成就</div>
+          <div class="settings-tabs">
+            <button 
+              v-for="tab in settingsTabs" 
+              :key="tab.key"
+              class="settings-tab-btn"
+              :class="{ active: activeSettingsTab === tab.key }"
+              @click="activeSettingsTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+          
+          <!-- 称号面板 -->
+          <div v-if="activeSettingsTab === 'title'" class="settings-content">
+            <div class="title-card">
+              <div class="title-header">
+                <span class="title-badge">Lv.{{ store.level }}</span>
+                <h3 class="title-name">{{ store.title }}</h3>
+                <span class="title-field">{{ store.titleEra }} · {{ store.titleField }}</span>
+              </div>
+              <p class="title-bio">{{ store.titleBio }}</p>
+              <div class="title-achievements">
+                <h4>🏆 成就</h4>
+                <div v-for="(ach, idx) in store.titleAchievements" :key="idx" class="achievement-item">
+                  <span class="achievement-check">✓</span>
+                  <span>{{ ach }}</span>
+                </div>
+              </div>
             </div>
-            <div class="settings-card" @click="openSubPanel('encyclopedia')">
-              <div class="settings-icon">📖</div>
-              <div class="settings-name">图鉴</div>
-              <div class="settings-desc">怪物 · 装备 · 材料</div>
-            </div>
-            <div class="settings-card" @click="saveGame">
-              <div class="settings-icon">💾</div>
-              <div class="settings-name">保存存档</div>
-              <div class="settings-desc">手动保存进度</div>
-            </div>
-            <div class="settings-card" @click="exportSave">
-              <div class="settings-icon">📤</div>
-              <div class="settings-name">导出存档</div>
-              <div class="settings-desc">备份到剪贴板</div>
-            </div>
-            <div class="settings-card" @click="importSave">
-              <div class="settings-icon">📥</div>
-              <div class="settings-name">导入存档</div>
-              <div class="settings-desc">从剪贴板恢复</div>
-            </div>
-            <div class="settings-card danger" @click="resetGame">
-              <div class="settings-icon">🗑️</div>
-              <div class="settings-name">重置游戏</div>
-              <div class="settings-desc">清除所有数据</div>
+            <div class="title-progress">
+              <h4>📈 称号进度</h4>
+              <div v-for="t in allTitles" :key="t.title" class="progress-item" :class="{ current: t.title === store.title }">
+                <span class="progress-level">Lv.{{ t.min }}-{{ t.max }}</span>
+                <span class="progress-name">{{ t.title }}</span>
+                <span class="progress-field">{{ t.field }}</span>
+              </div>
             </div>
           </div>
           
-          <!-- 子面板 -->
-          <div v-if="subPanel" class="sub-panel">
-            <div class="sub-panel-header">
-              <button class="btn-back" @click="subPanel = null">← 返回</button>
-              <span>{{ subPanelTitle }}</span>
+          <!-- 图鉴面板 -->
+          <div v-if="activeSettingsTab === 'encyclopedia'" class="settings-content">
+            <div class="encyclopedia-placeholder">
+              📖 图鉴系统开发中...
             </div>
-            <div class="sub-panel-content">
-              <div v-if="subPanel === 'achievements'" class="placeholder-content">
-                🏆 成就系统开发中...
-              </div>
-              <div v-if="subPanel === 'encyclopedia'" class="placeholder-content">
-                📖 图鉴系统开发中...
-              </div>
+          </div>
+          
+          <!-- 存档面板 -->
+          <div v-if="activeSettingsTab === 'save'" class="settings-content">
+            <div class="save-actions">
+              <button class="save-btn" @click="saveGame">
+                <span class="save-icon">💾</span>
+                <span>保存存档</span>
+              </button>
+              <button class="save-btn" @click="exportSave">
+                <span class="save-icon">📤</span>
+                <span>导出存档</span>
+              </button>
+              <button class="save-btn" @click="importSave">
+                <span class="save-icon">📥</span>
+                <span>导入存档</span>
+              </button>
+              <button class="save-btn danger" @click="resetGame">
+                <span class="save-icon">🗑️</span>
+                <span>重置游戏</span>
+              </button>
             </div>
           </div>
         </div>
@@ -244,6 +263,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
+import { TITLE_TABLE } from '../data/titles.js'
 import Battle from './Battle.vue'
 import Inventory from './Inventory.vue'
 import Farm from './Farm.vue'
@@ -253,7 +273,14 @@ import { FORGE_RECIPES, canForge } from '../data/forge.js'
 
 const store = useGameStore()
 const activePanel = ref(null)
-const subPanel = ref(null)
+const activeSettingsTab = ref('title')
+const allTitles = TITLE_TABLE
+
+const settingsTabs = [
+  { key: 'title', label: '称号' },
+  { key: 'encyclopedia', label: '图鉴' },
+  { key: 'save', label: '存档' }
+]
 
 const panelTitle = computed(() => {
   const titles = {
@@ -269,28 +296,17 @@ const panelTitle = computed(() => {
   return titles[activePanel.value] || ''
 })
 
-const subPanelTitle = computed(() => {
-  const titles = {
-    achievements: '成就',
-    encyclopedia: '图鉴'
-  }
-  return titles[subPanel.value] || ''
-})
-
 const forgeRecipes = computed(() => FORGE_RECIPES)
 
 function openPanel(panel) {
   activePanel.value = panel
-  subPanel.value = null
+  if (panel === 'settings') {
+    activeSettingsTab.value = 'title'
+  }
 }
 
 function closePanel() {
   activePanel.value = null
-  subPanel.value = null
-}
-
-function openSubPanel(panel) {
-  subPanel.value = panel
 }
 
 function canForgeRecipe(recipe) {
@@ -738,85 +754,192 @@ function resetGame() {
 
 /* 设置 */
 .panel-settings {
-  padding: 16px;
+  padding: 0;
   position: relative;
 }
 
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.settings-card {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 16px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.settings-card:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(212,168,83,0.3);
-}
-
-.settings-card.danger:hover {
-  border-color: #e74c3c;
-}
-
-.settings-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-
-.settings-name {
-  font-size: 14px;
-  font-weight: bold;
-  color: #e0e0e0;
-  margin-bottom: 4px;
-}
-
-.settings-desc {
-  font-size: 11px;
-  color: #888;
-}
-
-/* 子面板 */
-.sub-panel {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: #16213e;
+.settings-tabs {
   display: flex;
-  flex-direction: column;
-  z-index: 60;
-  animation: slideIn 0.3s ease;
-}
-
-.sub-panel-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 2px;
+  padding: 8px 12px 0;
   background: #0f3460;
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-.sub-panel-content {
+.settings-tab-btn {
   flex: 1;
-  overflow-y: auto;
-  padding: 20px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.placeholder-content {
+.settings-tab-btn.active {
+  background: rgba(212,168,83,0.15);
+  color: #d4a853;
+}
+
+.settings-content {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(100vh - 160px);
+}
+
+/* 称号卡片 */
+.title-card {
+  background: linear-gradient(135deg, rgba(212,168,83,0.1), rgba(212,168,83,0.02));
+  border: 1px solid rgba(212,168,83,0.2);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.title-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.title-badge {
+  display: inline-block;
+  background: #d4a853;
+  color: #1a1a2e;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.title-name {
+  font-size: 22px;
+  color: #e0e0e0;
+  margin: 8px 0;
+}
+
+.title-field {
+  font-size: 12px;
+  color: #a0a0a0;
+}
+
+.title-bio {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #b0b0b0;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+}
+
+.title-achievements h4 {
+  color: #d4a853;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+  color: #c0c0c0;
+}
+
+.achievement-check {
+  color: #2ecc71;
+  font-weight: bold;
+}
+
+/* 称号进度 */
+.title-progress h4 {
+  color: #d4a853;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.progress-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.progress-item.current {
+  background: rgba(212,168,83,0.15);
+  border: 1px solid rgba(212,168,83,0.3);
+}
+
+.progress-item:not(.current) {
+  opacity: 0.6;
+}
+
+.progress-level {
+  color: #888;
+  font-size: 11px;
+  min-width: 50px;
+}
+
+.progress-name {
+  flex: 1;
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.progress-field {
+  color: #888;
+  font-size: 11px;
+}
+
+/* 存档 */
+.save-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.save-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  color: #e0e0e0;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-btn:hover {
+  background: rgba(212,168,83,0.1);
+  border-color: rgba(212,168,83,0.3);
+}
+
+.save-btn.danger:hover {
+  border-color: #e74c3c;
+  background: rgba(231,76,60,0.1);
+}
+
+.save-icon {
+  font-size: 24px;
+}
+
+/* 图鉴 */
+.encyclopedia-placeholder {
   text-align: center;
   color: #888;
+  padding: 40px 20px;
   font-size: 16px;
-  padding-top: 40px;
 }
 </style>

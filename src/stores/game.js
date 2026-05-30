@@ -14,6 +14,7 @@ import {
 } from '../data/farm.js'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { SHOP_ITEMS } from '../data/shop.js'
+import { getTitleData } from '../data/titles.js'
 
 const SAVE_KEY = 'bioyi_realm_save'
 
@@ -32,7 +33,7 @@ export const useGameStore = defineStore('game', () => {
   const def = ref(8)
   const gold = ref(0)
   const floor = ref(1)
-  const title = ref('初入易门')
+  const title = computed(() => getTitleData(level.value).title)
 
   // 战斗状态
   const inBattle = ref(false)
@@ -754,7 +755,7 @@ export const useGameStore = defineStore('game', () => {
       def.value = saveData.def || 8
       gold.value = saveData.gold || 0
       floor.value = saveData.floor || 1
-      title.value = saveData.title || '初入易门'
+      // title 是 computed，不需要从存档加载
       equipment.value = saveData.equipment || []
       consumables.value = saveData.consumables || []
       equipped.value = saveData.equipped || { weapon: null, armor: null, accessory: null }
@@ -787,9 +788,15 @@ export const useGameStore = defineStore('game', () => {
     localStorage.removeItem(SAVE_KEY)
   }
 
+  const titleData = computed(() => getTitleData(level.value))
+  const titleBio = computed(() => titleData.value.bio)
+  const titleEra = computed(() => titleData.value.era)
+  const titleField = computed(() => titleData.value.field)
+  const titleAchievements = computed(() => titleData.value.achievements)
+
   return {
     gameStarted, activeTab, inBattle, battleState,
-    level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title,
+    level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,
     enemy, question, battleLog,
     equipment, consumables, equipped, inventory,
     farm, activeMonster, captureMonsterData, captureQuestions, captureIndex, captureCorrectCount,
