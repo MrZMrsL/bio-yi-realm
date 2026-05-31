@@ -72,8 +72,10 @@
     <!-- 战斗操作区 -->
     <div v-if="store.battleState === 'idle'" class="battle-actions">
       <button @click="startAnswer" class="btn-answer">📚 知识攻击</button>
-      <button @click="showPotionMenu" class="btn-potion">🧪 药水</button>
-      <button @click="store.flee" class="btn-flee">🏃 逃跑</button>
+      <div class="action-subrow">
+        <button @click="showPotionMenu" class="btn-potion">🧪 药水</button>
+        <button @click="store.flee" class="btn-flee">🏃 逃跑</button>
+      </div>
     </div>
     
     <!-- 答题面板 -->
@@ -614,6 +616,12 @@ function revive() {
 }
 
 .battle-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-subrow {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -636,6 +644,9 @@ function revive() {
 .btn-answer {
   background: #4ecdc4;
   color: #1a1a1a;
+  font-size: 1.15em;
+  padding: 16px 24px;
+  font-weight: bold;
 }
 
 .btn-potion {

@@ -67,11 +67,11 @@
           <div class="area-desc">第 {{ store.floor }} 层</div>
         </div>
 
-        <!-- 锻造店 -->
-        <div class="area-card forge-card" @click="openPanel('forge')">
-          <div class="area-icon">🔨</div>
-          <div class="area-name">锻造店</div>
-          <div class="area-desc">合成装备与药水</div>
+        <!-- 图鉴 -->
+        <div class="area-card encyclopedia-card" @click="openPanel('encyclopedia')">
+          <div class="area-icon">📖</div>
+          <div class="area-name">图鉴</div>
+          <div class="area-desc">怪物 · 材料 · 鱼</div>
         </div>
 
         <!-- 仓库 -->
@@ -79,7 +79,6 @@
           <div class="area-icon">🎒</div>
           <div class="area-name">仓库</div>
           <div class="area-desc">装备 · 材料 · 药水</div>
-          <div class="area-badge" v-if="store.equipment.length > 0">{{ store.equipment.length }}</div>
         </div>
 
         <!-- 农场 -->
@@ -326,46 +325,66 @@
           <Battle v-if="store.inBattle" />
         </div>
 
-        <!-- 锻造面板 -->
-        <div v-if="activePanel === 'forge'" class="panel-forge">
-          <div class="forge-tabs">
+        <!-- 图鉴面板 -->
+        <div v-if="activePanel === 'encyclopedia'" class="panel-encyclopedia">
+          <div class="encyclopedia-tabs">
             <button
-              v-for="cat in forgeCategories"
+              v-for="cat in encyclopediaCategories"
               :key="cat.key"
-              class="forge-tab-btn"
-              :class="{ active: activeForgeCategory === cat.key }"
-              @click="activeForgeCategory = cat.key"
+              class="enc-tab-btn"
+              :class="{ active: activeEncCategory === cat.key }"
+              @click="activeEncCategory = cat.key"
             >
-              {{ cat.label }}
+              {{ cat.label }} ({{ getEncProgress(cat.key) }})
             </button>
           </div>
-          <div class="forge-recipes">
-            <div v-for="recipe in filteredForgeRecipes" :key="recipe.id" class="recipe-card">
-              <div class="recipe-header">
-                <span class="recipe-icon">{{ recipe.icon }}</span>
-                <span class="recipe-name">{{ recipe.name }}</span>
-                <span class="recipe-type">{{ recipe.type === 'weapon' ? '武器' : recipe.type === 'armor' ? '防具' : recipe.type === 'accessory' ? '饰品' : '药水' }}</span>
+          <!-- 怪物图鉴 -->
+          <div v-if="activeEncCategory === 'monsters'" class="enc-list">
+            <div v-for="m in allMonsters" :key="m.name" class="enc-item" :class="{ discovered: isDiscovered('monsters', m.name) }">
+              <div class="enc-item-header">
+                <span class="enc-icon">{{ isDiscovered('monsters', m.name) ? '👹' : '❓' }}</span>
+                <span class="enc-name">{{ isDiscovered('monsters', m.name) ? m.name : '???' }}</span>
+                <span class="enc-category">{{ m.category }}</span>
+                <span class="enc-count" v-if="getDiscoveryCount('monsters', m.name) > 0">×{{ getDiscoveryCount('monsters', m.name) }}</span>
               </div>
-              <div class="recipe-desc">{{ recipe.desc }}</div>
-              <div class="recipe-materials">
-                <span v-for="(count, mat) in recipe.materials" :key="mat" class="material-tag"
-                  :class="{ 'has-enough': (store.inventory[mat] || 0) >= count }"
-                >
-                  {{ mat }} ×{{ count }}
-                  <span class="mat-count">({{ store.inventory[mat] || 0 }})</span>
-                </span>
-              </div>
-              <button
-                @click="store.forgeItem(recipe.id)"
-                :disabled="!canForgeRecipe(recipe)"
-                class="btn-forge"
-                :class="{ 'can-forge': canForgeRecipe(recipe) }"
-              >
-                锻造 ({{ recipe.gold }}💰)
-              </button>
+              <p class="enc-lore" v-if="isDiscovered('monsters', m.name)">{{ m.lore }}</p>
+              <p class="enc-lore hidden" v-else>尚未发现此怪物...</p>
             </div>
-            <div v-if="filteredForgeRecipes.length === 0" class="forge-empty">
-              该分类暂无配方
+          </div>
+          <!-- 材料图鉴 -->
+          <div v-if="activeEncCategory === 'materials'" class="enc-list">
+            <div v-for="mat in allMaterials" :key="mat.name" class="enc-item" :class="{ discovered: isDiscovered('materials', mat.name) }">
+              <div class="enc-item-header">
+                <span class="enc-icon">{{ isDiscovered('materials', mat.name) ? '💎' : '❓' }}</span>
+                <span class="enc-name">{{ isDiscovered('materials', mat.name) ? mat.name : '???' }}</span>
+                <span class="enc-count" v-if="getDiscoveryCount('materials', mat.name) > 0">×{{ getDiscoveryCount('materials', mat.name) }}</span>
+              </div>
+              <p class="enc-lore" v-if="isDiscovered('materials', mat.name)">{{ mat.lore }}</p>
+              <p class="enc-lore hidden" v-else>尚未发现此材料...</p>
+            </div>
+          </div>
+          <!-- 鱼类图鉴 -->
+          <div v-if="activeEncCategory === 'fishes'" class="enc-list">
+            <div v-for="fish in allFishes" :key="fish.name" class="enc-item" :class="{ discovered: isDiscovered('fishes', fish.name) }">
+              <div class="enc-item-header">
+                <span class="enc-icon">{{ isDiscovered('fishes', fish.name) ? '🐟' : '❓' }}</span>
+                <span class="enc-name">{{ isDiscovered('fishes', fish.name) ? fish.name : '???' }}</span>
+                <span class="enc-count" v-if="getDiscoveryCount('fishes', fish.name) > 0">×{{ getDiscoveryCount('fishes', fish.name) }}</span>
+              </div>
+              <p class="enc-lore" v-if="isDiscovered('fishes', fish.name)">{{ fish.lore }}</p>
+              <p class="enc-lore hidden" v-else>尚未钓获此鱼...</p>
+            </div>
+          </div>
+          <!-- 书籍图鉴 -->
+          <div v-if="activeEncCategory === 'books'" class="enc-list">
+            <div v-for="book in allBooks" :key="book.name" class="enc-item" :class="{ discovered: isDiscovered('books', book.name) }">
+              <div class="enc-item-header">
+                <span class="enc-icon">{{ isDiscovered('books', book.name) ? '📖' : '❓' }}</span>
+                <span class="enc-name">{{ isDiscovered('books', book.name) ? book.name : '???' }}</span>
+                <span class="enc-count" v-if="getDiscoveryCount('books', book.name) > 0">×{{ getDiscoveryCount('books', book.name) }}</span>
+              </div>
+              <p class="enc-lore" v-if="isDiscovered('books', book.name)">{{ book.lore }}</p>
+              <p class="enc-lore hidden" v-else>尚未发现此古籍...</p>
             </div>
           </div>
         </div>
@@ -558,7 +577,6 @@ const allBooks = getAllBooks()
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
-  { key: 'encyclopedia', label: '图鉴' },
   { key: 'save', label: '存档' }
 ]
 
@@ -585,7 +603,7 @@ function getEncProgress(type) {
 const panelTitle = computed(() => {
   const titles = {
     dungeon: '地牢探索',
-    forge: '锻造店',
+    encyclopedia: '图鉴',
     inventory: '仓库',
     farm: '怪物农场',
     fishing: '钓鱼塘',
@@ -624,8 +642,8 @@ function openPanel(panel) {
 
 function closePanel() {
   sfxClick()
-  // 如果正在地牢中（非none状态），提示是否保存进度
-  if (store.dungeonPhase !== 'none') {
+  // 只有从地牢面板退出时，才提示是否保存进度
+  if (activePanel.value === 'dungeon' && store.dungeonPhase !== 'none') {
     const saveProgress = confirm('是否保存当前地牢进度？\n保存后可在下次继续探索。\n不保存则本层进度将丢失，重进会刷新。')
     if (saveProgress) {
       store.saveGame()
@@ -1177,7 +1195,7 @@ function resetGame() {
 
 /* 各卡片颜色主题 */
 .dungeon-card { border-top: 3px solid #e74c3c; }
-.forge-card { border-top: 3px solid #e67e22; }
+.encyclopedia-card { border-top: 3px solid #e67e22; }
 .inventory-card { border-top: 3px solid #3498db; }
 .farm-card { border-top: 3px solid #2ecc71; }
 .fishing-card { border-top: 3px solid #1abc9c; }
