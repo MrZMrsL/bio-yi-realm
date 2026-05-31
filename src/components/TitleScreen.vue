@@ -27,8 +27,10 @@
       </div>
     </div>
 
-    <button v-if="hasSave" class="continue-btn" @click="onContinue">继续冒险</button>
-    <button class="start-btn" @click="onStart">{{ hasSave ? '重新开始' : '开始冒险' }}</button>
+    <button v-if="hasSave" class="continue-btn" @click="onContinue" :disabled="store.isLoadingQuestions">继续冒险</button>
+    <button class="start-btn" @click="onStart" :disabled="store.isLoadingQuestions">
+      {{ store.isLoadingQuestions ? '📚 加载知识库中...' : (hasSave ? '重新开始' : '开始冒险') }}
+    </button>
     <span class="version-text">v4.0 — 生化易界 · Vue 重构版</span>
   </div>
 </template>

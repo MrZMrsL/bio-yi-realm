@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions } from '../data/questions.js'
+import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions } from '../data/questions.js'
 import { ENEMIES, getEnemyForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import {
@@ -69,6 +69,7 @@ const PANEL_MODES = [GAME_MODE.SHOP, GAME_MODE.FARM, GAME_MODE.INVENTORY, GAME_M
 export const useGameStore = defineStore('game', () => {
   // ===== 游戏状态 =====
   const gameStarted = ref(false)
+  const isLoadingQuestions = ref(false)
   const activeTab = ref('dungeon')
   
   // ===== 状态机（v8.0）=====
@@ -237,7 +238,10 @@ export const useGameStore = defineStore('game', () => {
   })
 
   // 开始游戏
-  function startGame() {
+  async function startGame() {
+    isLoadingQuestions.value = true
+    await preloadQuestions()
+    isLoadingQuestions.value = false
     gameStarted.value = true
     sfxStart()
     // 初始材料归零，玩家自行积累
@@ -254,6 +258,10 @@ export const useGameStore = defineStore('game', () => {
   function initBattle() {
     const e = getEnemyForFloor(floor.value)
     const q = getQuestionsForFloor(floor.value, 1)[0]
+    if (!q) {
+      console.error('[initBattle] 题目加载失败，无法初始化战斗')
+      return
+    }
 
     const el = DUNGEON_ELEMENTS[e.element] || DUNGEON_ELEMENTS.water
     enemy.value = {
@@ -360,6 +368,10 @@ export const useGameStore = defineStore('game', () => {
 
     // 获取题目
     const q = getQuestionsForFloor(floor.value, 1)[0]
+    if (!q) {
+      console.error('[enterRoom] 题目加载失败，无法进入房间战斗')
+      return
+    }
     question.value = q
 
     battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
@@ -769,7 +781,10 @@ export const useGameStore = defineStore('game', () => {
 
         const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
         const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
-        const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
+        const qPool = questions.length > 0 ? questions : [...ALL_QUESTIONS]
+        if (qPool.length === 0) {
+          console.warn('[winBattle] 题库为空，无法生成捕捉题目')
+        }
         captureQuestions.value = []
         const usedIndices = new Set()
         for (let i = 0; i < 3 && i < qPool.length; i++) {
@@ -1155,6 +1170,10 @@ export const useGameStore = defineStore('game', () => {
     const questions = ALL_QUESTIONS.filter(q => q.subject === subject || subject === 'all')
     const mediumQuestions = questions.filter(q => q.diff === 'medium')
     const pool = mediumQuestions.length > 0 ? mediumQuestions : questions
+    if (pool.length === 0) {
+      console.warn('[startBookStudy] 题库为空，无法生成研读题目')
+      return
+    }
     const q = pool[Math.floor(Math.random() * pool.length)]
     bookStudyQuestion.value = q
     bookStudyMode.value = true
@@ -1458,7 +1477,16 @@ export const useGameStore = defineStore('game', () => {
     }
     // 获取Boss专属题目
     const questions = ALL_QUESTIONS.filter(q => q.subject === scaledBoss.subject)
-    const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+    let q = null
+    if (questions.length > 0) {
+      q = questions[Math.floor(Math.random() * questions.length)]
+    } else if (ALL_QUESTIONS.length > 0) {
+      q = ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+    }
+    if (!q) {
+      console.error('[enterWeeklyBoss] 题库为空，无法生成Boss题目')
+      return { success: false, reason: 'no_questions' }
+    }
     question.value = q
     battleLog.value = [`👹 限时Boss「${scaledBoss.name}」出现！`, `⏱️ 每题限时 ${scaledBoss.timeLimit} 秒！`]
     battleState.value = 'idle'
@@ -1526,7 +1554,12 @@ export const useGameStore = defineStore('game', () => {
       } else {
         battleState.value = 'idle'
         const questions = ALL_QUESTIONS.filter(q => q.subject === enemy.value.subject)
-        const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        let q = null
+        if (questions.length > 0) {
+          q = questions[Math.floor(Math.random() * questions.length)]
+        } else if (ALL_QUESTIONS.length > 0) {
+          q = ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        }
         if (q) {
           question.value = q
           // 重启倒计时给下一题
@@ -1544,7 +1577,12 @@ export const useGameStore = defineStore('game', () => {
       if (battleState.value !== 'lost' && enemy.value) {
         battleState.value = 'idle'
         const questions = ALL_QUESTIONS.filter(q => q.subject === enemy.value.subject)
-        const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        let q = null
+        if (questions.length > 0) {
+          q = questions[Math.floor(Math.random() * questions.length)]
+        } else if (ALL_QUESTIONS.length > 0) {
+          q = ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        }
         if (q) {
           question.value = q
           // 重启倒计时给下一题
@@ -1860,9 +1898,13 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 加载游戏
-  function loadGame() {
+  async function loadGame() {
     const saveStr = localStorage.getItem(SAVE_KEY)
     if (!saveStr) return false
+
+    isLoadingQuestions.value = true
+    await preloadQuestions()
+    isLoadingQuestions.value = false
 
     try {
       const saveData = JSON.parse(saveStr)
@@ -1967,7 +2009,7 @@ export const useGameStore = defineStore('game', () => {
   return {
     // 状态机（v8.0）
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
-    gameStarted, activeTab, inBattle, battleState,
+    gameStarted, isLoadingQuestions, activeTab, inBattle, battleState,
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,
     enemy, question, battleLog,
     equipment, consumables, equipped, inventory,

@@ -713,17 +713,30 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, defineAsyncComponent } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { TITLE_TABLE } from '../data/titles.js'
 import { ENCYCLOPEDIA_DATA, getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/cyclopedia.js'
 import Battle from './Battle.vue'
-import Inventory from './Inventory.vue'
-import Farm from './Farm.vue'
-import Fishing from './Fishing.vue'
-import Shop from './Shop.vue'
-import Review from './Review.vue'
-import Achievements from './Achievements.vue'
+
+// 异步组件通用 loading 提示
+const AsyncLoading = {
+  template: '<div style="padding:40px;text-align:center;color:#888;">⚡ 加载中...</div>'
+}
+
+function asyncComp(loader) {
+  return defineAsyncComponent({
+    loader,
+    loadingComponent: AsyncLoading
+  })
+}
+
+const Inventory = asyncComp(() => import('./Inventory.vue'))
+const Farm = asyncComp(() => import('./Farm.vue'))
+const Fishing = asyncComp(() => import('./Fishing.vue'))
+const Shop = asyncComp(() => import('./Shop.vue'))
+const Review = asyncComp(() => import('./Review.vue'))
+const Achievements = asyncComp(() => import('./Achievements.vue'))
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { ACHIEVEMENTS } from '../data/achievements.js'
 import { HELP_DOCUMENTATION, FEEDBACK_TYPES } from '../data/help.js'
