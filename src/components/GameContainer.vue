@@ -115,7 +115,19 @@
           <div class="area-name">设置</div>
           <div class="area-desc">称号 · 存档</div>
         </div>
+
+        <!-- 成就 -->
+        <div class="area-card achievements-card" @click="openPanel('achievements')">
+          <div class="area-icon">🏆</div>
+          <div class="area-name">成就殿堂</div>
+          <div class="area-desc">{{ store.unlockedAchievements?.length || 0 }} / {{ totalAchievements }} 已解锁</div>
+        </div>
       </div>
+    </div>
+
+    <!-- 成就面板 -->
+    <div v-if="activePanel === 'achievements'" class="panel-achievements">
+      <Achievements />
     </div>
 
     <!-- 面板覆盖层 -->
@@ -561,7 +573,9 @@ import Farm from './Farm.vue'
 import Fishing from './Fishing.vue'
 import Shop from './Shop.vue'
 import Review from './Review.vue'
+import Achievements from './Achievements.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
+import { ACHIEVEMENTS } from '../data/achievements.js'
 import { sfxClick, sfxStart, setSoundEnabled, isSoundEnabled } from '../utils/audio.js'
 import { DUNGEON_ELEMENTS, ELEMENT_COUNTER } from '../data/farm.js'
 
@@ -575,6 +589,7 @@ const allMonsters = getAllMonsters()
 const allMaterials = getAllMaterials()
 const allFishes = getAllFishes()
 const allBooks = getAllBooks()
+const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
@@ -610,6 +625,7 @@ const panelTitle = computed(() => {
     fishing: '钓鱼塘',
     study: '自习室',
     shop: '杂货铺',
+    achievements: '成就殿堂',
     settings: '设置'
   }
   return titles[activePanel.value] || ''

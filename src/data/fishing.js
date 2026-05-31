@@ -2262,3 +2262,16 @@ export function drawFish(fishingLevel = 1) {
   
   return weighted[weighted.length - 1];
 }
+
+// 各稀有度鱼类数量统计（用于图鉴进度计算）
+export const FISH_RARITY_COUNTS = {
+  common: 20,
+  epic: 15,
+  legendary: 6,
+  mythic: 10,
+  normal: 38,
+  rare: 20,
+  special: 40,
+}
+
+export const TOTAL_FISH_COUNT = 149;

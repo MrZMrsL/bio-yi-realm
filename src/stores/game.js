@@ -17,6 +17,10 @@ import { SHOP_ITEMS } from '../data/shop.js'
 import { getTitleData } from '../data/titles.js'
 import { getTotalCount } from '../data/cyclopedia.js'
 import {
+  ACHIEVEMENTS,
+  checkAchievementUnlocked
+} from '../data/achievements.js'
+import {
   sfxClick,
   sfxCorrect,
   sfxWrong,
@@ -114,6 +118,18 @@ export const useGameStore = defineStore('game', () => {
   const currentFloorElement = ref('water') // 本层主导元素
   const firstVisit = ref(true) // 是否首次访问（新手引导用）
   const showTutorial = ref(false) // 是否显示新手引导
+
+  // 成就系统
+  const unlockedAchievements = ref([])
+  const newAchievementUnlocks = ref([]) // 新解锁成就通知队列
+
+  // 钓鱼研读古籍状态
+  const bookStudyQuestion = ref(null) // 当前研读题目
+  const bookStudyMode = ref(false) // 是否处于研读模式
+
+  // 钓鱼次数限制
+  const dailyFishCount = ref(0) // 今日钓鱼次数
+  const fishLimitUnlocked = ref(false) // 是否已解锁无限钓鱼（通过答题）
 
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -313,6 +329,7 @@ export const useGameStore = defineStore('game', () => {
     resetCombo()
 
     dungeonPhase.value = 'rooms'
+    saveGame()
   }
 
   // 进入下一层（必须击败 Boss）
@@ -343,6 +360,7 @@ export const useGameStore = defineStore('game', () => {
     question.value = null
     battleState.value = ''
     resetCombo()
+    saveGame()
   }
 
   // ===== 地牢房间系统结束 =====
@@ -993,6 +1011,100 @@ export const useGameStore = defineStore('game', () => {
     } else if (item.type === 'accessory') {
       equipped.value.accessory = item
     }
+    saveGame()
+  }
+
+  // 获取掉落物品
+  function claimDrop() {
+    if (!drop.value) return
+    const item = drop.value
+    if (item.type === 'equipment') {
+      equipment.value.push(item.item)
+      addToCyclopedia('materials', item.item.name)
+    } else if (item.type === 'consumable') {
+      consumables.value.push(item.item)
+    }
+    drop.value = null
+    battleState.value = 'idle'
+
+    // 记录图鉴和统计
+    if (enemy.value?.name) {
+      addToCyclopedia('monsters', enemy.value.name)
+    }
+    updateStats('totalWins', 1)
+    if (floor.value > stats.value.maxFloor) {
+      stats.value.maxFloor = floor.value
+    }
+    updateStats('totalBattles', 1)
+
+    // 房间模式：完成房间
+    if (dungeonPhase.value === 'battle') {
+      finishRoom(true)
+    } else {
+      // 非房间模式：递增楼层
+      floor.value++
+      exitBattle()
+    }
+    saveGame()
+  }
+
+  // 设置研读题目
+  function startBookStudy(subject = 'all') {
+    const questions = ALL_QUESTIONS.filter(q => q.subject === subject || subject === 'all')
+    const mediumQuestions = questions.filter(q => q.diff === 'medium')
+    const pool = mediumQuestions.length > 0 ? mediumQuestions : questions
+    const q = pool[Math.floor(Math.random() * pool.length)]
+    bookStudyQuestion.value = q
+    bookStudyMode.value = true
+  }
+
+  // 提交研读答案
+  function submitBookStudyAnswer(index) {
+    if (!bookStudyQuestion.value) return false
+    const correct = index === bookStudyQuestion.value.answer
+    bookStudyMode.value = false
+    if (correct) {
+      // 答对：加经验，古籍收入收藏
+      const expGain = 25
+      exp.value += expGain
+      // 检查升级
+      while (exp.value >= maxExp.value) {
+        exp.value -= maxExp.value
+        level.value++
+        maxExp.value = Math.floor(maxExp.value * 1.2)
+        hp.value = maxHp.value
+        atk.value += 2
+        def.value += 1
+      }
+      bookStudyQuestion.value = null
+      saveGame()
+      return { correct: true, expGain }
+    } else {
+      // 答错：古籍跑了，但没有任何限制，下次钓鱼还能再遇到
+      bookStudyQuestion.value = null
+      saveGame()
+      return { correct: false }
+    }
+  }
+
+  // 取消研读
+  function cancelBookStudy() {
+    bookStudyMode.value = false
+    bookStudyQuestion.value = null
+  }
+
+  // 钓鱼次数检查
+  function canFishToday() {
+    if (dailyFishCount.value < 5) return { allowed: true, reason: null }
+    if (fishLimitUnlocked.value) return { allowed: true, reason: 'unlocked' }
+    return { allowed: false, reason: 'limit_reached' }
+  }
+
+  // 解锁钓鱼限制（答题通过）
+  function unlockFishLimit() {
+    fishLimitUnlocked.value = true
+    dailyFishCount.value = 0 // 重置计数
+    saveGame()
   }
 
   // 获取物品
@@ -1162,6 +1274,50 @@ export const useGameStore = defineStore('game', () => {
     if (stats.value[key] !== undefined) {
       stats.value[key] += value
     }
+    // 每次统计更新后检查成就
+    checkAchievements()
+  }
+
+  // 成就系统
+  function checkAchievements() {
+    const state = {
+      stats: stats.value,
+      farm: farm.value,
+      level: level.value,
+      allClearCount: allClearCount.value,
+      cyclopedia: cyclopedia.value,
+    }
+    for (const ach of ACHIEVEMENTS) {
+      if (!unlockedAchievements.value.includes(ach.id) && checkAchievementUnlocked(ach, state)) {
+        unlockedAchievements.value.push(ach.id)
+        newAchievementUnlocks.value.push({
+          id: ach.id,
+          title: ach.title,
+          icon: ach.icon,
+          rarity: ach.rarity,
+          reward: ach.reward,
+          time: Date.now()
+        })
+        // 发放奖励
+        if (ach.reward?.exp) {
+          exp.value += ach.reward.exp
+          battleLog.value.push(`🏆 解锁成就「${ach.title}」！获得 ${ach.reward.exp} 经验！`)
+          // 检查升级
+          while (exp.value >= maxExp.value) {
+            exp.value -= maxExp.value
+            level.value++
+            maxExp.value = Math.floor(maxExp.value * 1.2)
+            hp.value = maxHp.value
+            atk.value += 2
+            def.value += 1
+          }
+        }
+        // 3秒后移除通知
+        setTimeout(() => {
+          newAchievementUnlocks.value.shift()
+        }, 5000)
+      }
+    }
   }
 
   // 钓鱼相关方法
@@ -1219,6 +1375,10 @@ export const useGameStore = defineStore('game', () => {
       captureIndex: captureIndex.value,
       captureCorrectCount: captureCorrectCount.value,
       drop: drop.value,
+      bookStudyQuestion: bookStudyQuestion.value,
+      bookStudyMode: bookStudyMode.value,
+      dailyFishCount: dailyFishCount.value,
+      fishLimitUnlocked: fishLimitUnlocked.value,
       dungeonPhase: dungeonPhase.value,
       roomGrid: roomGrid.value,
       bossRoomIndex: bossRoomIndex.value,
@@ -1231,6 +1391,7 @@ export const useGameStore = defineStore('game', () => {
       cyclopedia: cyclopedia.value,
       stats: stats.value,
       usedQuestions: exportUsedQuestions(),
+      unlockedAchievements: unlockedAchievements.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1273,6 +1434,10 @@ export const useGameStore = defineStore('game', () => {
       captureQuestions.value = saveData.captureQuestions || []
       captureIndex.value = saveData.captureIndex || 0
       captureCorrectCount.value = saveData.captureCorrectCount || 0
+      bookStudyQuestion.value = saveData.bookStudyQuestion || null
+      bookStudyMode.value = saveData.bookStudyMode || false
+      dailyFishCount.value = saveData.dailyFishCount || 0
+      fishLimitUnlocked.value = saveData.fishLimitUnlocked || false
 
       // 加载地牢房间系统状态
       dungeonPhase.value = saveData.dungeonPhase || 'none'
@@ -1286,6 +1451,7 @@ export const useGameStore = defineStore('game', () => {
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
       cyclopedia.value = saveData.cyclopedia || {}
       stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
+      unlockedAchievements.value = saveData.unlockedAchievements || []
 
       // 加载错题本
       loadWrongQuestions()
@@ -1325,7 +1491,10 @@ export const useGameStore = defineStore('game', () => {
     drop,
     comboCount, comboActive, consecutiveCorrect,
     cyclopedia, newDiscoveries, stats,
+    unlockedAchievements, newAchievementUnlocks,
     fishingLevel, recentCatches, fishCollection,
+    bookStudyQuestion, bookStudyMode,
+    dailyFishCount, fishLimitUnlocked,
     wrongQuestions, wrongStats, reviewMode, reviewCurrent, reviewIndex, reviewPool, reviewResults,
     dungeonPhase, roomGrid, bossRoomIndex, currentRoomIndex, allClearCount, clearedRoomsThisFloor, hasSkippedRoom,
     currentFloorElement, showTutorial, firstVisit,
@@ -1340,6 +1509,8 @@ export const useGameStore = defineStore('game', () => {
     buyItem,
     claimDrop,
     recordFishCatch, removeFishFromRecent,
+    startBookStudy, submitBookStudyAnswer, cancelBookStudy,
+    canFishToday, unlockFishLimit,
     addToCyclopedia, getCyclopediaProgress, isDiscovered, getDiscoveryCount,
     updateStats,
     recordWrongQuestion, masterQuestion, removeWrongQuestion,

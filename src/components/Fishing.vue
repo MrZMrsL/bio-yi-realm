@@ -2,6 +2,11 @@
   <div class="fishing-container">
     <div class="fishing-header">
       <div class="fishing-level">🎣 钓鱼等级 Lv.{{ store.fishingLevel }}</div>
+      <div class="fishing-count">
+        <span v-if="store.dailyFishCount < 5" class="count-normal">今日剩余 {{ fishRemaining }} 次</span>
+        <span v-else-if="store.fishLimitUnlocked" class="count-unlocked">🔓 无限钓鱼已解锁</span>
+        <span v-else class="count-limited">⚠️ 已达上限，需答题解锁</span>
+      </div>
       <div class="fishing-stats">已捕获 {{ store.recentCatches.length }} 条 | 图鉴 {{ fishCollectionPercent }}%</div>
     </div>
 
@@ -27,19 +32,29 @@
           钓到了 <span class="rarity-badge" style="color: #d4a853">[古籍]</span>
           <strong>{{ caughtBook.name }}</strong>！
         </span>
+        <span v-if="fishingState === 'bookStudyQuiz'">📚 正在研读古籍，请答题...</span>
+        <span v-if="fishingState === 'bookStudySuccess'">🎉 研读成功！获得经验！</span>
+        <span v-if="fishingState === 'bookStudyFail'">😢 研读失败，古籍化为灰烬...</span>
+        <span v-if="fishingState === 'limitQuiz'">🔒 钓鱼次数已达上限，请答题解锁...</span>
+        <span v-if="fishingState === 'limitLocked'">🔒 答题失败，今日无法继续钓鱼...</span>
       </div>
 
       <button
         class="fish-btn"
         :class="{ disabled: fishingState !== 'idle' && fishingState !== 'bite' }"
         @click="handleFishAction"
-        :disabled="fishingState === 'casting' || fishingState === 'caught' || fishingState === 'book'"
+        :disabled="fishingState === 'casting' || fishingState === 'caught' || fishingState === 'book' || fishingState === 'bookStudyQuiz' || fishingState === 'bookStudySuccess' || fishingState === 'bookStudyFail' || fishingState === 'limitQuiz' || fishingState === 'limitLocked'"
       >
         <span v-if="fishingState === 'idle'">开始钓鱼</span>
         <span v-if="fishingState === 'casting'">等待中...</span>
         <span v-if="fishingState === 'bite'">🎣 收杆！</span>
         <span v-if="fishingState === 'caught'">已捕获</span>
         <span v-if="fishingState === 'book'">已发现</span>
+        <span v-if="fishingState === 'bookStudyQuiz'">研读中...</span>
+        <span v-if="fishingState === 'bookStudySuccess'">研读完成</span>
+        <span v-if="fishingState === 'bookStudyFail'">研读失败</span>
+        <span v-if="fishingState === 'limitQuiz'">答题解锁</span>
+        <span v-if="fishingState === 'limitLocked'">已锁定</span>
       </button>
     </div>
 
@@ -102,10 +117,72 @@
         </div>
       </div>
       <div class="caught-actions">
-        <button class="action-btn eat-btn" @click="collectBook">
-          📖 收下古籍
+        <button class="action-btn eat-btn" @click="startBookStudy">
+          📚 研读古籍（答题+经验）
+        </button>
+        <button class="action-btn release-btn" @click="collectBook">
+          📖 直接收下
         </button>
       </div>
+    </div>
+
+    <!-- 古籍研读答题面板 -->
+    <div v-if="fishingState === 'bookStudyQuiz' && store.bookStudyQuestion" class="quiz-panel">
+      <div class="quiz-title">📚 研读古籍</div>
+      <div class="quiz-hint">答对题目获得经验奖励，答错古籍消失</div>
+      <div class="question">{{ store.bookStudyQuestion.q }}</div>
+      <div class="options">
+        <button 
+          v-for="(opt, i) in store.bookStudyQuestion.options" 
+          :key="i" 
+          @click="submitBookStudyAnswer(i)"
+          class="option-btn"
+        >
+          {{ opt }}
+        </button>
+      </div>
+      <button @click="cancelBookStudy" class="btn-cancel">取消研读</button>
+    </div>
+
+    <!-- 研读成功 -->
+    <div v-if="fishingState === 'bookStudySuccess'" class="quiz-result success">
+      <div class="result-icon">🎉</div>
+      <div class="result-title">研读成功！</div>
+      <div class="result-text">获得 25 经验值！</div>
+      <button @click="continueFishing" class="btn-next">继续钓鱼</button>
+    </div>
+
+    <!-- 研读失败 -->
+    <div v-if="fishingState === 'bookStudyFail'" class="quiz-result fail">
+      <div class="result-icon">😢</div>
+      <div class="result-title">研读失败</div>
+      <div class="result-text">古籍在你手中化为灰烬...</div>
+      <button @click="continueFishing" class="btn-next">继续钓鱼</button>
+    </div>
+
+    <!-- 钓鱼次数限制答题面板 -->
+    <div v-if="fishingState === 'limitQuiz' && quizQuestion" class="quiz-panel">
+      <div class="quiz-title">🔒 钓鱼次数已达上限</div>
+      <div class="quiz-hint">答对此题可继续无限钓鱼</div>
+      <div class="question">{{ quizQuestion.q }}</div>
+      <div class="options">
+        <button 
+          v-for="(opt, i) in quizQuestion.options" 
+          :key="i" 
+          @click="submitLimitQuizAnswer(i)"
+          class="option-btn"
+        >
+          {{ opt }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 钓鱼次数锁定 -->
+    <div v-if="fishingState === 'limitLocked'" class="quiz-result fail">
+      <div class="result-icon">🔒</div>
+      <div class="result-title">答题失败</div>
+      <div class="result-text">今日钓鱼次数已用完，请明日再来</div>
+      <button @click="continueFishing" class="btn-next">返回</button>
     </div>
 
     <!-- 最近捕获记录 -->
@@ -148,19 +225,22 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
-import { RARITY_CONFIG, drawFish, drawBook } from '../data/fishing.js'
+import { RARITY_CONFIG, drawFish, drawBook, FISH_RARITY_COUNTS, TOTAL_FISH_COUNT } from '../data/fishing.js'
 import { getQuestions } from '../data/questions.js'
-import { sfxClick, sfxSplash, sfxItemGet } from '../utils/audio.js'
+import { sfxClick, sfxSplash, sfxItemGet, sfxCorrect, sfxWrong } from '../utils/audio.js'
 
 const store = useGameStore()
-const fishingState = ref('idle') // idle, casting, bite, quiz, caught, book
+const fishingState = ref('idle') // idle, casting, bite, quiz, caught, book, bookStudy, bookStudyQuiz, limitQuiz, limitLocked
 const caughtFish = ref(null)
 const caughtBook = ref(null)
 const quizQuestion = ref(null)
 const quizResult = ref(null)
 const rarityConfig = RARITY_CONFIG
 
-// 钓鱼等级对应可钓稀有度
+// 钓鱼次数限制检查
+const fishLimitCheck = computed(() => store.canFishToday())
+const fishRemaining = computed(() => Math.max(0, 5 - store.dailyFishCount))
+
 const fishCollectionPercent = computed(() => {
   const totalCaught = Object.values(store.fishCollection).reduce((a, b) => a + b, 0)
   return totalCaught
@@ -171,21 +251,27 @@ function collectionCount(rarity) {
 }
 
 function totalByRarity(rarity) {
-  // 从 data/fishing.js 中读取（需要额外导入）
-  // 这里用静态估算，实际应用时通过 props 或直接导入
-  const counts = { common: 20, normal: 38, rare: 20, epic: 15, legendary: 6, mythic: 10, special: 40 }
-  return counts[rarity] || 1
+  return FISH_RARITY_COUNTS[rarity] || 0
 }
 
 function collectionPercent(rarity) {
   const total = totalByRarity(rarity)
   const have = collectionCount(rarity)
-  return Math.min(100, Math.floor((have / total) * 100))
+  return total > 0 ? Math.min(100, Math.floor((have / total) * 100)) : 0
 }
 
 function handleFishAction() {
   sfxClick()
   if (fishingState.value === 'idle') {
+    // 检查钓鱼次数限制
+    const check = fishLimitCheck.value
+    if (!check.allowed) {
+      // 需要答题解锁
+      fishingState.value = 'limitQuiz'
+      quizQuestion.value = getQuestions('all', 'medium', 1)[0]
+      quizResult.value = null
+      return
+    }
     startFishing()
   } else if (fishingState.value === 'bite') {
     reelIn()
@@ -207,7 +293,6 @@ function startFishing() {
       setTimeout(() => {
         if (fishingState.value === 'bite') {
           fishingState.value = 'idle'
-          // 可以在这里提示鱼跑了
         }
       }, 2000)
     }
@@ -218,6 +303,9 @@ function reelIn() {
   if (fishingState.value !== 'bite') return
 
   sfxSplash()
+
+  // 增加钓鱼次数
+  store.dailyFishCount++
 
   // 15% 概率钓到古籍
   if (Math.random() < 0.15) {
@@ -251,6 +339,7 @@ function reelIn() {
     store.recordFishCatch(fish)
     sfxItemGet()
   }
+  store.saveGame()
 }
 
 function collectBook() {
@@ -258,6 +347,32 @@ function collectBook() {
   caughtBook.value = null
   fishingState.value = 'idle'
   store.saveGame()
+}
+
+function startBookStudy() {
+  sfxClick()
+  store.startBookStudy()
+  fishingState.value = 'bookStudyQuiz'
+  quizResult.value = null
+}
+
+function submitBookStudyAnswer(index) {
+  sfxClick()
+  const result = store.submitBookStudyAnswer(index)
+  if (result.correct) {
+    sfxCorrect()
+    fishingState.value = 'bookStudySuccess'
+  } else {
+    sfxWrong()
+    fishingState.value = 'bookStudyFail'
+  }
+}
+
+function cancelBookStudy() {
+  sfxClick()
+  store.cancelBookStudy()
+  caughtBook.value = null
+  fishingState.value = 'idle'
 }
 
 function submitQuizAnswer(index) {
@@ -275,6 +390,24 @@ function submitQuizAnswer(index) {
     caughtFish.value = null
     fishingState.value = 'idle'
     quizQuestion.value = null
+  }
+  store.saveGame()
+}
+
+function submitLimitQuizAnswer(index) {
+  sfxClick()
+  if (!quizQuestion.value) return
+  const correct = index === quizQuestion.value.answer
+  if (correct) {
+    sfxCorrect()
+    store.unlockFishLimit()
+    fishingState.value = 'idle'
+    quizQuestion.value = null
+    // 自动开始钓鱼
+    startFishing()
+  } else {
+    sfxWrong()
+    fishingState.value = 'limitLocked'
   }
 }
 
@@ -319,6 +452,15 @@ function releaseFish() {
 
   // 自动存档
   store.saveGame()
+}
+
+function continueFishing() {
+  sfxClick()
+  fishingState.value = 'idle'
+  quizResult.value = null
+  quizQuestion.value = null
+  caughtFish.value = null
+  caughtBook.value = null
 }
 </script>
 
@@ -705,5 +847,87 @@ function releaseFish() {
   color: #888;
   text-align: right;
   font-size: 11px;
+}
+
+/* 钓鱼次数状态 */
+.fishing-count {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-weight: bold;
+}
+.count-normal {
+  color: #2ecc71;
+  background: rgba(46, 204, 113, 0.15);
+}
+.count-unlocked {
+  color: #d4a853;
+  background: rgba(212, 168, 83, 0.15);
+}
+.count-limited {
+  color: #e74c3c;
+  background: rgba(231, 76, 60, 0.15);
+  animation: pulse-warning 1.5s ease-in-out infinite;
+}
+@keyframes pulse-warning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* 答题结果面板 */
+.quiz-result {
+  background: rgba(15, 52, 96, 0.6);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 12px;
+}
+.quiz-result.success {
+  border-color: rgba(46, 204, 113, 0.3);
+}
+.quiz-result.fail {
+  border-color: rgba(231, 76, 60, 0.3);
+}
+.result-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+.result-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #e0e0e0;
+  margin-bottom: 8px;
+}
+.result-text {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin-bottom: 16px;
+}
+.btn-next {
+  padding: 10px 24px;
+  background: rgba(212, 168, 83, 0.2);
+  border: 1px solid rgba(212, 168, 83, 0.4);
+  border-radius: 8px;
+  color: #d4a853;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-next:hover {
+  background: rgba(212, 168, 83, 0.3);
+}
+.btn-cancel {
+  padding: 8px 16px;
+  background: rgba(100, 100, 100, 0.2);
+  border: 1px solid rgba(100, 100, 100, 0.3);
+  border-radius: 8px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.btn-cancel:hover {
+  background: rgba(100, 100, 100, 0.3);
 }
 </style>
