@@ -90,6 +90,15 @@ export const useGameStore = defineStore('game', () => {
   const reviewPool = ref([])
   const reviewResults = ref([])
 
+  // 地牢房间系统
+  const dungeonPhase = ref('none') // 'none' | 'prep' | 'rooms' | 'battle'
+  const roomGrid = ref([]) // 9个房间数据 [{ index, enemyPreview, cleared, isBoss }]
+  const bossRoomIndex = ref(-1)
+  const currentRoomIndex = ref(-1)
+  const allClearCount = ref(0) // "我全都要"成就计数
+  const clearedRoomsThisFloor = ref(0)
+  const hasSkippedRoom = ref(false) // 本层是否有未清空的房间就进入下一层
+
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
   const hpPercent = computed(() => (hp.value / maxHp.value) * 100)
@@ -159,6 +168,152 @@ export const useGameStore = defineStore('game', () => {
     battleState.value = 'idle'
     inBattle.value = true
   }
+
+  // ===== 地牢房间系统 =====
+
+  // 进入地牢准备界面
+  function enterDungeonPrep() {
+    dungeonPhase.value = 'prep'
+    generateRoomPreviews()
+  }
+
+  // 生成9个房间预览（8普通 + 1 Boss）
+  function generateRoomPreviews() {
+    const rooms = []
+    // 先确定Boss位置
+    bossRoomIndex.value = Math.floor(Math.random() * 9)
+
+    for (let i = 0; i < 9; i++) {
+      const isBoss = i === bossRoomIndex.value
+      // Boss敌人：从高级池选取
+      let e
+      if (isBoss) {
+        const bossPool = ENEMIES.filter(e => e.hp > 60 || e.atk > 20)
+        e = bossPool.length > 0
+          ? bossPool[Math.floor(Math.random() * bossPool.length)]
+          : ENEMIES[Math.floor(Math.random() * ENEMIES.length)]
+      } else {
+        e = getEnemyForFloor(floor.value)
+      }
+
+      const el = DUNGEON_ELEMENTS[e.element] || DUNGEON_ELEMENTS.water
+      rooms.push({
+        index: i,
+        enemyPreview: {
+          name: e.name,
+          icon: e.icon || e.name.charAt(0),
+          subject: e.subject,
+          subjectLabel: e.subject === 'chem' ? '化学' : e.subject === 'bio' ? '生物' : '易学',
+          element: e.element,
+          elementLabel: el.name,
+          elementColor: el.color,
+          hp: isBoss ? Math.floor(e.hp * 1.5) : e.hp,
+          atk: isBoss ? Math.floor(e.atk * 1.3) : e.atk,
+          def: e.def || 0,
+          desc: e.desc
+        },
+        cleared: false,
+        isBoss
+      })
+    }
+
+    roomGrid.value = rooms
+    clearedRoomsThisFloor.value = 0
+    hasSkippedRoom.value = false
+    currentRoomIndex.value = -1
+  }
+
+  // 进入指定房间战斗
+  function enterRoom(roomIndex) {
+    const room = roomGrid.value[roomIndex]
+    if (!room || room.cleared) return
+
+    currentRoomIndex.value = roomIndex
+    dungeonPhase.value = 'battle'
+
+    const preview = room.enemyPreview
+    // 生成实际的敌人实例
+    enemy.value = {
+      name: preview.name,
+      icon: preview.icon,
+      hp: preview.hp,
+      maxHp: preview.hp,
+      atk: preview.atk,
+      def: preview.def,
+      subject: preview.subject,
+      element: preview.element,
+      subjectLabel: preview.subjectLabel,
+      elementLabel: preview.elementLabel
+    }
+
+    // 获取题目
+    const q = getQuestionsForFloor(floor.value, 1)[0]
+    question.value = q
+
+    battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
+    battleState.value = 'idle'
+    inBattle.value = true
+  }
+
+  // 完成房间战斗
+  function finishRoom(cleared) {
+    if (currentRoomIndex.value < 0) return
+
+    const room = roomGrid.value[currentRoomIndex.value]
+    if (room) {
+      room.cleared = cleared
+      if (cleared) clearedRoomsThisFloor.value++
+    }
+
+    // 检查"我全都要"成就
+    const allCleared = roomGrid.value.every(r => r.cleared)
+    if (allCleared) {
+      allClearCount.value++
+      if (allClearCount.value >= 10) {
+        battleLog.value.push('🏆 解锁成就：我全都要！（连续10层清空所有房间）')
+      }
+    }
+
+    currentRoomIndex.value = -1
+    inBattle.value = false
+    enemy.value = null
+    question.value = null
+    battleState.value = ''
+    resetCombo()
+
+    if (allCleared) {
+      // 全部清空，自动提示进入下一层
+      dungeonPhase.value = 'rooms'
+    } else {
+      dungeonPhase.value = 'rooms'
+    }
+  }
+
+  // 进入下一层
+  function nextFloor() {
+    const allCleared = roomGrid.value.every(r => r.cleared)
+    if (!allCleared) {
+      hasSkippedRoom.value = true
+    }
+    floor.value++
+    dungeonPhase.value = 'prep'
+    generateRoomPreviews()
+  }
+
+  // 退出地牢
+  function exitDungeon() {
+    dungeonPhase.value = 'none'
+    roomGrid.value = []
+    bossRoomIndex.value = -1
+    currentRoomIndex.value = -1
+    inBattle.value = false
+    enemy.value = null
+    question.value = null
+    battleState.value = ''
+    resetCombo()
+  }
+
+  // ===== 地牢房间系统结束 =====
 
   // 攻击
   function attack() {
@@ -481,6 +636,47 @@ export const useGameStore = defineStore('game', () => {
     }
     updateStats('totalBattles', 1)
 
+    // 如果是房间模式，不立即处理捕捉和楼层递增，等finishRoom统一处理
+    if (dungeonPhase.value === 'battle') {
+      // 房间模式：捕捉流程简化——直接提供收养选项
+      if (farm.value.length < FARM_MAX_CAPACITY) {
+        const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
+        if (!alreadyHas) {
+          const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
+          if (Math.random() <= triggerChance) {
+            // 准备捕捉数据
+            captureMonsterData.value = {
+              name: enemy.value.name,
+              icon: enemy.value.icon || enemy.value.name.charAt(0),
+              element: enemy.value.element,
+              baseHp: enemy.value.maxHp,
+              baseAtk: enemy.value.atk,
+              baseDef: enemy.value.def,
+              captureFloor: floor.value
+            }
+
+            const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
+            const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
+            const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
+            captureQuestions.value = []
+            const usedIndices = new Set()
+            for (let i = 0; i < 3 && i < qPool.length; i++) {
+              let idx
+              do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
+              usedIndices.add(idx)
+              captureQuestions.value.push(qPool[idx])
+            }
+            captureIndex.value = 0
+            captureCorrectCount.value = 0
+            return
+          }
+        }
+      }
+      // 无捕捉触发，胜利后直接finishRoom
+      return
+    }
+
+    // 非房间模式（兼容旧逻辑）
     // 检查是否可以捕捉（概率触发，非100%）
     if (farm.value.length < FARM_MAX_CAPACITY) {
       const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
@@ -584,7 +780,12 @@ export const useGameStore = defineStore('game', () => {
   // 领取掉落
   function claimDrop() {
     drop.value = null
-    battleState.value = 'won'
+    // 房间模式下，如果没有捕捉数据，直接返回房间界面
+    if (dungeonPhase.value === 'battle' && !captureMonsterData.value) {
+      finishRoom(true)
+    } else {
+      battleState.value = 'won'
+    }
   }
 
   // 开始捕捉流程
@@ -620,7 +821,11 @@ export const useGameStore = defineStore('game', () => {
       captureQuestions.value = []
       captureIndex.value = 0
       captureCorrectCount.value = 0
-      floor.value++
+      if (dungeonPhase.value === 'battle') {
+        finishRoom(true)
+      } else {
+        floor.value++
+      }
       return
     }
 
@@ -646,7 +851,11 @@ export const useGameStore = defineStore('game', () => {
       captureQuestions.value = []
       captureIndex.value = 0
       captureCorrectCount.value = 0
-      floor.value++
+      if (dungeonPhase.value === 'battle') {
+        finishRoom(true)
+      } else {
+        floor.value++
+      }
     }
   }
 
@@ -657,8 +866,12 @@ export const useGameStore = defineStore('game', () => {
     captureIndex.value = 0
     captureCorrectCount.value = 0
     battleState.value = 'idle'
-    floor.value++
-    exitBattle()
+    if (dungeonPhase.value === 'battle') {
+      finishRoom(true)
+    } else {
+      floor.value++
+      exitBattle()
+    }
   }
 
   // 设置跟随怪物
@@ -737,6 +950,10 @@ export const useGameStore = defineStore('game', () => {
   function flee() {
     battleState.value = 'fled'
     battleLog.value.push('你逃跑了...')
+    if (dungeonPhase.value === 'battle') {
+      // 房间模式下，逃跑后房间标记为未清空，但返回房间界面
+      setTimeout(() => finishRoom(false), 500)
+    }
   }
 
   // 退出战斗
@@ -751,6 +968,11 @@ export const useGameStore = defineStore('game', () => {
     captureIndex.value = 0
     captureCorrectCount.value = 0
     resetCombo()
+    // 如果在房间模式下战败，返回房间界面
+    if (dungeonPhase.value === 'battle') {
+      dungeonPhase.value = 'rooms'
+      currentRoomIndex.value = -1
+    }
   }
 
   // 装备物品
@@ -984,6 +1206,13 @@ export const useGameStore = defineStore('game', () => {
       captureIndex: captureIndex.value,
       captureCorrectCount: captureCorrectCount.value,
       drop: drop.value,
+      dungeonPhase: dungeonPhase.value,
+      roomGrid: roomGrid.value,
+      bossRoomIndex: bossRoomIndex.value,
+      currentRoomIndex: currentRoomIndex.value,
+      allClearCount: allClearCount.value,
+      clearedRoomsThisFloor: clearedRoomsThisFloor.value,
+      hasSkippedRoom: hasSkippedRoom.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1025,6 +1254,15 @@ export const useGameStore = defineStore('game', () => {
       captureIndex.value = saveData.captureIndex || 0
       captureCorrectCount.value = saveData.captureCorrectCount || 0
 
+      // 加载地牢房间系统状态
+      dungeonPhase.value = saveData.dungeonPhase || 'none'
+      roomGrid.value = saveData.roomGrid || []
+      bossRoomIndex.value = saveData.bossRoomIndex || -1
+      currentRoomIndex.value = saveData.currentRoomIndex || -1
+      allClearCount.value = saveData.allClearCount || 0
+      clearedRoomsThisFloor.value = saveData.clearedRoomsThisFloor || 0
+      hasSkippedRoom.value = saveData.hasSkippedRoom || false
+
       // 加载错题本
       loadWrongQuestions()
 
@@ -1063,10 +1301,12 @@ export const useGameStore = defineStore('game', () => {
     cyclopedia, newDiscoveries, stats,
     fishingLevel, recentCatches, fishCollection,
     wrongQuestions, wrongStats, reviewMode, reviewCurrent, reviewIndex, reviewPool, reviewResults,
+    dungeonPhase, roomGrid, bossRoomIndex, currentRoomIndex, allClearCount, clearedRoomsThisFloor, hasSkippedRoom,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
     initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
     startCapture, submitCaptureAnswer, skipCapture,
+    enterDungeonPrep, generateRoomPreviews, enterRoom, finishRoom, nextFloor, exitDungeon,
     setFollowMonster, unfollowMonster, upgradeMonster, releaseMonster,
     equip, addItem, addMaterial,
     forgeItem,

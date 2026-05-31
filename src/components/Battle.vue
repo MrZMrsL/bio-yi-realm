@@ -24,7 +24,17 @@
     
     <!-- 暴击特效覆盖层 -->
     <div v-if="store.comboActive" class="critical-overlay">
-      <div class="critical-overlay-text">⚡ 三连暴击！伤害×3！</div>
+      <div class="critical-particles">
+        <div class="particle" style="--tx: -40; --ty: -60;"></div>
+        <div class="particle" style="--tx: 50; --ty: -40;"></div>
+        <div class="particle" style="--tx: -30; --ty: 50;"></div>
+        <div class="particle" style="--tx: 60; --ty: 30;"></div>
+        <div class="particle" style="--tx: 20; --ty: -70;"></div>
+        <div class="particle" style="--tx: -50; --ty: 20;"></div>
+        <div class="particle" style="--tx: 35; --ty: -50;"></div>
+        <div class="particle" style="--tx: -25; --ty: 60;"></div>
+      </div>
+      <div class="critical-overlay-text">⚡ 知识三连击！伤害×3！</div>
     </div>
     
     <div class="battlefield">
@@ -141,7 +151,7 @@
         </div>
       </div>
       <div v-else class="no-capture">
-        <button @click="nextBattle" class="btn-next">继续探索</button>
+        <button @click="nextBattle" class="btn-next">返回房间</button>
       </div>
     </div>
     
@@ -179,14 +189,14 @@
       <div class="capture-result-icon">{{ store.farm[store.farm.length - 1]?.icon }}</div>
       <div class="capture-result-name">{{ store.farm[store.farm.length - 1]?.name }}</div>
       <div class="capture-result-desc">已成为你的伙伴！</div>
-      <button @click="nextBattle" class="btn-next">太棒了！</button>
+      <button @click="nextBattle" class="btn-next">返回房间</button>
     </div>
     
     <!-- 捕捉失败 -->
     <div v-if="store.battleState === 'captureFail'" class="result capture-result fail">
       <div class="result-title">😢 怪物逃跑了</div>
       <div class="capture-result-desc">答题失败，怪物消失在黑暗中...</div>
-      <button @click="nextBattle" class="btn-next">继续探索</button>
+      <button @click="nextBattle" class="btn-next">返回房间</button>
     </div>
     
     <!-- 战败 -->
@@ -244,7 +254,12 @@ function submitCaptureAnswer(index) {
 }
 
 function nextBattle() {
-  store.initBattle()
+  // 房间系统下，战斗结束返回房间界面
+  if (store.dungeonPhase === 'battle') {
+    store.exitBattle()
+  } else {
+    store.initBattle()
+  }
 }
 
 function qualityColor(level) {
@@ -305,7 +320,7 @@ function revive() {
   animation: screen-shake 0.5s ease-in-out;
 }
 
-/* 暴击闪光覆盖层 */
+/* 暴击闪光覆盖层 - 增强版 */
 .critical-overlay {
   position: fixed;
   top: 0;
@@ -321,13 +336,57 @@ function revive() {
   pointer-events: none;
 }
 
+.critical-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 60%);
+  animation: white-flash 0.4s ease-out;
+  pointer-events: none;
+}
+
 .critical-overlay-text {
   font-size: 32px;
   font-weight: bold;
   color: #f1c40f;
-  text-shadow: 0 0 20px rgba(241, 196, 15, 0.8);
-  animation: critical-zoom 0.5s ease-out;
+  text-shadow: 0 0 20px rgba(241, 196, 15, 0.8), 0 0 40px rgba(241, 196, 15, 0.4);
+  animation: critical-zoom 0.5s ease-out, critical-pulse 0.8s ease-in-out infinite 0.5s;
+  position: relative;
+  z-index: 1;
 }
+
+/* 暴击粒子效果 */
+.critical-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 999;
+}
+
+.critical-particles .particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #f1c40f;
+  border-radius: 50%;
+  animation: particle-burst 1s ease-out forwards;
+}
+
+.critical-particles .particle:nth-child(1) { top: 40%; left: 45%; animation-delay: 0s; }
+.critical-particles .particle:nth-child(2) { top: 35%; left: 55%; animation-delay: 0.1s; }
+.critical-particles .particle:nth-child(3) { top: 50%; left: 40%; animation-delay: 0.05s; }
+.critical-particles .particle:nth-child(4) { top: 45%; left: 60%; animation-delay: 0.15s; }
+.critical-particles .particle:nth-child(5) { top: 30%; left: 50%; animation-delay: 0.08s; }
+.critical-particles .particle:nth-child(6) { top: 55%; left: 48%; animation-delay: 0.12s; }
+.critical-particles .particle:nth-child(7) { top: 38%; left: 42%; animation-delay: 0.2s; }
+.critical-particles .particle:nth-child(8) { top: 42%; left: 58%; animation-delay: 0.18s; }
 
 @keyframes combo-pop {
   0% { transform: scale(0.5); opacity: 0; }
@@ -346,16 +405,44 @@ function revive() {
 }
 
 @keyframes screen-shake {
-  0%, 100% { transform: translateX(0); }
-  10% { transform: translateX(-5px); }
-  20% { transform: translateX(5px); }
-  30% { transform: translateX(-5px); }
-  40% { transform: translateX(5px); }
-  50% { transform: translateX(-3px); }
-  60% { transform: translateX(3px); }
-  70% { transform: translateX(-2px); }
-  80% { transform: translateX(2px); }
-  90% { transform: translateX(-1px); }
+  0%, 100% { transform: translateX(0) translateY(0); }
+  10% { transform: translateX(-8px) translateY(2px); }
+  20% { transform: translateX(8px) translateY(-2px); }
+  30% { transform: translateX(-8px) translateY(1px); }
+  40% { transform: translateX(8px) translateY(-1px); }
+  50% { transform: translateX(-5px) translateY(2px); }
+  60% { transform: translateX(5px) translateY(-2px); }
+  70% { transform: translateX(-3px) translateY(1px); }
+  80% { transform: translateX(3px) translateY(-1px); }
+  90% { transform: translateX(-1px) translateY(0); }
+}
+
+@keyframes white-flash {
+  0% { opacity: 1; }
+  40% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+@keyframes critical-zoom {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes critical-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+@keyframes particle-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { 
+    transform: translate(
+      calc(var(--tx, 0) * 1px), 
+      calc(var(--ty, 0) * 1px)
+    ) scale(0);
+    opacity: 0;
+  }
 }
 
 @keyframes fade-in-out {

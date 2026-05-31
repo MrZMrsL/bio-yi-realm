@@ -112,12 +112,127 @@
       <div class="panel-content">
         <!-- 地牢面板 -->
         <div v-if="activePanel === 'dungeon'" class="panel-dungeon">
-          <div v-if="!store.inBattle" class="dungeon-intro">
+          <!-- 地牢入口 -->
+          <div v-if="store.dungeonPhase === 'none'" class="dungeon-intro">
             <div class="dungeon-title">🏰 第 {{ store.floor }} 层地牢</div>
             <p class="dungeon-desc">黑暗中的密室散发着危险的气息...</p>
-            <button class="explore-btn" @click="store.initBattle">探索密室</button>
+            <div class="dungeon-stats-hint">
+              <span>⚔️{{ store.totalAtk }}</span>
+              <span>🛡️{{ store.totalDef }}</span>
+              <span>❤️{{ store.hp }}/{{ store.maxHp }}</span>
+            </div>
+            <button class="explore-btn" @click="store.enterDungeonPrep">进入地牢</button>
           </div>
-          <Battle v-else />
+          
+          <!-- 准备界面 -->
+          <div v-if="store.dungeonPhase === 'prep'" class="dungeon-prep">
+            <div class="prep-header">
+              <div class="prep-title">⚔️ 第 {{ store.floor }} 层 - 战前准备</div>
+              <div class="prep-hint">调整装备与宠物，确认后进入地牢</div>
+            </div>
+            
+            <!-- 怪物预览 -->
+            <div class="prep-preview">
+              <div class="preview-title">🔮 本层怪物情报</div>
+              <div class="preview-grid">
+                <div v-for="room in store.roomGrid.slice(0, 6)" :key="room.index" class="preview-card" :class="{ 'preview-boss': room.isBoss }">
+                  <span class="preview-icon">{{ room.enemyPreview.icon }}</span>
+                  <span class="preview-name">{{ room.enemyPreview.name }}</span>
+                  <span class="preview-subject" :style="{ background: room.enemyPreview.elementColor }">{{ room.enemyPreview.subjectLabel }}</span>
+                  <span class="preview-atk">⚔️{{ room.enemyPreview.atk }}</span>
+                </div>
+                <div class="preview-more">+{{ store.roomGrid.length - 6 }} 更多...</div>
+              </div>
+            </div>
+            
+            <!-- 当前配置 -->
+            <div class="prep-config">
+              <div class="config-section">
+                <div class="config-title">🗡️ 装备</div>
+                <div class="config-slots">
+                  <div class="config-slot" :class="{ empty: !store.equipped.weapon }">
+                    <span v-if="store.equipped.weapon">⚔️ {{ store.equipped.weapon.name }}</span>
+                    <span v-else>未装备武器</span>
+                  </div>
+                  <div class="config-slot" :class="{ empty: !store.equipped.armor }">
+                    <span v-if="store.equipped.armor">🛡️ {{ store.equipped.armor.name }}</span>
+                    <span v-else>未装备防具</span>
+                  </div>
+                  <div class="config-slot" :class="{ empty: !store.equipped.accessory }">
+                    <span v-if="store.equipped.accessory">💍 {{ store.equipped.accessory.name }}</span>
+                    <span v-else>未装备饰品</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="config-section">
+                <div class="config-title">🐾 宠物</div>
+                <div class="config-pet">
+                  <span v-if="store.activeMonster">{{ store.activeMonster.icon }} {{ store.activeMonster.name }} {{ store.activeMonster.ability?.desc }}</span>
+                  <span v-else class="empty">未携带宠物</span>
+                </div>
+              </div>
+              
+              <div class="config-section">
+                <div class="config-title">🧪 药水 ({{ store.consumables.length }})</div>
+                <div class="config-potions">
+                  <span v-for="item in store.consumables.slice(0, 5)" :key="item.id" class="config-potion">{{ item.icon }} {{ item.name }}</span>
+                  <span v-if="store.consumables.length === 0" class="empty">无药水</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="prep-actions">
+              <button class="btn-enter-dungeon" @click="store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
+            </div>
+          </div>
+          
+          <!-- 房间选择 -->
+          <div v-if="store.dungeonPhase === 'rooms'" class="dungeon-rooms">
+            <div class="rooms-header">
+              <div class="rooms-title">🏰 第 {{ store.floor }} 层 - 选择房间</div>
+              <div class="rooms-progress">{{ store.clearedRoomsThisFloor }} / 9 已清空</div>
+              <div v-if="store.allClearCount > 0" class="rooms-achievement">🏆 我全都要：{{ store.allClearCount }}/10</div>
+            </div>
+            <div class="rooms-grid">
+              <div
+                v-for="room in store.roomGrid"
+                :key="room.index"
+                class="room-card"
+                :class="{
+                  cleared: room.cleared,
+                  boss: room.isBoss,
+                  clickable: !room.cleared && !store.inBattle
+                }"
+                @click="!room.cleared && !store.inBattle && store.enterRoom(room.index)"
+              >
+                <div class="room-number">{{ room.index + 1 }}</div>
+                <div v-if="!room.cleared" class="room-enemy">
+                  <span class="room-icon">{{ room.isBoss ? '👹' : room.enemyPreview.icon }}</span>
+                  <span class="room-name">{{ room.enemyPreview.name }}</span>
+                  <span class="room-subject" :style="{ background: room.enemyPreview.elementColor }">{{ room.enemyPreview.subjectLabel }}</span>
+                  <span class="room-stats">⚔️{{ room.enemyPreview.atk }} 🛡️{{ room.enemyPreview.def }}</span>
+                </div>
+                <div v-else class="room-cleared">
+                  <span class="cleared-icon">✅</span>
+                  <span>已清空</span>
+                </div>
+                <div v-if="room.isBoss" class="room-boss-tag">BOSS</div>
+              </div>
+            </div>
+            <div class="rooms-actions">
+              <button
+                class="btn-next-floor"
+                :class="{ 'all-clear': store.clearedRoomsThisFloor === 9 }"
+                @click="store.nextFloor"
+              >
+                {{ store.clearedRoomsThisFloor === 9 ? '🏆 全部清空！进入下一层' : '⬇️ 进入下一层' }}
+              </button>
+            </div>
+          </div>
+          
+          <!-- 战斗 -->
+          <Battle v-if="store.inBattle" />
         </div>
         
         <!-- 锻造面板 -->
@@ -380,6 +495,9 @@ function openPanel(panel) {
 }
 
 function closePanel() {
+  if (store.dungeonPhase !== 'none') {
+    store.exitDungeon()
+  }
   activePanel.value = null
 }
 
@@ -1145,4 +1263,357 @@ function resetGame() {
   0% { transform: translateX(100px); opacity: 0; }
   100% { transform: translateX(0); opacity: 1; }
 }
+/* 地牢准备界面 */
+.dungeon-prep {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.prep-header {
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.prep-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #d4a853;
+  margin-bottom: 4px;
+}
+
+.prep-hint {
+  font-size: 12px;
+  color: #888;
+}
+
+.prep-preview {
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.preview-title {
+  font-size: 14px;
+  color: #e0e0e0;
+  margin-bottom: 12px;
+  font-weight: bold;
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.preview-card {
+  background: rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.preview-boss {
+  border: 1px solid #e74c3c;
+  background: rgba(231, 76, 60, 0.15);
+}
+
+.preview-icon {
+  font-size: 18px;
+}
+
+.preview-name {
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.preview-subject {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.preview-atk {
+  color: #e74c3c;
+  font-size: 11px;
+}
+
+.preview-more {
+  grid-column: span 3;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+  padding: 4px;
+}
+
+.prep-config {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-title {
+  font-size: 13px;
+  color: #d4a853;
+  font-weight: bold;
+}
+
+.config-slots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.config-slot {
+  background: rgba(255,255,255,0.08);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+  flex: 1;
+  min-width: 100px;
+  text-align: center;
+}
+
+.config-slot.empty {
+  color: #666;
+}
+
+.config-pet {
+  background: rgba(255,255,255,0.08);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #e0e0e0;
+}
+
+.config-pet .empty {
+  color: #666;
+}
+
+.config-potions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.config-potion {
+  background: rgba(255,255,255,0.08);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #e0e0e0;
+}
+
+.prep-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-enter-dungeon {
+  padding: 12px 32px;
+  font-size: 16px;
+  background: #d4a853;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: transform 0.2s;
+}
+
+.btn-enter-dungeon:hover {
+  transform: scale(1.05);
+}
+
+/* 房间网格 */
+.dungeon-rooms {
+  padding: 20px;
+}
+
+.rooms-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.rooms-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #d4a853;
+  margin-bottom: 4px;
+}
+
+.rooms-progress {
+  font-size: 13px;
+  color: #888;
+}
+
+.rooms-achievement {
+  font-size: 12px;
+  color: #e74c3c;
+  margin-top: 4px;
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.room-card {
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.room-card.clickable {
+  cursor: pointer;
+}
+
+.room-card.clickable:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.2);
+  transform: translateY(-2px);
+}
+
+.room-card.cleared {
+  background: rgba(46, 204, 113, 0.15);
+  border-color: rgba(46, 204, 113, 0.3);
+  opacity: 0.7;
+}
+
+.room-card.boss {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: rgba(231, 76, 60, 0.3);
+}
+
+.room-card.boss.clickable:hover {
+  background: rgba(231, 76, 60, 0.25);
+  border-color: rgba(231, 76, 60, 0.5);
+}
+
+.room-number {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-size: 11px;
+  color: #666;
+}
+
+.room-icon {
+  font-size: 28px;
+  margin-top: 4px;
+}
+
+.room-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #e0e0e0;
+  text-align: center;
+}
+
+.room-subject {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+
+.room-stats {
+  font-size: 11px;
+  color: #888;
+}
+
+.room-cleared {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: #2ecc71;
+  font-size: 12px;
+}
+
+.cleared-icon {
+  font-size: 24px;
+}
+
+.room-boss-tag {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 9px;
+  background: #e74c3c;
+  color: #fff;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.rooms-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-next-floor {
+  padding: 12px 24px;
+  font-size: 14px;
+  background: #444;
+  color: #ccc;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.2s;
+}
+
+.btn-next-floor:hover {
+  background: #555;
+}
+
+.btn-next-floor.all-clear {
+  background: linear-gradient(135deg, #d4a853, #e8c67a);
+  color: #1a1a2e;
+  animation: pulse-gold 1.5s infinite;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 168, 83, 0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(212, 168, 83, 0); }
+}
+
+/* 地牢入口统计 */
+.dungeon-stats-hint {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 12px 0;
+  font-size: 13px;
+  color: #ccc;
+}
+
 </style>
