@@ -306,15 +306,13 @@ export const useGameStore = defineStore('game', () => {
     inBattle.value = false
     enemy.value = null
     question.value = null
-    battleState.value = ''
+    // 不覆盖 captureSuccess/captureFail 状态，让用户能看到结果面板
+    if (battleState.value !== 'captureSuccess' && battleState.value !== 'captureFail') {
+      battleState.value = ''
+    }
     resetCombo()
 
-    if (allCleared) {
-      // 全部清空，自动提示进入下一层
-      dungeonPhase.value = 'rooms'
-    } else {
-      dungeonPhase.value = 'rooms'
-    }
+    dungeonPhase.value = 'rooms'
   }
 
   // 进入下一层（必须击败 Boss）
@@ -904,13 +902,7 @@ export const useGameStore = defineStore('game', () => {
       captureIndex.value = 0
       captureCorrectCount.value = 0
       if (dungeonPhase.value === 'battle') {
-        const room = roomGrid.value[currentRoomIndex.value]
-        if (room) { room.cleared = true; clearedRoomsThisFloor.value++ }
-        currentRoomIndex.value = -1
-        inBattle.value = false
-        enemy.value = null
-        question.value = null
-        resetCombo()
+        finishRoom(true)
       } else {
         floor.value++
       }
