@@ -3,9 +3,13 @@ import { CHEM_EASY } from './chem_easy.js'
 import { CHEM_MEDIUM_1 } from './chem_medium_1.js'
 import { CHEM_MEDIUM_2 } from './chem_medium_2.js'
 import { CHEM_HARD } from './chem_hard.js'
+import { CHEM_EXP_MEDIUM } from './chem_exp_medium.js'
+import { CHEM_EXP_HARD } from './chem_exp_hard.js'
 import { BIO_EASY } from './bio_easy.js'
 import { BIO_MEDIUM } from './bio_medium.js'
 import { BIO_HARD } from './bio_hard.js'
+import { BIO_EXP_MEDIUM } from './bio_exp_medium.js'
+import { BIO_EXP_HARD } from './bio_exp_hard.js'
 import { YI_MEDIUM } from './yi_medium.js'
 
 // 化学题库
@@ -13,14 +17,18 @@ export const CHEM_QUESTIONS = [
   ...CHEM_EASY,
   ...CHEM_MEDIUM_1,
   ...CHEM_MEDIUM_2,
-  ...CHEM_HARD
+  ...CHEM_HARD,
+  ...CHEM_EXP_MEDIUM,
+  ...CHEM_EXP_HARD
 ]
 
 // 生物题库
 export const BIO_QUESTIONS = [
   ...BIO_EASY,
   ...BIO_MEDIUM,
-  ...BIO_HARD
+  ...BIO_HARD,
+  ...BIO_EXP_MEDIUM,
+  ...BIO_EXP_HARD
 ]
 
 // 易学题库
