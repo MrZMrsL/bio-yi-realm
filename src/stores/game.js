@@ -648,6 +648,40 @@ export const useGameStore = defineStore('game', () => {
     inventory.value[matName] = (inventory.value[matName] || 0) + matDrop
     battleLog.value.push(`掉落 ${matDrop} 个 ${matName}！`)
 
+    // ===== 捕捉准备（在掉落之前，确保有掉落也能触发捕捉）=====
+    const canCapture = farm.value.length < FARM_MAX_CAPACITY
+      && enemy.value?.name
+      && !farm.value.some(m => m.name === enemy.value.name)
+
+    if (canCapture) {
+      const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
+      if (Math.random() <= triggerChance) {
+        captureMonsterData.value = {
+          name: enemy.value.name,
+          icon: enemy.value.icon || enemy.value.name.charAt(0),
+          element: enemy.value.element,
+          baseHp: enemy.value.maxHp,
+          baseAtk: enemy.value.atk,
+          baseDef: enemy.value.def,
+          captureFloor: floor.value
+        }
+
+        const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
+        const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
+        const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
+        captureQuestions.value = []
+        const usedIndices = new Set()
+        for (let i = 0; i < 3 && i < qPool.length; i++) {
+          let idx
+          do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
+          usedIndices.add(idx)
+          captureQuestions.value.push(qPool[idx])
+        }
+        captureIndex.value = 0
+        captureCorrectCount.value = 0
+      }
+    }
+
     // 装备/消耗品掉落
     const itemDrop = generateDrop()
     if (itemDrop) {
@@ -674,92 +708,17 @@ export const useGameStore = defineStore('game', () => {
     }
     updateStats('totalBattles', 1)
 
-    // 如果是房间模式，不立即处理捕捉和楼层递增，等finishRoom统一处理
+    // 房间模式：不立即处理楼层递增，等用户交互后统一处理
     if (dungeonPhase.value === 'battle') {
-      // 房间模式：捕捉流程简化——直接提供收养选项
-      if (farm.value.length < FARM_MAX_CAPACITY) {
-        const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
-        if (!alreadyHas) {
-          const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
-          if (Math.random() <= triggerChance) {
-            // 准备捕捉数据
-            captureMonsterData.value = {
-              name: enemy.value.name,
-              icon: enemy.value.icon || enemy.value.name.charAt(0),
-              element: enemy.value.element,
-              baseHp: enemy.value.maxHp,
-              baseAtk: enemy.value.atk,
-              baseDef: enemy.value.def,
-              captureFloor: floor.value
-            }
-
-            const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
-            const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
-            const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
-            captureQuestions.value = []
-            const usedIndices = new Set()
-            for (let i = 0; i < 3 && i < qPool.length; i++) {
-              let idx
-              do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
-              usedIndices.add(idx)
-              captureQuestions.value.push(qPool[idx])
-            }
-            captureIndex.value = 0
-            captureCorrectCount.value = 0
-            return
-          }
-        }
-      }
-      // 无捕捉触发，胜利后直接finishRoom
+      saveGame()
       return
     }
 
-    // 非房间模式（兼容旧逻辑）
-    // 检查是否可以捕捉（概率触发，非100%）
-    if (farm.value.length < FARM_MAX_CAPACITY) {
-      const alreadyHas = farm.value.some(m => m.name === enemy.value.name)
-      if (!alreadyHas) {
-        // 概率触发：基础30% + 楼层×2%，上限60%
-        const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
-        if (Math.random() > triggerChance) {
-          // 没触发，直接递增楼层
-          floor.value++
-          return
-        }
-
-        // 准备捕捉数据
-        captureMonsterData.value = {
-          name: enemy.value.name,
-          icon: enemy.value.icon || enemy.value.name.charAt(0),
-          element: enemy.value.element,
-          baseHp: enemy.value.maxHp,
-          baseAtk: enemy.value.atk,
-          baseDef: enemy.value.def,
-          captureFloor: floor.value
-        }
-
-        // 准备3道题（按怪物元素对应学科）
-        const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
-        const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
-        const qPool = questions.length > 0 ? questions : ALL_QUESTIONS
-        captureQuestions.value = []
-        const usedIndices = new Set()
-        for (let i = 0; i < 3 && i < qPool.length; i++) {
-          let idx
-          do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
-          usedIndices.add(idx)
-          captureQuestions.value.push(qPool[idx])
-        }
-        captureIndex.value = 0
-        captureCorrectCount.value = 0
-
-        // 楼层递增在捕捉完成后进行
-        return
-      }
+    // 非房间模式：未触发捕捉时递增楼层
+    if (!captureMonsterData.value) {
+      floor.value++
     }
-
-    // 不能捕捉，直接递增楼层
-    floor.value++
+    saveGame()
   }
 
   // 生成战斗掉落（按楼层分难度掉落率）
