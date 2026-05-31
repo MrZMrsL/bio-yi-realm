@@ -588,6 +588,9 @@ export const useGameStore = defineStore('game', () => {
         winBattle()
       } else {
         battleState.value = 'idle'
+        // 刷新题目，避免同一题反复出现
+        const newQ = getQuestionsForFloor(floor.value, 1)[0]
+        if (newQ) question.value = newQ
       }
     } else {
       // 答错重置连击，记录错题
@@ -863,7 +866,13 @@ export const useGameStore = defineStore('game', () => {
       captureIndex.value = 0
       captureCorrectCount.value = 0
       if (dungeonPhase.value === 'battle') {
-        finishRoom(true)
+        const room = roomGrid.value[currentRoomIndex.value]
+        if (room) { room.cleared = true; clearedRoomsThisFloor.value++ }
+        currentRoomIndex.value = -1
+        inBattle.value = false
+        enemy.value = null
+        question.value = null
+        resetCombo()
       } else {
         floor.value++
       }
@@ -895,7 +904,13 @@ export const useGameStore = defineStore('game', () => {
       captureIndex.value = 0
       captureCorrectCount.value = 0
       if (dungeonPhase.value === 'battle') {
-        finishRoom(true)
+        const room = roomGrid.value[currentRoomIndex.value]
+        if (room) { room.cleared = true; clearedRoomsThisFloor.value++ }
+        currentRoomIndex.value = -1
+        inBattle.value = false
+        enemy.value = null
+        question.value = null
+        resetCombo()
       } else {
         floor.value++
       }
@@ -1244,6 +1259,10 @@ export const useGameStore = defineStore('game', () => {
       equipped: equipped.value,
       inventory: inventory.value,
       farm: farm.value,
+      activeMonster: activeMonster.value,
+      fishingLevel: fishingLevel.value,
+      recentCatches: recentCatches.value,
+      fishCollection: fishCollection.value,
       captureMonsterData: captureMonsterData.value,
       captureQuestions: captureQuestions.value,
       captureIndex: captureIndex.value,
@@ -1258,10 +1277,14 @@ export const useGameStore = defineStore('game', () => {
       hasSkippedRoom: hasSkippedRoom.value,
       currentFloorElement: currentFloorElement.value,
       firstVisit: firstVisit.value,
+      cyclopedia: cyclopedia.value,
+      stats: stats.value,
       usedQuestions: exportUsedQuestions(),
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
+    // 错题本单独保存
+    saveWrongQuestions()
     return true
   }
 
@@ -1310,6 +1333,8 @@ export const useGameStore = defineStore('game', () => {
       hasSkippedRoom.value = saveData.hasSkippedRoom || false
       currentFloorElement.value = saveData.currentFloorElement || 'water'
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
+      cyclopedia.value = saveData.cyclopedia || {}
+      stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
 
       // 加载错题本
       loadWrongQuestions()

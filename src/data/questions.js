@@ -95,7 +95,8 @@ export function exportUsedQuestions() {
     easy: Array.from(usedQuestions.easy),
     medium: Array.from(usedQuestions.medium),
     hard: Array.from(usedQuestions.hard),
-    all: Array.from(usedQuestions.all)
+    all: Array.from(usedQuestions.all),
+    lastResetFloor
   }
 }
 
@@ -106,6 +107,7 @@ export function importUsedQuestions(data) {
   usedQuestions.medium = new Set(data.medium || [])
   usedQuestions.hard = new Set(data.hard || [])
   usedQuestions.all = new Set(data.all || [])
+  lastResetFloor = data.lastResetFloor || 0
 }
 
 // 按难度和学科筛选题目，优先从未使用过的题目中抽取
