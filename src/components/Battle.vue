@@ -299,22 +299,39 @@ function submitCaptureAnswer(index) {
 
 function nextBattle() {
   sfxClick()
+  // 限时Boss
   if (store.gameMode === 'weekly_boss') {
     store.exitWeeklyBoss()
     return
   }
-  if (store.battleState === 'won' && store.gameMode === 'battle') {
+  
+  // 地牢战斗中胜利 → 完成房间后直接返回，不再继续
+  if (store.battleState === 'won' && store.dungeonPhase === 'battle') {
     store.finishRoom(true)
+    return
   }
-  if (store.gameMode === 'battle') {
-    store.exitBattle()
-  } else {
-    // 非 Dungeon 模式下，捕捉成功/失败后返回主界面，不立即开下一场
-    if (store.battleState === 'captureSuccess' || store.battleState === 'captureFail') {
-      store.exitBattle()
+  
+  // 地牢战斗中失败/逃跑 → 完成房间后返回
+  if (store.dungeonPhase === 'battle') {
+    if (store.battleState === 'fled') {
+      store.finishRoom(false)
     } else {
-      store.initBattle()
+      store.exitBattle()
     }
+    return
+  }
+  
+  // 非地牢模式（独立战斗）
+  if (store.battleState === 'captureSuccess' || store.battleState === 'captureFail') {
+    store.exitBattle()
+  } else if (store.battleState === 'won') {
+    // 独立战斗胜利：退出后新开一场
+    store.exitBattle()
+    store.initBattle()
+  } else {
+    // 独立战斗失败/逃跑：退出后新开一场
+    store.exitBattle()
+    store.initBattle()
   }
 }
 

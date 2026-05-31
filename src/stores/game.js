@@ -256,6 +256,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 初始化战斗
   function initBattle() {
+    enterMode(GAME_MODE.BATTLE)
     const e = getEnemyForFloor(floor.value)
     const q = getQuestionsForFloor(floor.value, 1)[0]
     if (!q) {
@@ -684,7 +685,9 @@ export const useGameStore = defineStore('game', () => {
         stats.value.maxCombo = consecutiveCorrect.value
       }
 
+      // 防止伤害溢出导致负血条和后续状态异常
       if (enemy.value.hp <= 0) {
+        enemy.value.hp = 0
         winBattle()
       } else {
         battleState.value = 'idle'
@@ -1109,8 +1112,8 @@ export const useGameStore = defineStore('game', () => {
       }
       weeklyBossTimeLeft.value = 0
     }
-    // 如果在房间模式下战败，返回房间界面
-    if (dungeonPhase.value === 'battle') {
+    // 如果在房间模式下（战斗或已返回房间），返回房间界面
+    if (dungeonPhase.value === 'battle' || dungeonPhase.value === 'rooms') {
       dungeonPhase.value = 'rooms'
       currentRoomIndex.value = -1
       enterMode(GAME_MODE.DUNGEON_ROOMS)
