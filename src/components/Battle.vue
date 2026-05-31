@@ -217,6 +217,7 @@
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { DUNGEON_ELEMENTS } from '../data/farm.js'
+import { sfxClick } from '../utils/audio.js'
 
 const store = useGameStore()
 const showPotionPanel = ref(false)
@@ -232,28 +233,34 @@ const canCapture = computed(() => {
 })
 
 function startAnswer() {
+  sfxClick()
   store.battleState = 'answering'
 }
 
 function submitAnswer(index) {
+  sfxClick()
   const correct = index === store.question?.answer
   store.answerAttack(correct)
 }
 
 function showPotionMenu() {
+  sfxClick()
   showPotionPanel.value = true
 }
 
 function usePotion(itemId) {
+  sfxClick()
   store.usePotion(itemId)
   showPotionPanel.value = false
 }
 
 function submitCaptureAnswer(index) {
+  sfxClick()
   store.submitCaptureAnswer(index)
 }
 
 function nextBattle() {
+  sfxClick()
   // 房间系统下，战斗结束返回房间界面
   if (store.dungeonPhase === 'battle') {
     store.exitBattle()

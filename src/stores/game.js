@@ -16,6 +16,19 @@ import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { SHOP_ITEMS } from '../data/shop.js'
 import { getTitleData } from '../data/titles.js'
 import { getTotalCount } from '../data/cyclopedia.js'
+import {
+  sfxClick,
+  sfxCorrect,
+  sfxWrong,
+  sfxCritical,
+  sfxLevelUp,
+  sfxItemGet,
+  sfxSplash,
+  sfxCaptureSuccess,
+  sfxCaptureFail,
+  sfxHit,
+  sfxStart
+} from '../utils/audio.js'
 
 const SAVE_KEY = 'bioyi_realm_save'
 const WRONG_KEY = 'bioyi_realm_wrong'
@@ -140,6 +153,7 @@ export const useGameStore = defineStore('game', () => {
   // 开始游戏
   function startGame() {
     gameStarted.value = true
+    sfxStart()
     // 初始材料归零，玩家自行积累
     inventory.value = {}
     saveGame()
@@ -356,6 +370,7 @@ export const useGameStore = defineStore('game', () => {
     const minDmg = Math.max(3, Math.floor(enemy.value.atk * 0.4 * multiplier))
     const damage = Math.max(minDmg, baseDmg)
     hp.value -= damage
+    sfxHit()
     battleLog.value.push(`${enemy.value.name} 对你造成 ${damage} 点伤害！`)
 
     if (hp.value <= 0) {
@@ -515,6 +530,7 @@ export const useGameStore = defineStore('game', () => {
       // 连击逻辑：连续答对增加连击数
       consecutiveCorrect.value++
       comboCount.value = consecutiveCorrect.value
+      sfxCorrect()
 
       // 计算元素克制
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
@@ -532,6 +548,7 @@ export const useGameStore = defineStore('game', () => {
         // 三连暴击
         logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
         triggerCriticalEffect()
+        sfxCritical()
         resetCombo()
       } else if (consecutiveCorrect.value === 2) {
         logMsg = `🔥 连击x2！造成 ${damage} 点伤害！`
@@ -555,6 +572,7 @@ export const useGameStore = defineStore('game', () => {
     } else {
       // 答错重置连击，记录错题
       resetCombo()
+      sfxWrong()
       battleLog.value.push('回答错误！受到反噬！')
       recordWrongQuestion(question.value, -1)
       enemyAttack()
@@ -600,6 +618,7 @@ export const useGameStore = defineStore('game', () => {
       atk.value += 2
       def.value += 1
       battleLog.value.push(`升级了！到达 ${level.value} 级！`)
+      sfxLevelUp()
     }
 
     // 材料掉落（根据敌人元素）
@@ -615,6 +634,7 @@ export const useGameStore = defineStore('game', () => {
     const itemDrop = generateDrop()
     if (itemDrop) {
       drop.value = itemDrop
+      sfxItemGet()
       if (itemDrop.type === 'equipment') {
         battleLog.value.push(`获得装备 ${itemDrop.item.name}！`)
       } else {
@@ -805,6 +825,9 @@ export const useGameStore = defineStore('game', () => {
 
     if (!correct) {
       recordWrongQuestion(q, index)
+      sfxWrong()
+    } else {
+      sfxCorrect()
     }
 
     if (correct) {
@@ -817,6 +840,7 @@ export const useGameStore = defineStore('game', () => {
     const remaining = captureQuestions.value.length - captureIndex.value
     if (captureCorrectCount.value + remaining < 3) {
       battleState.value = 'captureFail'
+      sfxCaptureFail()
       captureMonsterData.value = null
       captureQuestions.value = []
       captureIndex.value = 0
@@ -844,8 +868,10 @@ export const useGameStore = defineStore('game', () => {
         farm.value.push(monster)
         battleLog.value.push(`收养成功！${monster.name} 成为你的伙伴！`)
         battleState.value = 'captureSuccess'
+        sfxCaptureSuccess()
       } else {
         battleState.value = 'captureFail'
+        sfxCaptureFail()
       }
       captureMonsterData.value = null
       captureQuestions.value = []

@@ -121,7 +121,7 @@
               <span>🛡️{{ store.totalDef }}</span>
               <span>❤️{{ store.hp }}/{{ store.maxHp }}</span>
             </div>
-            <button class="explore-btn" @click="store.enterDungeonPrep">进入地牢</button>
+            <button class="explore-btn" @click="onEnterDungeon">进入地牢</button>
           </div>
           
           <!-- 准备界面 -->
@@ -204,7 +204,7 @@
                   boss: room.isBoss,
                   clickable: !room.cleared && !store.inBattle
                 }"
-                @click="!room.cleared && !store.inBattle && store.enterRoom(room.index)"
+                @click="!room.cleared && !store.inBattle && onEnterRoom(room.index)"
               >
                 <div class="room-number">{{ room.index + 1 }}</div>
                 <div v-if="!room.cleared" class="room-enemy">
@@ -224,7 +224,7 @@
               <button
                 class="btn-next-floor"
                 :class="{ 'all-clear': store.clearedRoomsThisFloor === 9 }"
-                @click="store.nextFloor"
+                @click="onNextFloor"
               >
                 {{ store.clearedRoomsThisFloor === 9 ? '🏆 全部清空！进入下一层' : '⬇️ 进入下一层' }}
               </button>
@@ -434,6 +434,7 @@ import Fishing from './Fishing.vue'
 import Shop from './Shop.vue'
 import Review from './Review.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
+import { sfxClick, sfxStart } from '../utils/audio.js'
 
 const store = useGameStore()
 const activePanel = ref(null)
@@ -488,6 +489,7 @@ const panelTitle = computed(() => {
 const forgeRecipes = computed(() => FORGE_RECIPES)
 
 function openPanel(panel) {
+  sfxClick()
   activePanel.value = panel
   if (panel === 'settings') {
     activeSettingsTab.value = 'title'
@@ -495,10 +497,26 @@ function openPanel(panel) {
 }
 
 function closePanel() {
+  sfxClick()
   if (store.dungeonPhase !== 'none') {
     store.exitDungeon()
   }
   activePanel.value = null
+}
+
+function onEnterDungeon() {
+  sfxStart()
+  store.enterDungeonPrep()
+}
+
+function onEnterRoom(index) {
+  sfxClick()
+  store.enterRoom(index)
+}
+
+function onNextFloor() {
+  sfxClick()
+  store.nextFloor()
 }
 
 function canForgeRecipe(recipe) {

@@ -102,6 +102,7 @@
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { RARITY_CONFIG, drawFish } from '../data/fishing.js'
+import { sfxClick, sfxSplash, sfxItemGet } from '../utils/audio.js'
 
 const store = useGameStore()
 const fishingState = ref('idle') // idle, casting, bite, caught
@@ -132,6 +133,7 @@ function collectionPercent(rarity) {
 }
 
 function handleFishAction() {
+  sfxClick()
   if (fishingState.value === 'idle') {
     startFishing()
   } else if (fishingState.value === 'bite') {
@@ -164,6 +166,7 @@ function startFishing() {
 function reelIn() {
   if (fishingState.value !== 'bite') return
 
+  sfxSplash()
   // 抽鱼！
   const fish = drawFish(store.fishingLevel)
   caughtFish.value = fish
@@ -172,10 +175,12 @@ function reelIn() {
   // 记录捕获
   if (fish) {
     store.recordFishCatch(fish)
+    sfxItemGet()
   }
 }
 
 function eatFish() {
+  sfxClick()
   if (!caughtFish.value) return
 
   const heal = caughtFish.value.healHp
@@ -191,6 +196,7 @@ function eatFish() {
 }
 
 function releaseFish() {
+  sfxClick()
   if (!caughtFish.value) return
 
   caughtFish.value = null
