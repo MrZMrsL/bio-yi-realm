@@ -232,7 +232,7 @@
             </div>
 
             <div class="prep-actions">
-              <button class="btn-enter-dungeon" @click="store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
+              <button class="btn-enter-dungeon" @click="store.enterMode('dungeon_rooms'); store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
             </div>
           </div>
 
@@ -848,6 +848,20 @@ function openPanel(panel) {
     return
   }
   activePanel.value = panel
+  // 同步 gameMode 到对应面板模式
+  const panelModeMap = {
+    shop: 'shop',
+    farm: 'farm',
+    inventory: 'inventory',
+    fishing: 'fishing',
+    study: 'study',
+    achievements: 'achievements',
+    settings: 'settings',
+    encyclopedia: 'encyclopedia'
+  }
+  if (panelModeMap[panel]) {
+    store.enterMode(panelModeMap[panel])
+  }
   if (panel === 'settings') {
     activeSettingsTab.value = 'title'
   }
@@ -860,7 +874,7 @@ function openPanel(panel) {
 function closePanel() {
   sfxClick()
   // 限时Boss战斗中关闭面板，直接退出战斗
-  if (store.inWeeklyBoss) {
+  if (store.gameMode === 'weekly_boss') {
     store.exitWeeklyBoss()
     activePanel.value = null
     return
@@ -882,6 +896,10 @@ function closePanel() {
       store.question = null
       store.battleState = ''
     }
+  }
+  // 关闭面板时，如果当前是非战斗面板模式，回到 idle
+  if (store.isPanelMode()) {
+    store.enterMode('idle')
   }
   activePanel.value = null
 }

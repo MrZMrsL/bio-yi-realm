@@ -1887,6 +1887,8 @@ export const useGameStore = defineStore('game', () => {
       hpPoints: hpPoints.value,
       // 限时Boss
       weeklyBossDefeated: weeklyBossDefeated.value,
+      inBattle: inBattle.value,
+      battleState: battleState.value,
       // 状态机（v8.0）
       gameMode: gameMode.value,
       timestamp: Date.now()
@@ -1953,6 +1955,9 @@ export const useGameStore = defineStore('game', () => {
       cyclopedia.value = saveData.cyclopedia || {}
       stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
       unlockedAchievements.value = saveData.unlockedAchievements || []
+      // 加载战斗状态（v8.0 兼容旧存档）
+      inBattle.value = saveData.inBattle || false
+      battleState.value = saveData.battleState || ''
 
       // 加载属性点系统
       statPoints.value = saveData.statPoints || 0
@@ -1962,6 +1967,9 @@ export const useGameStore = defineStore('game', () => {
 
       // 加载限时Boss记录
       weeklyBossDefeated.value = saveData.weeklyBossDefeated || []
+      weeklyBossData.value = saveData.weeklyBossData || null
+      weeklyBossTurn.value = saveData.weeklyBossTurn || 0
+      weeklyBossTimeLeft.value = saveData.weeklyBossTimeLeft || 0
 
       // 状态机（v8.0）— 兼容旧存档
       gameMode.value = saveData.gameMode || GAME_MODE.IDLE
