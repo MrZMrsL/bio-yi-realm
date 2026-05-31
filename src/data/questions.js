@@ -100,7 +100,7 @@ export function getQuestions(subject, difficulty, count = 5) {
   if (pool.length === 0) return []
   
   // 先筛选出未使用过的题目
-  const usedSet = usedQuestions[difficulty] || usedQuestions.all
+  let usedSet = usedQuestions[difficulty] || usedQuestions.all
   let unusedPool = pool.filter(q => !usedSet.has(q.id))
   
   // 如果未使用的题目不够，且池子总数量 > count，则只从 unused 中抽取（宁可数量少也不重复）
@@ -109,8 +109,10 @@ export function getQuestions(subject, difficulty, count = 5) {
     // 全部用完了，清空记录重新来
     if (difficulty !== 'all') {
       usedQuestions[difficulty] = new Set()
+      usedSet = usedQuestions[difficulty]
     } else {
       usedQuestions.all = new Set()
+      usedSet = usedQuestions.all
     }
     unusedPool = pool
   }

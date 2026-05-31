@@ -8,6 +8,25 @@
     </div>
   </div>
 
+  <!-- 新手引导弹窗 -->
+  <div v-if="showTutorialModal" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="tutorial-header">
+        <span class="tutorial-step">{{ tutorialStep + 1 }} / {{ tutorialSteps.length }}</span>
+        <button class="tutorial-skip" @click="skipTutorial">跳过</button>
+      </div>
+      <div class="tutorial-content">
+        <h3 class="tutorial-title">{{ tutorialSteps[tutorialStep].title }}</h3>
+        <p class="tutorial-text">{{ tutorialSteps[tutorialStep].text }}</p>
+      </div>
+      <div class="tutorial-actions">
+        <button class="tutorial-btn" @click="nextTutorialStep">
+          {{ tutorialStep < tutorialSteps.length - 1 ? '下一步 →' : '开始冒险！' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 顶部状态栏 -->
     <div id="status-bar">
       <div class="stat-box">
@@ -128,6 +147,9 @@
           <div v-if="store.dungeonPhase === 'prep'" class="dungeon-prep">
             <div class="prep-header">
               <div class="prep-title">⚔️ 第 {{ store.floor }} 层 - 战前准备</div>
+              <div class="floor-element-badge" :style="{ background: floorElementColor }">
+                {{ floorElementName }} 元素层
+              </div>
               <div class="prep-hint">调整装备与宠物，确认后进入地牢</div>
             </div>
 
@@ -143,6 +165,12 @@
                 </div>
                 <div class="preview-more">+{{ store.roomGrid.length - 6 }} 更多...</div>
               </div>
+            </div>
+
+            <!-- 元素克制提示 -->
+            <div class="element-hint">
+              <div class="element-hint-title">💡 元素克制</div>
+              <div class="element-hint-text">{{ floorElementHint }}</div>
             </div>
 
             <!-- 当前配置 -->
@@ -303,26 +331,44 @@
 
         <!-- 锻造面板 -->
         <div v-if="activePanel === 'forge'" class="panel-forge">
-          <div class="forge-placeholder">
-            <div class="forge-icon">🔨</div>
-            <h3>锻造店</h3>
-            <p>合成装备与药水</p>
-            <div class="forge-recipes">
-              <div v-for="recipe in forgeRecipes" :key="recipe.id" class="recipe-card">
-                <div class="recipe-name">{{ recipe.name }}</div>
-                <div class="recipe-materials">
-                  <span v-for="(count, mat) in recipe.materials" :key="mat">
-                    {{ mat }} ×{{ count }}
-                  </span>
-                </div>
-                <button
-                  @click="store.forgeItem(recipe.id)"
-                  :disabled="!canForgeRecipe(recipe)"
-                  class="btn-forge"
-                >
-                  锻造 ({{ recipe.gold }}💰)
-                </button>
+          <div class="forge-tabs">
+            <button
+              v-for="cat in forgeCategories"
+              :key="cat.key"
+              class="forge-tab-btn"
+              :class="{ active: activeForgeCategory === cat.key }"
+              @click="activeForgeCategory = cat.key"
+            >
+              {{ cat.label }}
+            </button>
+          </div>
+          <div class="forge-recipes">
+            <div v-for="recipe in filteredForgeRecipes" :key="recipe.id" class="recipe-card">
+              <div class="recipe-header">
+                <span class="recipe-icon">{{ recipe.icon }}</span>
+                <span class="recipe-name">{{ recipe.name }}</span>
+                <span class="recipe-type">{{ recipe.type === 'weapon' ? '武器' : recipe.type === 'armor' ? '防具' : recipe.type === 'accessory' ? '饰品' : '药水' }}</span>
               </div>
+              <div class="recipe-desc">{{ recipe.desc }}</div>
+              <div class="recipe-materials">
+                <span v-for="(count, mat) in recipe.materials" :key="mat" class="material-tag"
+                  :class="{ 'has-enough': (store.inventory[mat] || 0) >= count }"
+                >
+                  {{ mat }} ×{{ count }}
+                  <span class="mat-count">({{ store.inventory[mat] || 0 }})</span>
+                </span>
+              </div>
+              <button
+                @click="store.forgeItem(recipe.id)"
+                :disabled="!canForgeRecipe(recipe)"
+                class="btn-forge"
+                :class="{ 'can-forge': canForgeRecipe(recipe) }"
+              >
+                锻造 ({{ recipe.gold }}💰)
+              </button>
+            </div>
+            <div v-if="filteredForgeRecipes.length === 0" class="forge-empty">
+              该分类暂无配方
             </div>
           </div>
         </div>
@@ -501,6 +547,7 @@ import Shop from './Shop.vue'
 import Review from './Review.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { sfxClick, sfxStart } from '../utils/audio.js'
+import { DUNGEON_ELEMENTS, ELEMENT_COUNTER } from '../data/farm.js'
 
 const store = useGameStore()
 const activePanel = ref(null)
@@ -553,6 +600,18 @@ const panelTitle = computed(() => {
 })
 
 const forgeRecipes = computed(() => FORGE_RECIPES)
+const activeForgeCategory = ref('all')
+const forgeCategories = [
+  { key: 'all', label: '全部' },
+  { key: 'weapon', label: '武器' },
+  { key: 'armor', label: '防具' },
+  { key: 'accessory', label: '饰品' },
+  { key: 'potion', label: '药水' }
+]
+const filteredForgeRecipes = computed(() => {
+  if (activeForgeCategory.value === 'all') return forgeRecipes.value
+  return forgeRecipes.value.filter(r => r.type === activeForgeCategory.value)
+})
 
 function openPanel(panel) {
   sfxClick()
@@ -560,14 +619,83 @@ function openPanel(panel) {
   if (panel === 'settings') {
     activeSettingsTab.value = 'title'
   }
+  // 首次进入游戏显示新手引导
+  if (panel === 'dungeon' && store.firstVisit && store.gameStarted) {
+    startTutorial()
+  }
 }
 
 function closePanel() {
   sfxClick()
+  // 如果正在地牢中（非none状态），提示是否保存进度
   if (store.dungeonPhase !== 'none') {
-    store.exitDungeon()
+    const saveProgress = confirm('是否保存当前地牢进度？\n保存后可在下次继续探索。\n不保存则本层进度将丢失，重进会刷新。')
+    if (saveProgress) {
+      store.saveGame()
+    } else {
+      // 不保存：清空当前地牢进度
+      store.dungeonPhase = 'none'
+      store.roomGrid = []
+      store.bossRoomIndex = -1
+      store.currentRoomIndex = -1
+      store.clearedRoomsThisFloor = 0
+      store.inBattle = false
+      store.enemy = null
+      store.question = null
+      store.battleState = ''
+    }
   }
   activePanel.value = null
+}
+
+// 本层元素计算属性
+const floorElementData = computed(() => {
+  const el = store.currentFloorElement
+  return DUNGEON_ELEMENTS[el] || DUNGEON_ELEMENTS.water
+})
+const floorElementColor = computed(() => floorElementData.value.color)
+const floorElementName = computed(() => floorElementData.value.name)
+const floorElementHint = computed(() => {
+  const el = store.currentFloorElement
+  const counters = ELEMENT_COUNTER[el] || []
+  const counterNames = counters.map(k => DUNGEON_ELEMENTS[k]?.name || k).join('、')
+  const weakTo = Object.entries(ELEMENT_COUNTER)
+    .filter(([_, v]) => v.includes(el))
+    .map(([k, _]) => DUNGEON_ELEMENTS[k]?.name || k)
+    .join('、')
+  return `${floorElementName.value}元素：克制 ${counterNames} | 被 ${weakTo} 克制`
+})
+
+// 新手引导
+const showTutorialModal = ref(false)
+const tutorialStep = ref(0)
+const tutorialSteps = [
+  { title: '欢迎来到生化易界！', text: '这是一个以高中化学、生物、易学知识为战斗核心的RPG地牢探险游戏。答对题目触发暴击，答错则受到反噬。' },
+  { title: '地牢探索', text: '点击地牢探索进入战斗。每答对一题，知识攻击就会命中敌人。连续答对还能触发连击暴击！' },
+  { title: '怪物农场', text: '击败怪物后，有机会收养它们作为宠物。宠物会提供攻击或防御加成，还能在元素克制上帮助你。' },
+  { title: '锻造与商店', text: '收集材料在锻造店合成装备，或在杂货铺购买补给。好装备是深入高层地牢的关键。' },
+  { title: '准备好了吗？', text: '出发吧，以知识为刃，斩破混沌迷雾！' }
+]
+
+function startTutorial() {
+  showTutorialModal.value = true
+  tutorialStep.value = 0
+}
+
+function nextTutorialStep() {
+  if (tutorialStep.value < tutorialSteps.length - 1) {
+    tutorialStep.value++
+  } else {
+    showTutorialModal.value = false
+    store.firstVisit = false
+    store.saveGame()
+  }
+}
+
+function skipTutorial() {
+  showTutorialModal.value = false
+  store.firstVisit = false
+  store.saveGame()
 }
 
 function onEnterDungeon() {
@@ -666,6 +794,212 @@ function resetGame() {
 </script>
 
 <style scoped>
+/* 新手引导 */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 20px;
+}
+
+.tutorial-modal {
+  background: #1a1a2e;
+  border: 2px solid rgba(212, 168, 83, 0.4);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  animation: tutorial-pop 0.4s ease;
+}
+
+@keyframes tutorial-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.tutorial-step {
+  font-size: 13px;
+  color: #d4a853;
+  font-weight: bold;
+}
+
+.tutorial-skip {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tutorial-skip:hover {
+  color: #e74c3c;
+}
+
+.tutorial-content {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.tutorial-title {
+  font-size: 20px;
+  color: #e0e0e0;
+  margin-bottom: 12px;
+}
+
+.tutorial-text {
+  font-size: 14px;
+  color: #a0a0a0;
+  line-height: 1.6;
+}
+
+.tutorial-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.tutorial-btn {
+  padding: 12px 32px;
+  background: linear-gradient(135deg, #d4a853, #e8c67a);
+  color: #1a1a2e;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.tutorial-btn:hover {
+  transform: scale(1.05);
+}
+
+/* 元素提示 */
+.element-hint {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.element-hint-title {
+  font-size: 12px;
+  color: #d4a853;
+  margin-bottom: 4px;
+  font-weight: bold;
+}
+
+.element-hint-text {
+  font-size: 12px;
+  color: #a0a0a0;
+}
+
+.floor-element-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #fff;
+  font-weight: bold;
+  margin: 8px 0;
+}
+
+/* 锻造店分类 */
+.forge-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+}
+
+.forge-tab-btn {
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #888;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.forge-tab-btn.active {
+  background: rgba(212, 168, 83, 0.15);
+  border-color: rgba(212, 168, 83, 0.3);
+  color: #d4a853;
+}
+
+.forge-empty {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 14px;
+}
+
+.recipe-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.recipe-icon {
+  font-size: 20px;
+}
+
+.recipe-type {
+  font-size: 11px;
+  color: #888;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+.recipe-desc {
+  font-size: 12px;
+  color: #a0a0a0;
+  margin-bottom: 8px;
+}
+
+.material-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #e74c3c;
+}
+
+.material-tag.has-enough {
+  color: #2ecc71;
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.mat-count {
+  color: #888;
+  font-size: 11px;
+}
+
+.btn-forge.can-forge {
+  background: #e67e22;
+}
+
 #game-container {
   width: 100%;
   max-width: 480px;

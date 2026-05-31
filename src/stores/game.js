@@ -111,6 +111,9 @@ export const useGameStore = defineStore('game', () => {
   const allClearCount = ref(0) // "我全都要"成就计数
   const clearedRoomsThisFloor = ref(0)
   const hasSkippedRoom = ref(false) // 本层是否有未清空的房间就进入下一层
+  const currentFloorElement = ref('water') // 本层主导元素
+  const firstVisit = ref(true) // 是否首次访问（新手引导用）
+  const showTutorial = ref(false) // 是否显示新手引导
 
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -185,9 +188,16 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 地牢房间系统 =====
 
+  // 按楼层确定主导元素（循环：水→火→酸→电→冰→风）
+  function getFloorElement(floorNum) {
+    const elementKeys = ['water', 'fire', 'acid', 'electric', 'ice', 'wind']
+    return elementKeys[(floorNum - 1) % elementKeys.length]
+  }
+
   // 进入地牢准备界面
   function enterDungeonPrep() {
     dungeonPhase.value = 'prep'
+    currentFloorElement.value = getFloorElement(floor.value)
     generateRoomPreviews()
   }
 
@@ -196,6 +206,9 @@ export const useGameStore = defineStore('game', () => {
     const rooms = []
     // 先确定Boss位置
     bossRoomIndex.value = Math.floor(Math.random() * 9)
+    // 本层主导元素
+    const floorEl = currentFloorElement.value
+    const el = DUNGEON_ELEMENTS[floorEl] || DUNGEON_ELEMENTS.water
 
     for (let i = 0; i < 9; i++) {
       const isBoss = i === bossRoomIndex.value
@@ -210,7 +223,7 @@ export const useGameStore = defineStore('game', () => {
         e = getEnemyForFloor(floor.value)
       }
 
-      const el = DUNGEON_ELEMENTS[e.element] || DUNGEON_ELEMENTS.water
+      // 统一元素为本层主导元素
       rooms.push({
         index: i,
         enemyPreview: {
@@ -218,7 +231,7 @@ export const useGameStore = defineStore('game', () => {
           icon: e.icon || e.name.charAt(0),
           subject: e.subject,
           subjectLabel: e.subject === 'chem' ? '化学' : e.subject === 'bio' ? '生物' : '易学',
-          element: e.element,
+          element: floorEl,
           elementLabel: el.name,
           elementColor: el.color,
           hp: isBoss ? Math.floor(e.hp * 1.5) : e.hp,
@@ -1239,6 +1252,8 @@ export const useGameStore = defineStore('game', () => {
       allClearCount: allClearCount.value,
       clearedRoomsThisFloor: clearedRoomsThisFloor.value,
       hasSkippedRoom: hasSkippedRoom.value,
+      currentFloorElement: currentFloorElement.value,
+      firstVisit: firstVisit.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1288,6 +1303,8 @@ export const useGameStore = defineStore('game', () => {
       allClearCount.value = saveData.allClearCount || 0
       clearedRoomsThisFloor.value = saveData.clearedRoomsThisFloor || 0
       hasSkippedRoom.value = saveData.hasSkippedRoom || false
+      currentFloorElement.value = saveData.currentFloorElement || 'water'
+      firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
 
       // 加载错题本
       loadWrongQuestions()
@@ -1328,6 +1345,7 @@ export const useGameStore = defineStore('game', () => {
     fishingLevel, recentCatches, fishCollection,
     wrongQuestions, wrongStats, reviewMode, reviewCurrent, reviewIndex, reviewPool, reviewResults,
     dungeonPhase, roomGrid, bossRoomIndex, currentRoomIndex, allClearCount, clearedRoomsThisFloor, hasSkippedRoom,
+    currentFloorElement, showTutorial, firstVisit,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
     initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
