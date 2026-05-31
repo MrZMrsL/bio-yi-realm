@@ -151,13 +151,8 @@
           <button @click="store.skipCapture" class="btn-skip">放弃</button>
         </div>
       </div>
-      <div v-else class="no-capture">
-        <div class="capture-info">
-          <span class="capture-icon">🚫</span>
-          <div class="capture-name">本次没有遇到可收养的怪物</div>
-          <div class="capture-hint">怪物已被消灭，未触发收养事件</div>
-        </div>
-        <button @click="nextBattle" class="btn-next">返回房间</button>
+      <div v-else>
+        <button @click="nextBattle" class="btn-next">继续探索</button>
       </div>
     </div>
     

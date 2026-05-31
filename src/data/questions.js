@@ -89,6 +89,25 @@ export function getUsedCount() {
   }
 }
 
+// 导出已用记录（用于存档持久化）
+export function exportUsedQuestions() {
+  return {
+    easy: Array.from(usedQuestions.easy),
+    medium: Array.from(usedQuestions.medium),
+    hard: Array.from(usedQuestions.hard),
+    all: Array.from(usedQuestions.all)
+  }
+}
+
+// 导入已用记录（从存档恢复）
+export function importUsedQuestions(data) {
+  if (!data) return
+  usedQuestions.easy = new Set(data.easy || [])
+  usedQuestions.medium = new Set(data.medium || [])
+  usedQuestions.hard = new Set(data.hard || [])
+  usedQuestions.all = new Set(data.all || [])
+}
+
 // 按难度和学科筛选题目，优先从未使用过的题目中抽取
 export function getQuestions(subject, difficulty, count = 5) {
   let pool = ALL_QUESTIONS.filter(q => {

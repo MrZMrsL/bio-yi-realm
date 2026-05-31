@@ -2170,6 +2170,52 @@ export const FISH_BY_RARITY = {
 ],
 };
 
+// 钓鱼古籍（通过钓鱼获取）
+export const FISHING_BOOKS = [
+  { name: "《周易》", icon: "📖", rarity: "epic", desc: "群经之首，大道之源。" },
+  { name: "《本草纲目》", icon: "📖", rarity: "epic", desc: "李时珍历时二十七载编著之药物学巨著。" },
+  { name: "《梦溪笔谈》", icon: "📖", rarity: "epic", desc: "沈括所著百科全书式科学巨著。" },
+  { name: "《天工开物》", icon: "📖", rarity: "rare", desc: "宋应星所著，世界首部农业与手工业生产综合性著作。" },
+  { name: "《物种起源》", icon: "📖", rarity: "rare", desc: "达尔文所著，奠定进化论之基石。" },
+  { name: "《几何原本》", icon: "📖", rarity: "rare", desc: "徐光启与利玛窦合译之西方数学经典。" },
+  { name: "《黄帝内经》", icon: "📖", rarity: "rare", desc: "中国现存最早之医学经典。" },
+  { name: "《抱朴子》", icon: "📖", rarity: "normal", desc: "葛洪所著之道家经典，内篇论炼丹养生。" },
+  { name: "《齐民要术》", icon: "📖", rarity: "normal", desc: "贾思勰所著之古代农学经典。" },
+  { name: "《参同契》", icon: "📖", rarity: "normal", desc: "魏伯阳所著之炼丹经典，为丹道之祖书。" },
+  { name: "《梅花易数》", icon: "📖", rarity: "normal", desc: "邵雍所创之占卜方法，简便而准确。" },
+  { name: "《化学元素周期表》", icon: "📖", rarity: "normal", desc: "门捷列夫所创，揭示元素性质之周期性规律。" },
+  { name: "《生物化学》", icon: "📖", rarity: "normal", desc: "研究生命体化学过程之学科。" },
+  { name: "《遗传学》", icon: "📖", rarity: "normal", desc: "从孟德尔豌豆实验到现代基因工程。" },
+  { name: "《细胞学》", icon: "📖", rarity: "normal", desc: "细胞是生命之基本单位。" },
+  { name: "《有机化学》", icon: "📖", rarity: "normal", desc: "有机分子构成生命世界之基础。" },
+  { name: "《物理化学》", icon: "📖", rarity: "normal", desc: "以物理原理研究化学现象之学科。" },
+  { name: "《分子生物学》", icon: "📖", rarity: "normal", desc: "研究生物大分子之结构与功能。" },
+  { name: "《微生物学》", icon: "📖", rarity: "normal", desc: "研究细菌、病毒、真菌等微生物之科学。" },
+  { name: "《生态学》", icon: "📖", rarity: "normal", desc: "研究生物与环境相互关系之科学。" },
+  { name: "《神经生物学》", icon: "📖", rarity: "normal", desc: "探索意识、记忆与行为之神经基础。" },
+  { name: "《基因工程》", icon: "📖", rarity: "normal", desc: "直接操作DNA以改变生物性状之技术。" },
+  { name: "《合成生物学》", icon: "📖", rarity: "normal", desc: "设计并构建新的生物部件与系统。" },
+  { name: "《表观遗传学》", icon: "📖", rarity: "normal", desc: "研究不改变DNA序列之基因调控。" },
+  { name: "《免疫学》", icon: "📖", rarity: "normal", desc: "研究免疫系统结构与功能之科学。" },
+  { name: "《干细胞生物学》", icon: "📖", rarity: "normal", desc: "研究具有自我更新与分化潜能之细胞。" },
+  { name: "《化学史》", icon: "📖", rarity: "normal", desc: "从炼金术到现代分子科学。" },
+  { name: "《古生物学》", icon: "📖", rarity: "normal", desc: "追溯地球生命演化之历史。" },
+  { name: "《生物信息学》", icon: "📖", rarity: "normal", desc: "以计算机技术分析生物数据之科学。" },
+  { name: "《蛋白质组学》", icon: "📖", rarity: "normal", desc: "大规模研究蛋白质之科学。" },
+]
+
+// 随机抽取一本古籍（按钓鱼等级）
+export function drawBook(fishingLevel = 1) {
+  const pool = FISHING_BOOKS.filter(b => {
+    if (b.rarity === 'normal' && fishingLevel >= 1) return true
+    if (b.rarity === 'rare' && fishingLevel >= 5) return true
+    if (b.rarity === 'epic' && fishingLevel >= 8) return true
+    return false
+  })
+  if (pool.length === 0) return null
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
 // 稀有度配置（概率权重）
 export const RARITY_CONFIG = {
   common: { label: "普通", weight: 40, color: "#888" },

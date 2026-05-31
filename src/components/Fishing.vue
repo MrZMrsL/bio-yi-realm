@@ -23,18 +23,23 @@
           </span>
           <strong>{{ caughtFish.name }}</strong>！
         </span>
+        <span v-if="fishingState === 'book' && caughtBook">
+          钓到了 <span class="rarity-badge" style="color: #d4a853">[古籍]</span>
+          <strong>{{ caughtBook.name }}</strong>！
+        </span>
       </div>
 
       <button
         class="fish-btn"
         :class="{ disabled: fishingState !== 'idle' && fishingState !== 'bite' }"
         @click="handleFishAction"
-        :disabled="fishingState === 'casting' || fishingState === 'caught'"
+        :disabled="fishingState === 'casting' || fishingState === 'caught' || fishingState === 'book'"
       >
         <span v-if="fishingState === 'idle'">开始钓鱼</span>
         <span v-if="fishingState === 'casting'">等待中...</span>
         <span v-if="fishingState === 'bite'">🎣 收杆！</span>
         <span v-if="fishingState === 'caught'">已捕获</span>
+        <span v-if="fishingState === 'book'">已发现</span>
       </button>
     </div>
 
@@ -84,6 +89,25 @@
       </div>
     </div>
 
+    <!-- 古籍发现面板 -->
+    <div class="caught-panel" v-if="fishingState === 'book' && caughtBook">
+      <div class="caught-card" style="border-color: #d4a853">
+        <div class="caught-icon">📖</div>
+        <div class="caught-info">
+          <div class="caught-name" style="color: #d4a853">
+            {{ caughtBook.name }}
+          </div>
+          <div class="caught-rarity">[古籍] {{ caughtBook.rarity === 'epic' ? '史诗' : caughtBook.rarity === 'rare' ? '稀有' : '普通' }}</div>
+          <div class="caught-knowledge">{{ caughtBook.desc }}</div>
+        </div>
+      </div>
+      <div class="caught-actions">
+        <button class="action-btn eat-btn" @click="collectBook">
+          📖 收下古籍
+        </button>
+      </div>
+    </div>
+
     <!-- 最近捕获记录 -->
     <div class="recent-catches" v-if="store.recentCatches.length > 0">
       <div class="section-title">📋 最近捕获</div>
@@ -124,13 +148,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
-import { RARITY_CONFIG, drawFish } from '../data/fishing.js'
+import { RARITY_CONFIG, drawFish, drawBook } from '../data/fishing.js'
 import { getQuestions } from '../data/questions.js'
 import { sfxClick, sfxSplash, sfxItemGet } from '../utils/audio.js'
 
 const store = useGameStore()
-const fishingState = ref('idle') // idle, casting, bite, quiz, caught
+const fishingState = ref('idle') // idle, casting, bite, quiz, caught, book
 const caughtFish = ref(null)
+const caughtBook = ref(null)
 const quizQuestion = ref(null)
 const quizResult = ref(null)
 const rarityConfig = RARITY_CONFIG
@@ -193,6 +218,19 @@ function reelIn() {
   if (fishingState.value !== 'bite') return
 
   sfxSplash()
+
+  // 15% 概率钓到古籍
+  if (Math.random() < 0.15) {
+    const book = drawBook(store.fishingLevel)
+    if (book) {
+      caughtBook.value = book
+      fishingState.value = 'book'
+      store.addToCyclopedia('books', book.name)
+      sfxItemGet()
+      return
+    }
+  }
+
   // 抽鱼！
   const fish = drawFish(store.fishingLevel)
 
@@ -213,6 +251,13 @@ function reelIn() {
     store.recordFishCatch(fish)
     sfxItemGet()
   }
+}
+
+function collectBook() {
+  sfxClick()
+  caughtBook.value = null
+  fishingState.value = 'idle'
+  store.saveGame()
 }
 
 function submitQuizAnswer(index) {

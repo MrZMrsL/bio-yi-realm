@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ALL_QUESTIONS, getQuestionsForFloor } from '../data/questions.js'
+import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions } from '../data/questions.js'
 import { ENEMIES, getEnemyForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import {
@@ -647,9 +647,6 @@ export const useGameStore = defineStore('game', () => {
     inventory.value[matName] = (inventory.value[matName] || 0) + matDrop
     battleLog.value.push(`掉落 ${matDrop} 个 ${matName}！`)
 
-    // 自动存档
-    saveGame()
-
     // 装备/消耗品掉落
     const itemDrop = generateDrop()
     if (itemDrop) {
@@ -1261,6 +1258,7 @@ export const useGameStore = defineStore('game', () => {
       hasSkippedRoom: hasSkippedRoom.value,
       currentFloorElement: currentFloorElement.value,
       firstVisit: firstVisit.value,
+      usedQuestions: exportUsedQuestions(),
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1315,6 +1313,8 @@ export const useGameStore = defineStore('game', () => {
 
       // 加载错题本
       loadWrongQuestions()
+      // 加载题目去重状态
+      importUsedQuestions(saveData.usedQuestions)
 
       return true
     } catch (e) {
