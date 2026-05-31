@@ -113,7 +113,7 @@
         <div class="area-card settings-card" @click="openPanel('settings')">
           <div class="area-icon">⚙️</div>
           <div class="area-name">设置</div>
-          <div class="area-desc">成就 · 图鉴 · 存档</div>
+          <div class="area-desc">称号 · 存档</div>
         </div>
       </div>
     </div>
@@ -562,12 +562,13 @@ import Fishing from './Fishing.vue'
 import Shop from './Shop.vue'
 import Review from './Review.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
-import { sfxClick, sfxStart } from '../utils/audio.js'
+import { sfxClick, sfxStart, setSoundEnabled, isSoundEnabled } from '../utils/audio.js'
 import { DUNGEON_ELEMENTS, ELEMENT_COUNTER } from '../data/farm.js'
 
 const store = useGameStore()
 const activePanel = ref(null)
 const activeSettingsTab = ref('title')
+const soundEnabled = ref(isSoundEnabled())
 const activeEncCategory = ref('monsters')
 const allTitles = TITLE_TABLE
 const allMonsters = getAllMonsters()
@@ -771,6 +772,12 @@ function clearPet() {
 
 function canForgeRecipe(recipe) {
   return canForge(recipe, store.inventory, store.gold)
+}
+
+function toggleSound() {
+  soundEnabled.value = !soundEnabled.value
+  setSoundEnabled(soundEnabled.value)
+  sfxClick()
 }
 
 function saveGame() {

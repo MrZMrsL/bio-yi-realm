@@ -37,3 +37,38 @@ body {
     z-index: 0;
   }
 }
+
+/* ===== 音频设置 ===== */
+.audio-settings {
+  padding: 20px 16px;
+}
+.audio-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.audio-label {
+  font-size: 16px;
+  color: #e0e0e0;
+}
+.audio-toggle {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: none;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #555;
+  color: #ccc;
+  transition: all 0.2s;
+}
+.audio-toggle.toggle-on {
+  background: #4caf50;
+  color: #fff;
+}
+.audio-hint {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}

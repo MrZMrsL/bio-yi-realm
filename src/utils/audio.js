@@ -2,19 +2,30 @@
 // Web Audio API 合成音效 — 零外部依赖，纯代码生成
 
 let audioCtx = null
+let soundEnabled = true
+
+export function setSoundEnabled(enabled) {
+  soundEnabled = enabled
+}
+
+export function isSoundEnabled() {
+  return soundEnabled
+}
 
 function getCtx() {
+  if (!soundEnabled) return null
   if (!audioCtx) {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)()
   }
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume()
+    audioCtx.resume().catch(() => {})
   }
   return audioCtx
 }
 
 function playTone({ freq = 440, type = 'sine', duration = 0.1, volume = 0.15, when = 0 }) {
   const ctx = getCtx()
+  if (!ctx) return
   const t = ctx.currentTime + when
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
@@ -34,6 +45,7 @@ function playTone({ freq = 440, type = 'sine', duration = 0.1, volume = 0.15, wh
 
 function playNoise({ duration = 0.15, volume = 0.1, when = 0, filterFreq = 1000 }) {
   const ctx = getCtx()
+  if (!ctx) return
   const t = ctx.currentTime + when
   const bufferSize = ctx.sampleRate * duration
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
