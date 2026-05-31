@@ -1322,7 +1322,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 限时Boss答题攻击（带倒计时）
   function weeklyBossAnswerAttack(correct) {
-    if (!enemy.value || battleState.value !== 'idle') return
+    if (!enemy.value) return
     weeklyBossTurn.value++
     weeklyBossSkillUsed.value = []
 
