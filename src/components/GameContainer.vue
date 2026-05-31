@@ -163,29 +163,7 @@
         
         <!-- 自习室面板 -->
         <div v-if="activePanel === 'study'" class="panel-study">
-          <div class="study-placeholder">
-            <div class="study-icon">📚</div>
-            <h3>自习室</h3>
-            <p>知识回顾与错题本</p>
-            <div class="study-stats">
-              <div class="stat-item">
-                <span class="stat-num">{{ store.stats?.totalCorrect || 0 }}</span>
-                <span class="stat-label">答对</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-num">{{ store.stats?.totalWrong || 0 }}</span>
-                <span class="stat-label">答错</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-num">{{ store.stats?.maxCombo || 0 }}</span>
-                <span class="stat-label">最高连击</span>
-              </div>
-            </div>
-            <div class="study-section">
-              <h4>📝 错题本</h4>
-              <p class="study-hint">功能开发中...</p>
-            </div>
-          </div>
+          <Review />
         </div>
         
         <!-- 商店面板 -->
@@ -339,6 +317,7 @@ import Inventory from './Inventory.vue'
 import Farm from './Farm.vue'
 import Fishing from './Fishing.vue'
 import Shop from './Shop.vue'
+import Review from './Review.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 
 const store = useGameStore()

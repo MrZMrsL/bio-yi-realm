@@ -18,6 +18,7 @@ import { getTitleData } from '../data/titles.js'
 import { getTotalCount } from '../data/cyclopedia.js'
 
 const SAVE_KEY = 'bioyi_realm_save'
+const WRONG_KEY = 'bioyi_realm_wrong'
 
 export const useGameStore = defineStore('game', () => {
   // 游戏状态
@@ -78,6 +79,17 @@ export const useGameStore = defineStore('game', () => {
   const cyclopedia = ref({ monsters: {}, materials: {}, fishes: {}, books: {}, titles: {} })
   const newDiscoveries = ref([]) // 新发现通知队列
 
+  // 错题本
+  const wrongQuestions = ref([])
+  // [{ id, q, options, answer, subject, diff, wrongAnswer, wrongCount, lastWrongTime, mastered }]
+
+  // 复习模式状态
+  const reviewMode = ref(false)
+  const reviewCurrent = ref(null) // 当前正在复习的题目
+  const reviewIndex = ref(0)
+  const reviewPool = ref([])
+  const reviewResults = ref([])
+
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
   const hpPercent = computed(() => (hp.value / maxHp.value) * 100)
@@ -94,6 +106,26 @@ export const useGameStore = defineStore('game', () => {
     let base = def.value + (equipped.value.armor?.def || 0) + (equipped.value.accessory?.def || 0)
     base += monsterBonus.value.defBonus || 0
     return base
+  })
+
+  // 错题本统计
+  const wrongStats = computed(() => {
+    const bySubject = { chem: 0, bio: 0, yi: 0 }
+    const byDiff = { easy: 0, medium: 0, hard: 0 }
+    const mastered = wrongQuestions.value.filter(q => q.mastered).length
+    wrongQuestions.value.forEach(q => {
+      if (!q.mastered) {
+        bySubject[q.subject] = (bySubject[q.subject] || 0) + 1
+        byDiff[q.diff] = (byDiff[q.diff] || 0) + 1
+      }
+    })
+    return {
+      total: wrongQuestions.value.length,
+      pending: wrongQuestions.value.length - mastered,
+      mastered,
+      bySubject,
+      byDiff
+    }
   })
 
   // 开始游戏
@@ -191,6 +223,135 @@ export const useGameStore = defineStore('game', () => {
     setTimeout(() => { comboActive.value = false }, 1500)
   }
 
+  // 记录错题
+  function recordWrongQuestion(q, wrongAnswer) {
+    if (!q) return
+    const existing = wrongQuestions.value.find(wq => wq.id === q.id)
+    if (existing) {
+      existing.wrongCount++
+      existing.wrongAnswer = wrongAnswer
+      existing.lastWrongTime = Date.now()
+      existing.mastered = false // 再次做错，取消掌握状态
+    } else {
+      wrongQuestions.value.push({
+        id: q.id,
+        q: q.q,
+        options: q.options,
+        answer: q.answer,
+        subject: q.subject,
+        diff: q.diff,
+        wrongAnswer,
+        wrongCount: 1,
+        lastWrongTime: Date.now(),
+        mastered: false
+      })
+    }
+    updateStats('totalWrong', 1)
+    saveWrongQuestions()
+  }
+
+  // 标记错题为已掌握
+  function masterQuestion(qid) {
+    const q = wrongQuestions.value.find(wq => wq.id === qid)
+    if (q) {
+      q.mastered = true
+      saveWrongQuestions()
+    }
+  }
+
+  // 从错题本移除
+  function removeWrongQuestion(qid) {
+    const idx = wrongQuestions.value.findIndex(wq => wq.id === qid)
+    if (idx !== -1) {
+      wrongQuestions.value.splice(idx, 1)
+      saveWrongQuestions()
+    }
+  }
+
+  // 保存错题本（单独存储）
+  function saveWrongQuestions() {
+    localStorage.setItem(WRONG_KEY, JSON.stringify(wrongQuestions.value))
+  }
+
+  // 加载错题本
+  function loadWrongQuestions() {
+    const data = localStorage.getItem(WRONG_KEY)
+    if (data) {
+      try {
+        wrongQuestions.value = JSON.parse(data)
+      } catch (e) {
+        console.error('错题本加载失败:', e)
+      }
+    }
+  }
+
+  // 开始复习模式
+  function startReview(subjectFilter = null, diffFilter = null) {
+    let pool = wrongQuestions.value.filter(q => !q.mastered)
+    if (subjectFilter) {
+      pool = pool.filter(q => q.subject === subjectFilter)
+    }
+    if (diffFilter) {
+      pool = pool.filter(q => q.diff === diffFilter)
+    }
+    if (pool.length === 0) return false
+
+    // 按做错次数降序排列（优先复习做错多的）
+    pool.sort((a, b) => b.wrongCount - a.wrongCount)
+
+    reviewPool.value = pool
+    reviewIndex.value = 0
+    reviewResults.value = []
+    reviewCurrent.value = pool[0]
+    reviewMode.value = true
+    return true
+  }
+
+  // 提交复习答案
+  function submitReviewAnswer(index) {
+    if (!reviewCurrent.value) return
+    const q = reviewCurrent.value
+    const correct = index === q.answer
+
+    reviewResults.value.push({
+      id: q.id,
+      correct,
+      subject: q.subject,
+      diff: q.diff
+    })
+
+    if (correct) {
+      // 答对：标记为已掌握
+      masterQuestion(q.id)
+    } else {
+      // 答错：增加计数
+      const existing = wrongQuestions.value.find(wq => wq.id === q.id)
+      if (existing) {
+        existing.wrongCount++
+        existing.wrongAnswer = index
+        existing.lastWrongTime = Date.now()
+        saveWrongQuestions()
+      }
+    }
+
+    reviewIndex.value++
+    if (reviewIndex.value < reviewPool.value.length) {
+      reviewCurrent.value = reviewPool.value[reviewIndex.value]
+    } else {
+      reviewCurrent.value = null
+      reviewMode.value = false
+    }
+  }
+
+  // 退出复习模式
+  function exitReview() {
+    reviewMode.value = false
+    reviewCurrent.value = null
+    reviewIndex.value = 0
+    reviewPool.value = []
+    reviewResults.value = []
+  }
+
   // 答题攻击
   function answerAttack(correct) {
     if (!enemy.value) return
@@ -226,15 +387,21 @@ export const useGameStore = defineStore('game', () => {
       if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
       battleLog.value.push(logMsg)
 
+      updateStats('totalCorrect', 1)
+      if (consecutiveCorrect.value > stats.value.maxCombo) {
+        stats.value.maxCombo = consecutiveCorrect.value
+      }
+
       if (enemy.value.hp <= 0) {
         winBattle()
       } else {
         battleState.value = 'idle'
       }
     } else {
-      // 答错重置连击
+      // 答错重置连击，记录错题
       resetCombo()
       battleLog.value.push('回答错误！受到反噬！')
+      recordWrongQuestion(question.value, -1)
       enemyAttack()
     }
   }
@@ -298,6 +465,7 @@ export const useGameStore = defineStore('game', () => {
       } else {
         battleLog.value.push(`获得 ${itemDrop.item.name} ×${itemDrop.item.count}！`)
       }
+
       battleState.value = 'drop' // 先展示掉落，再进入 won
       saveGame()
       return
@@ -433,6 +601,10 @@ export const useGameStore = defineStore('game', () => {
 
     const q = captureQuestions.value[captureIndex.value]
     const correct = index === q.answer
+
+    if (!correct) {
+      recordWrongQuestion(q, index)
+    }
 
     if (correct) {
       captureCorrectCount.value++
@@ -853,6 +1025,9 @@ export const useGameStore = defineStore('game', () => {
       captureIndex.value = saveData.captureIndex || 0
       captureCorrectCount.value = saveData.captureCorrectCount || 0
 
+      // 加载错题本
+      loadWrongQuestions()
+
       return true
     } catch (e) {
       console.error('存档加载失败:', e)
@@ -868,6 +1043,7 @@ export const useGameStore = defineStore('game', () => {
   // 删除存档
   function deleteSave() {
     localStorage.removeItem(SAVE_KEY)
+    localStorage.removeItem(WRONG_KEY)
   }
 
   const titleData = computed(() => getTitleData(level.value))
@@ -886,6 +1062,7 @@ export const useGameStore = defineStore('game', () => {
     comboCount, comboActive, consecutiveCorrect,
     cyclopedia, newDiscoveries, stats,
     fishingLevel, recentCatches, fishCollection,
+    wrongQuestions, wrongStats, reviewMode, reviewCurrent, reviewIndex, reviewPool, reviewResults,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     startGame, setTab,
     initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
@@ -898,6 +1075,8 @@ export const useGameStore = defineStore('game', () => {
     recordFishCatch, removeFishFromRecent,
     addToCyclopedia, getCyclopediaProgress, isDiscovered, getDiscoveryCount,
     updateStats,
+    recordWrongQuestion, masterQuestion, removeWrongQuestion,
+    startReview, submitReviewAnswer, exitReview,
     saveGame, loadGame, hasSave, deleteSave
   }
 })
