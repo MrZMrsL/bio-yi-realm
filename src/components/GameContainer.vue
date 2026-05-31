@@ -153,7 +153,7 @@
         <!-- 地牢面板 -->
         <div v-if="activePanel === 'dungeon'" class="panel-dungeon">
           <!-- 地牢入口 -->
-          <div v-if="store.dungeonPhase === 'none'" class="dungeon-intro">
+          <div v-if="store.dungeonPhase === 'none' && !store.inWeeklyBoss" class="dungeon-intro">
             <div class="dungeon-title">🏰 第 {{ store.floor }} 层地牢</div>
             <p class="dungeon-desc">黑暗中的密室散发着危险的气息...</p>
             <div class="dungeon-stats-hint">
@@ -829,6 +829,11 @@ const filteredForgeRecipes = computed(() => {
 
 function openPanel(panel) {
   sfxClick()
+  // 多模块互斥：战斗中不允许切换面板
+  if (store.inBattle && panel !== 'dungeon') {
+    alert('当前正在战斗中，请先完成或退出战斗！')
+    return
+  }
   activePanel.value = panel
   if (panel === 'settings') {
     activeSettingsTab.value = 'title'
@@ -841,6 +846,12 @@ function openPanel(panel) {
 
 function closePanel() {
   sfxClick()
+  // 限时Boss战斗中关闭面板，直接退出战斗
+  if (store.inWeeklyBoss) {
+    store.exitWeeklyBoss()
+    activePanel.value = null
+    return
+  }
   // 只有从地牢面板退出时，才提示是否保存进度
   if (activePanel.value === 'dungeon' && store.dungeonPhase !== 'none') {
     const saveProgress = confirm('是否保存当前地牢进度？\n保存后可在下次继续探索。\n不保存则本层进度将丢失，重进会刷新。')

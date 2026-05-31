@@ -3,9 +3,8 @@
     <div class="fishing-header">
       <div class="fishing-level">🎣 钓鱼等级 Lv.{{ store.fishingLevel }}</div>
       <div class="fishing-count">
-        <span v-if="store.dailyFishCount < 5" class="count-normal">今日剩余 {{ fishRemaining }} 次</span>
-        <span v-else-if="store.fishLimitUnlocked" class="count-unlocked">🔓 无限钓鱼已解锁</span>
-        <span v-else class="count-limited">⚠️ 已达上限，需答题解锁</span>
+        <span v-if="store.dailyFishCount < 5" class="count-normal">本轮剩余 {{ fishRemaining }} 次</span>
+        <span v-else class="count-limited">⚠️ 本轮已达上限，需答题解锁</span>
       </div>
       <div class="fishing-stats">已捕获 {{ store.recentCatches.length }} 条 | 图鉴 {{ fishCollectionPercent }}%</div>
     </div>
@@ -359,6 +358,13 @@ function startBookStudy() {
 function submitBookStudyAnswer(index) {
   sfxClick()
   const result = store.submitBookStudyAnswer(index)
+  // 防御性处理：确保result是对象
+  if (!result || typeof result !== 'object') {
+    console.error('submitBookStudyAnswer返回异常:', result)
+    fishingState.value = 'idle'
+    caughtBook.value = null
+    return
+  }
   if (result.correct) {
     sfxCorrect()
     fishingState.value = 'bookStudySuccess'
@@ -403,8 +409,13 @@ function submitLimitQuizAnswer(index) {
     store.unlockFishLimit()
     fishingState.value = 'idle'
     quizQuestion.value = null
-    // 自动开始钓鱼
-    startFishing()
+    quizResult.value = null
+    // 短暂延迟后自动开始钓鱼，确保状态切换完成
+    setTimeout(() => {
+      if (fishingState.value === 'idle') {
+        startFishing()
+      }
+    }, 300)
   } else {
     sfxWrong()
     fishingState.value = 'limitLocked'

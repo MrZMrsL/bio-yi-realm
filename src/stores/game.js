@@ -1102,7 +1102,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 提交研读答案
   function submitBookStudyAnswer(index) {
-    if (!bookStudyQuestion.value) return false
+    if (!bookStudyQuestion.value) return { correct: false, error: 'no_question' }
     const correct = index === bookStudyQuestion.value.answer
     bookStudyMode.value = false
     if (correct) {
@@ -1135,17 +1135,15 @@ export const useGameStore = defineStore('game', () => {
     bookStudyQuestion.value = null
   }
 
-  // 钓鱼次数检查
+  // 钓鱼次数检查 — 每5次需要答题一次（周期性，非永久解锁）
   function canFishToday() {
     if (dailyFishCount.value < 5) return { allowed: true, reason: null }
-    if (fishLimitUnlocked.value) return { allowed: true, reason: 'unlocked' }
     return { allowed: false, reason: 'limit_reached' }
   }
 
-  // 解锁钓鱼限制（答题通过）
+  // 解锁钓鱼限制（答题通过）— 重置计数，开始新一轮5次
   function unlockFishLimit() {
-    fishLimitUnlocked.value = true
-    dailyFishCount.value = 0 // 重置计数
+    dailyFishCount.value = 0 // 重置计数，开始新一轮
     saveGame()
   }
 
