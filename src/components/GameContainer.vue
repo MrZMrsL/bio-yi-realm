@@ -39,7 +39,7 @@
         <h2>🏰 生化易界</h2>
         <p class="dashboard-subtitle">以知识为刃，斩破混沌迷雾</p>
       </div>
-      
+
       <div class="area-grid">
         <!-- 地牢探索 -->
         <div class="area-card dungeon-card" @click="openPanel('dungeon')">
@@ -48,14 +48,14 @@
           <div class="area-desc">第 {{ store.floor }} 层</div>
           <div class="area-badge" v-if="store.inBattle">战斗中!</div>
         </div>
-        
+
         <!-- 锻造店 -->
         <div class="area-card forge-card" @click="openPanel('forge')">
           <div class="area-icon">🔨</div>
           <div class="area-name">锻造店</div>
           <div class="area-desc">合成装备与药水</div>
         </div>
-        
+
         <!-- 仓库 -->
         <div class="area-card inventory-card" @click="openPanel('inventory')">
           <div class="area-icon">🎒</div>
@@ -63,7 +63,7 @@
           <div class="area-desc">装备 · 材料 · 药水</div>
           <div class="area-badge" v-if="store.equipment.length > 0">{{ store.equipment.length }}</div>
         </div>
-        
+
         <!-- 农场 -->
         <div class="area-card farm-card" @click="openPanel('farm')">
           <div class="area-icon">🏡</div>
@@ -71,7 +71,7 @@
           <div class="area-desc">伙伴: {{ store.farm.length }}/12</div>
           <div class="area-badge" v-if="store.activeMonster">🐾</div>
         </div>
-        
+
         <!-- 钓鱼塘 -->
         <div class="area-card fishing-card" @click="openPanel('fishing')">
           <div class="area-icon">🎣</div>
@@ -79,21 +79,21 @@
           <div class="area-desc">Lv.{{ store.fishingLevel }} 钓手</div>
           <div class="area-badge" v-if="store.recentCatches.length > 0">{{ store.recentCatches.length }}</div>
         </div>
-        
+
         <!-- 自习室 -->
         <div class="area-card study-card" @click="openPanel('study')">
           <div class="area-icon">📚</div>
           <div class="area-name">自习室</div>
           <div class="area-desc">错题回顾 · 知识巩固</div>
         </div>
-        
+
         <!-- 商店 -->
         <div class="area-card shop-card" @click="openPanel('shop')">
           <div class="area-icon">🏪</div>
           <div class="area-name">杂货铺</div>
           <div class="area-desc">购买补给物资</div>
         </div>
-        
+
         <!-- 设置 -->
         <div class="area-card settings-card" @click="openPanel('settings')">
           <div class="area-icon">⚙️</div>
@@ -123,14 +123,14 @@
             </div>
             <button class="explore-btn" @click="onEnterDungeon">进入地牢</button>
           </div>
-          
+
           <!-- 准备界面 -->
           <div v-if="store.dungeonPhase === 'prep'" class="dungeon-prep">
             <div class="prep-header">
               <div class="prep-title">⚔️ 第 {{ store.floor }} 层 - 战前准备</div>
               <div class="prep-hint">调整装备与宠物，确认后进入地牢</div>
             </div>
-            
+
             <!-- 怪物预览 -->
             <div class="prep-preview">
               <div class="preview-title">🔮 本层怪物情报</div>
@@ -144,35 +144,35 @@
                 <div class="preview-more">+{{ store.roomGrid.length - 6 }} 更多...</div>
               </div>
             </div>
-            
+
             <!-- 当前配置 -->
             <div class="prep-config">
               <div class="config-section">
-                <div class="config-title">🗡️ 装备</div>
+                <div class="config-title">🗡️ 装备 <span class="config-sub">（点击更换）</span></div>
                 <div class="config-slots">
-                  <div class="config-slot" :class="{ empty: !store.equipped.weapon }">
+                  <div class="config-slot" :class="{ empty: !store.equipped.weapon, clickable: true }" @click="openEquipPicker('weapon')">
                     <span v-if="store.equipped.weapon">⚔️ {{ store.equipped.weapon.name }}</span>
                     <span v-else>未装备武器</span>
                   </div>
-                  <div class="config-slot" :class="{ empty: !store.equipped.armor }">
+                  <div class="config-slot" :class="{ empty: !store.equipped.armor, clickable: true }" @click="openEquipPicker('armor')">
                     <span v-if="store.equipped.armor">🛡️ {{ store.equipped.armor.name }}</span>
                     <span v-else>未装备防具</span>
                   </div>
-                  <div class="config-slot" :class="{ empty: !store.equipped.accessory }">
+                  <div class="config-slot" :class="{ empty: !store.equipped.accessory, clickable: true }" @click="openEquipPicker('accessory')">
                     <span v-if="store.equipped.accessory">💍 {{ store.equipped.accessory.name }}</span>
                     <span v-else>未装备饰品</span>
                   </div>
                 </div>
               </div>
-              
+
               <div class="config-section">
-                <div class="config-title">🐾 宠物</div>
-                <div class="config-pet">
+                <div class="config-title">🐾 宠物 <span class="config-sub">（点击更换）</span></div>
+                <div class="config-pet clickable" @click="openPetPicker()">
                   <span v-if="store.activeMonster">{{ store.activeMonster.icon }} {{ store.activeMonster.name }} {{ store.activeMonster.ability?.desc }}</span>
                   <span v-else class="empty">未携带宠物</span>
                 </div>
               </div>
-              
+
               <div class="config-section">
                 <div class="config-title">🧪 药水 ({{ store.consumables.length }})</div>
                 <div class="config-potions">
@@ -181,12 +181,78 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="prep-actions">
               <button class="btn-enter-dungeon" @click="store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
             </div>
           </div>
-          
+
+          <!-- 装备选择弹窗 -->
+          <div v-if="showEquipPicker" class="prep-modal-overlay" @click.self="showEquipPicker = false">
+            <div class="prep-modal">
+              <div class="prep-modal-header">
+                <span class="prep-modal-title">
+                  {{ equipPickerType === 'weapon' ? '⚔️ 选择武器' : equipPickerType === 'armor' ? '🛡️ 选择防具' : '💍 选择饰品' }}
+                </span>
+                <button class="prep-modal-close" @click="showEquipPicker = false">✕</button>
+              </div>
+              <div class="prep-modal-body">
+                <div v-if="store.equipment.filter(e => e.type === equipPickerType).length === 0" class="prep-modal-empty">
+                  背包中没有{{ equipPickerType === 'weapon' ? '武器' : equipPickerType === 'armor' ? '防具' : '饰品' }}
+                </div>
+                <div
+                  v-for="item in store.equipment.filter(e => e.type === equipPickerType)"
+                  :key="item.id"
+                  class="prep-modal-item"
+                  :class="{ active: store.equipped[equipPickerType]?.id === item.id }"
+                  @click="pickEquip(item)"
+                >
+                  <span class="prep-modal-icon">{{ item.icon || (equipPickerType === 'weapon' ? '⚔️' : equipPickerType === 'armor' ? '🛡️' : '💍') }}</span>
+                  <span class="prep-modal-name">{{ item.name }}</span>
+                  <span class="prep-modal-stat">
+                    {{ equipPickerType === 'weapon' ? `攻+${item.atk}` : equipPickerType === 'armor' ? `防+${item.def}` : `攻+${item.atk || 0} 防+${item.def || 0}` }}
+                  </span>
+                </div>
+                <div class="prep-modal-item empty-item" @click="unequip(equipPickerType)">
+                  <span class="prep-modal-icon">🚫</span>
+                  <span class="prep-modal-name">不装备</span>
+                  <span class="prep-modal-stat">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 宠物选择弹窗 -->
+          <div v-if="showPetPicker" class="prep-modal-overlay" @click.self="showPetPicker = false">
+            <div class="prep-modal">
+              <div class="prep-modal-header">
+                <span class="prep-modal-title">🐾 选择宠物</span>
+                <button class="prep-modal-close" @click="showPetPicker = false">✕</button>
+              </div>
+              <div class="prep-modal-body">
+                <div v-if="store.farm.length === 0" class="prep-modal-empty">
+                  农场中没有怪物，先去捕捉吧！
+                </div>
+                <div
+                  v-for="(monster, idx) in store.farm"
+                  :key="idx"
+                  class="prep-modal-item"
+                  :class="{ active: store.activeMonster?.name === monster.name }"
+                  @click="pickPet(idx)"
+                >
+                  <span class="prep-modal-icon">{{ monster.icon }}</span>
+                  <span class="prep-modal-name">{{ monster.name }}</span>
+                  <span class="prep-modal-stat">{{ monster.ability?.desc || '' }}</span>
+                </div>
+                <div class="prep-modal-item empty-item" @click="clearPet()">
+                  <span class="prep-modal-icon">🚫</span>
+                  <span class="prep-modal-name">不携带宠物</span>
+                  <span class="prep-modal-stat">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 房间选择 -->
           <div v-if="store.dungeonPhase === 'rooms'" class="dungeon-rooms">
             <div class="rooms-header">
@@ -230,11 +296,11 @@
               </button>
             </div>
           </div>
-          
+
           <!-- 战斗 -->
           <Battle v-if="store.inBattle" />
         </div>
-        
+
         <!-- 锻造面板 -->
         <div v-if="activePanel === 'forge'" class="panel-forge">
           <div class="forge-placeholder">
@@ -249,8 +315,8 @@
                     {{ mat }} ×{{ count }}
                   </span>
                 </div>
-                <button 
-                  @click="store.forgeItem(recipe.id)" 
+                <button
+                  @click="store.forgeItem(recipe.id)"
                   :disabled="!canForgeRecipe(recipe)"
                   class="btn-forge"
                 >
@@ -260,37 +326,37 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 仓库面板 -->
         <div v-if="activePanel === 'inventory'" class="panel-inventory">
           <Inventory />
         </div>
-        
+
         <!-- 农场面板 -->
         <div v-if="activePanel === 'farm'" class="panel-farm">
           <Farm />
         </div>
-        
+
         <!-- 钓鱼面板 -->
         <div v-if="activePanel === 'fishing'" class="panel-fishing">
           <Fishing />
         </div>
-        
+
         <!-- 自习室面板 -->
         <div v-if="activePanel === 'study'" class="panel-study">
           <Review />
         </div>
-        
+
         <!-- 商店面板 -->
         <div v-if="activePanel === 'shop'" class="panel-shop">
           <Shop />
         </div>
-        
+
         <!-- 设置面板 -->
         <div v-if="activePanel === 'settings'" class="panel-settings">
           <div class="settings-tabs">
-            <button 
-              v-for="tab in settingsTabs" 
+            <button
+              v-for="tab in settingsTabs"
               :key="tab.key"
               class="settings-tab-btn"
               :class="{ active: activeSettingsTab === tab.key }"
@@ -299,7 +365,7 @@
               {{ tab.label }}
             </button>
           </div>
-          
+
           <!-- 称号面板 -->
           <div v-if="activeSettingsTab === 'title'" class="settings-content">
             <div class="title-card">
@@ -326,12 +392,12 @@
               </div>
             </div>
           </div>
-          
+
           <!-- 图鉴面板 -->
           <div v-if="activeSettingsTab === 'encyclopedia'" class="settings-content">
             <div class="encyclopedia-tabs">
-              <button 
-                v-for="cat in encyclopediaCategories" 
+              <button
+                v-for="cat in encyclopediaCategories"
                 :key="cat.key"
                 class="enc-tab-btn"
                 :class="{ active: activeEncCategory === cat.key }"
@@ -340,7 +406,7 @@
                 {{ cat.label }} ({{ getEncProgress(cat.key) }})
               </button>
             </div>
-            
+
             <!-- 怪物图鉴 -->
             <div v-if="activeEncCategory === 'monsters'" class="enc-list">
               <div v-for="m in allMonsters" :key="m.name" class="enc-item" :class="{ discovered: isDiscovered('monsters', m.name) }">
@@ -354,7 +420,7 @@
                 <p class="enc-lore hidden" v-else>尚未发现此怪物...</p>
               </div>
             </div>
-            
+
             <!-- 材料图鉴 -->
             <div v-if="activeEncCategory === 'materials'" class="enc-list">
               <div v-for="mat in allMaterials" :key="mat.name" class="enc-item" :class="{ discovered: isDiscovered('materials', mat.name) }">
@@ -367,7 +433,7 @@
                 <p class="enc-lore hidden" v-else>尚未发现此材料...</p>
               </div>
             </div>
-            
+
             <!-- 鱼类图鉴 -->
             <div v-if="activeEncCategory === 'fishes'" class="enc-list">
               <div v-for="fish in allFishes" :key="fish.name" class="enc-item" :class="{ discovered: isDiscovered('fishes', fish.name) }">
@@ -380,7 +446,7 @@
                 <p class="enc-lore hidden" v-else>尚未钓获此鱼...</p>
               </div>
             </div>
-            
+
             <!-- 书籍图鉴 -->
             <div v-if="activeEncCategory === 'books'" class="enc-list">
               <div v-for="book in allBooks" :key="book.name" class="enc-item" :class="{ discovered: isDiscovered('books', book.name) }">
@@ -394,7 +460,7 @@
               </div>
             </div>
           </div>
-          
+
           <!-- 存档面板 -->
           <div v-if="activeSettingsTab === 'save'" class="settings-content">
             <div class="save-actions">
@@ -517,6 +583,47 @@ function onEnterRoom(index) {
 function onNextFloor() {
   sfxClick()
   store.nextFloor()
+}
+
+// ===== 战前准备 - 装备与宠物选择 =====
+const showEquipPicker = ref(false)
+const equipPickerType = ref('weapon')
+const showPetPicker = ref(false)
+
+function openEquipPicker(type) {
+  sfxClick()
+  equipPickerType.value = type
+  showEquipPicker.value = true
+}
+
+function pickEquip(item) {
+  sfxClick()
+  store.equip(item)
+  showEquipPicker.value = false
+}
+
+function unequip(type) {
+  sfxClick()
+  if (type === 'weapon') store.equipped.weapon = null
+  else if (type === 'armor') store.equipped.armor = null
+  else if (type === 'accessory') store.equipped.accessory = null
+}
+
+function openPetPicker() {
+  sfxClick()
+  showPetPicker.value = true
+}
+
+function pickPet(idx) {
+  sfxClick()
+  store.setFollowMonster(idx)
+  showPetPicker.value = false
+}
+
+function clearPet() {
+  sfxClick()
+  store.unfollowMonster()
+  showPetPicker.value = false
 }
 
 function canForgeRecipe(recipe) {
@@ -1459,6 +1566,130 @@ function resetGame() {
 
 .btn-enter-dungeon:hover {
   transform: scale(1.05);
+}
+
+/* 可点击配置槽 */
+.config-slot.clickable,
+.config-pet.clickable {
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.config-slot.clickable:hover,
+.config-pet.clickable:hover {
+  background: rgba(212, 168, 83, 0.15);
+  transform: translateY(-1px);
+}
+
+.config-sub {
+  font-size: 11px;
+  color: #888;
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+/* 战前准备 - 选择弹窗 */
+.prep-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.prep-modal {
+  background: #1a1a2e;
+  border: 1px solid rgba(212, 168, 83, 0.3);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.prep-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.prep-modal-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #d4a853;
+}
+
+.prep-modal-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.prep-modal-body {
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prep-modal-empty {
+  text-align: center;
+  padding: 24px;
+  color: #666;
+  font-size: 14px;
+}
+
+.prep-modal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.prep-modal-item:hover {
+  background: rgba(212, 168, 83, 0.12);
+  transform: translateX(4px);
+}
+
+.prep-modal-item.active {
+  background: rgba(212, 168, 83, 0.2);
+  border: 1px solid rgba(212, 168, 83, 0.4);
+}
+
+.prep-modal-item.empty-item {
+  opacity: 0.7;
+}
+
+.prep-modal-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.prep-modal-name {
+  font-size: 14px;
+  color: #e0e0e0;
+  flex: 1;
+}
+
+.prep-modal-stat {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
 }
 
 /* 房间网格 */
