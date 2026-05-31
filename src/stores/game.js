@@ -1003,6 +1003,11 @@ export const useGameStore = defineStore('game', () => {
   function flee() {
     battleState.value = 'fled'
     battleLog.value.push('你逃跑了...')
+    if (inWeeklyBoss.value) {
+      // 限时Boss战斗中逃跑，直接退出
+      setTimeout(() => exitWeeklyBoss(), 500)
+      return
+    }
     if (dungeonPhase.value === 'battle') {
       // 房间模式下，逃跑后房间标记为未清空，但返回房间界面
       setTimeout(() => finishRoom(false), 500)
@@ -1021,6 +1026,17 @@ export const useGameStore = defineStore('game', () => {
     captureIndex.value = 0
     captureCorrectCount.value = 0
     resetCombo()
+    // 清理限时Boss状态
+    if (inWeeklyBoss.value) {
+      inWeeklyBoss.value = false
+      weeklyBossData.value = null
+      weeklyBossTurn.value = 0
+      if (weeklyBossTimer.value) {
+        clearInterval(weeklyBossTimer.value)
+        weeklyBossTimer.value = null
+      }
+      weeklyBossTimeLeft.value = 0
+    }
     // 如果在房间模式下战败，返回房间界面
     if (dungeonPhase.value === 'battle') {
       dungeonPhase.value = 'rooms'
@@ -1317,12 +1333,19 @@ export const useGameStore = defineStore('game', () => {
     battleLog.value = [`👹 限时Boss「${scaledBoss.name}」出现！`, `⏱️ 每题限时 ${scaledBoss.timeLimit} 秒！`]
     battleState.value = 'idle'
     weeklyBossSkillUsed.value = []
+    // 启动倒计时
+    startWeeklyBossTimer()
     return { success: true }
   }
 
   // 限时Boss答题攻击（带倒计时）
   function weeklyBossAnswerAttack(correct) {
     if (!enemy.value) return
+    // 清除计时器
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
     weeklyBossTurn.value++
     weeklyBossSkillUsed.value = []
 
@@ -1373,7 +1396,11 @@ export const useGameStore = defineStore('game', () => {
         battleState.value = 'idle'
         const questions = ALL_QUESTIONS.filter(q => q.subject === enemy.value.subject)
         const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
-        if (q) question.value = q
+        if (q) {
+          question.value = q
+          // 重启倒计时给下一题
+          startWeeklyBossTimer()
+        }
       }
     } else {
       resetCombo()
@@ -1382,7 +1409,38 @@ export const useGameStore = defineStore('game', () => {
       recordWrongQuestion(question.value, -1)
       // 限时Boss：答错Boss也会攻击
       enemyAttack()
+      // 如果战斗未结束，继续下一题
+      if (battleState.value !== 'lost' && enemy.value) {
+        battleState.value = 'idle'
+        const questions = ALL_QUESTIONS.filter(q => q.subject === enemy.value.subject)
+        const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        if (q) {
+          question.value = q
+          // 重启倒计时给下一题
+          startWeeklyBossTimer()
+        }
+      }
     }
+  }
+
+  // 启动限时Boss倒计时
+  function startWeeklyBossTimer() {
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    const timeLimit = weeklyBossData.value?.timeLimit || 60
+    weeklyBossTimeLeft.value = timeLimit
+    weeklyBossTimer.value = setInterval(() => {
+      weeklyBossTimeLeft.value--
+      if (weeklyBossTimeLeft.value <= 0) {
+        // 超时自动判错
+        clearInterval(weeklyBossTimer.value)
+        weeklyBossTimer.value = null
+        battleLog.value.push('⏰ 时间到！超时未答！')
+        weeklyBossAnswerAttack(false)
+      }
+    }, 1000)
   }
 
   // 应用Boss技能效果
@@ -1408,6 +1466,12 @@ export const useGameStore = defineStore('game', () => {
   // 击败限时Boss
   function winWeeklyBoss() {
     battleState.value = 'won'
+    // 清除计时器
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    weeklyBossTimeLeft.value = 0
     const boss = weeklyBossData.value
     if (!boss) return
 
@@ -1794,6 +1858,6 @@ export const useGameStore = defineStore('game', () => {
     // 属性点分配
     allocateStat, resetStats,
     // 限时Boss
-    enterWeeklyBoss, weeklyBossAnswerAttack, winWeeklyBoss, exitWeeklyBoss
+    enterWeeklyBoss, weeklyBossAnswerAttack, winWeeklyBoss, exitWeeklyBoss, startWeeklyBossTimer
   }
 })

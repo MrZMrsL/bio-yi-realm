@@ -69,6 +69,20 @@
       </div>
     </div>
     
+    <!-- 限时Boss倒计时进度条 -->
+    <div v-if="store.inWeeklyBoss && store.weeklyBossTimeLeft > 0" class="timer-bar-container">
+      <div class="timer-bar-label">
+        ⏱️ {{ store.weeklyBossTimeLeft }} 秒
+      </div>
+      <div class="timer-bar-track">
+        <div 
+          class="timer-bar-fill" 
+          :style="{ width: ((store.weeklyBossTimeLeft / (store.weeklyBossData?.timeLimit || 60)) * 100) + '%' }"
+          :class="{ danger: store.weeklyBossTimeLeft <= 10 }"
+        ></div>
+      </div>
+    </div>
+
     <!-- Boss技能显示 -->
     <div v-if="store.enemy?.skills && store.enemy.skills.length > 0 && store.inWeeklyBoss" class="boss-skills">
       <div v-for="skill in store.enemy.skills" :key="skill.name" class="boss-skill-tag">
@@ -976,6 +990,44 @@ function revive() {
 .btn-back {
   background: #666;
   color: white;
+}
+
+/* 倒计时进度条 */
+.timer-bar-container {
+  margin-bottom: 16px;
+}
+
+.timer-bar-label {
+  text-align: center;
+  font-size: 14px;
+  color: #e74c3c;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.timer-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2ecc71, #f1c40f);
+  border-radius: 4px;
+  transition: width 0.3s linear;
+}
+
+.timer-bar-fill.danger {
+  background: linear-gradient(90deg, #f39c12, #e74c3c);
+  animation: pulse-danger 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 /* 限时Boss样式 */

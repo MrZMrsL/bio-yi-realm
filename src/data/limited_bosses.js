@@ -30,7 +30,7 @@ export const WEEKLY_BOSSES = [
     baseHp: 200,
     baseAtk: 25,
     baseDef: 10,
-    timeLimit: 30, // 每题30秒
+    timeLimit: 60, // 每题60秒
     achievement: {
       id: 'slay_element_king',
       title: '元素征服者',
@@ -72,7 +72,7 @@ export const WEEKLY_BOSSES = [
     baseHp: 250,
     baseAtk: 22,
     baseDef: 12,
-    timeLimit: 30,
+    timeLimit: 60,
     achievement: {
       id: 'slay_gene_tyrant',
       title: '基因猎手',
@@ -114,7 +114,7 @@ export const WEEKLY_BOSSES = [
     baseHp: 220,
     baseAtk: 28,
     baseDef: 8,
-    timeLimit: 25,
+    timeLimit: 60,
     achievement: {
       id: 'slay_chaos_lord',
       title: '破卦者',
