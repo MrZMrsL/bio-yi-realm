@@ -265,6 +265,10 @@ function submitCaptureAnswer(index) {
 
 function nextBattle() {
   sfxClick()
+  // 修复：胜利后退出房间时，先标记房间已清理
+  if (store.battleState === 'won' && store.dungeonPhase === 'battle') {
+    store.finishRoom(true)
+  }
   // 房间系统下，战斗结束返回房间界面
   if (store.dungeonPhase === 'battle') {
     store.exitBattle()

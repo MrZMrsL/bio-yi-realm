@@ -188,16 +188,17 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 地牢房间系统 =====
 
-  // 按楼层确定主导元素（循环：水→火→酸→电→冰→风）
-  function getFloorElement(floorNum) {
+  // 随机确定主导元素（不与前一层重复）
+  function getRandomElement(exclude) {
     const elementKeys = ['water', 'fire', 'acid', 'electric', 'ice', 'wind']
-    return elementKeys[(floorNum - 1) % elementKeys.length]
+    const available = elementKeys.filter(k => k !== exclude)
+    return available[Math.floor(Math.random() * available.length)]
   }
 
   // 进入地牢准备界面
   function enterDungeonPrep() {
     dungeonPhase.value = 'prep'
-    currentFloorElement.value = getFloorElement(floor.value)
+    currentFloorElement.value = getRandomElement(currentFloorElement.value)
     generateRoomPreviews()
   }
 
@@ -316,15 +317,21 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // 进入下一层
+  // 进入下一层（必须击败 Boss）
   function nextFloor() {
+    const bossRoom = roomGrid.value[bossRoomIndex.value]
+    if (!bossRoom || !bossRoom.cleared) {
+      return false
+    }
     const allCleared = roomGrid.value.every(r => r.cleared)
     if (!allCleared) {
       hasSkippedRoom.value = true
     }
     floor.value++
     dungeonPhase.value = 'prep'
+    currentFloorElement.value = getRandomElement(currentFloorElement.value)
     generateRoomPreviews()
+    return true
   }
 
   // 退出地牢

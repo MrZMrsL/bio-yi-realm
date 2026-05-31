@@ -38,6 +38,29 @@
       </button>
     </div>
 
+    <!-- 传说鱼答题面板 -->
+    <div v-if="fishingState === 'quiz' && quizQuestion" class="quiz-panel">
+      <div class="quiz-title">🎣 传说鱼正在挣扎！</div>
+      <div class="quiz-hint">答对题目才能成功钓起 {{ caughtFish?.name }}</div>
+      <div class="question">{{ quizQuestion.q }}</div>
+      <div class="options">
+        <button 
+          v-for="(opt, i) in quizQuestion.options" 
+          :key="i" 
+          @click="submitQuizAnswer(i)"
+          class="option-btn"
+        >
+          {{ opt }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="quizResult === false" class="quiz-fail">
+      <div class="quiz-fail-title">😢 鱼跑了！</div>
+      <div class="quiz-fail-text">答题失败，{{ caughtFish?.name || '传说鱼' }} 挣脱了鱼线...</div>
+      <button @click="fishingState = 'idle'; quizResult = null; quizQuestion = null; caughtFish = null" class="btn-next">继续钓鱼</button>
+    </div>
+
     <!-- 捕获的鱼详情 -->
     <div class="caught-panel" v-if="fishingState === 'caught' && caughtFish">
       <div class="caught-card" :style="{ borderColor: rarityConfig[caughtFish.rarity]?.color }">
@@ -56,7 +79,7 @@
           🍽️ 食用（恢复 {{ caughtFish.healHp }} HP）
         </button>
         <button class="action-btn release-btn" @click="releaseFish">
-          🌊 放生
+          🌊 放生（+{{ Math.floor(caughtFish.healHp * 0.5) }} 经验）
         </button>
       </div>
     </div>
@@ -102,11 +125,14 @@
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { RARITY_CONFIG, drawFish } from '../data/fishing.js'
+import { getQuestions } from '../data/questions.js'
 import { sfxClick, sfxSplash, sfxItemGet } from '../utils/audio.js'
 
 const store = useGameStore()
-const fishingState = ref('idle') // idle, casting, bite, caught
+const fishingState = ref('idle') // idle, casting, bite, quiz, caught
 const caughtFish = ref(null)
+const quizQuestion = ref(null)
+const quizResult = ref(null)
 const rarityConfig = RARITY_CONFIG
 
 // 钓鱼等级对应可钓稀有度
@@ -169,6 +195,16 @@ function reelIn() {
   sfxSplash()
   // 抽鱼！
   const fish = drawFish(store.fishingLevel)
+
+  if (fish && (fish.rarity === 'legendary' || fish.rarity === 'mythic')) {
+    // 传说/神话鱼需要答题
+    caughtFish.value = fish
+    fishingState.value = 'quiz'
+    quizQuestion.value = getQuestions('all', 'hard', 1)[0]
+    quizResult.value = null
+    return
+  }
+
   caughtFish.value = fish
   fishingState.value = 'caught'
 
@@ -176,6 +212,24 @@ function reelIn() {
   if (fish) {
     store.recordFishCatch(fish)
     sfxItemGet()
+  }
+}
+
+function submitQuizAnswer(index) {
+  sfxClick()
+  if (!quizQuestion.value) return
+  const correct = index === quizQuestion.value.answer
+  quizResult.value = correct
+  if (correct) {
+    // 答对，成功钓起
+    fishingState.value = 'caught'
+    store.recordFishCatch(caughtFish.value)
+    sfxItemGet()
+  } else {
+    // 答错，鱼跑了
+    caughtFish.value = null
+    fishingState.value = 'idle'
+    quizQuestion.value = null
   }
 }
 
@@ -198,6 +252,22 @@ function eatFish() {
 function releaseFish() {
   sfxClick()
   if (!caughtFish.value) return
+
+  // 放生给经验
+  const expGain = Math.floor(caughtFish.value.healHp * 0.5)
+  store.exp += expGain
+  // 检查升级
+  while (store.exp >= store.maxExp) {
+    store.exp -= store.maxExp
+    store.level++
+    store.maxExp = Math.floor(store.maxExp * 1.2)
+    store.hp = store.maxHp
+    store.atk += 2
+    store.def += 1
+  }
+
+  // 从记录中移除
+  store.removeFishFromRecent(caughtFish.value)
 
   caughtFish.value = null
   fishingState.value = 'idle'
@@ -394,6 +464,90 @@ function releaseFish() {
   font-size: 13px;
   color: #2ecc71;
   font-weight: bold;
+}
+
+/* 答题面板 */
+.quiz-panel {
+  background: #1a1a1a;
+  padding: 20px;
+  border-radius: 12px;
+  border: 2px solid #d4a853;
+  animation: fadeIn 0.5s ease;
+}
+
+.quiz-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #d4a853;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.quiz-hint {
+  font-size: 13px;
+  color: #888;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.question {
+  font-size: 15px;
+  color: #ffd93d;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-btn {
+  padding: 10px 14px;
+  background: #333;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.option-btn:hover {
+  background: #444;
+}
+
+.quiz-fail {
+  text-align: center;
+  padding: 24px;
+  background: rgba(231, 76, 60, 0.15);
+  border-radius: 12px;
+  animation: fadeIn 0.5s ease;
+}
+
+.quiz-fail-title {
+  font-size: 18px;
+  color: #e74c3c;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.quiz-fail-text {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin-bottom: 16px;
+}
+
+.btn-next {
+  padding: 12px 24px;
+  background: #d4a853;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 .caught-actions {

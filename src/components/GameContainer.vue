@@ -65,7 +65,6 @@
           <div class="area-icon">🏰</div>
           <div class="area-name">地牢探索</div>
           <div class="area-desc">第 {{ store.floor }} 层</div>
-          <div class="area-badge" v-if="store.inBattle">战斗中!</div>
         </div>
 
         <!-- 锻造店 -->
@@ -88,7 +87,6 @@
           <div class="area-icon">🏡</div>
           <div class="area-name">怪物农场</div>
           <div class="area-desc">伙伴: {{ store.farm.length }}/12</div>
-          <div class="area-badge" v-if="store.activeMonster">🐾</div>
         </div>
 
         <!-- 钓鱼塘 -->
@@ -96,7 +94,6 @@
           <div class="area-icon">🎣</div>
           <div class="area-name">钓鱼塘</div>
           <div class="area-desc">Lv.{{ store.fishingLevel }} 钓手</div>
-          <div class="area-badge" v-if="store.recentCatches.length > 0">{{ store.recentCatches.length }}</div>
         </div>
 
         <!-- 自习室 -->
