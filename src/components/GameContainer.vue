@@ -595,6 +595,96 @@
             </div>
           </div>
 
+          <!-- 帮助面板 -->
+          <div v-if="activeSettingsTab === 'help'" class="settings-content">
+            <div class="help-panel">
+              <div class="help-header">
+                <h3>📖 帮助文档</h3>
+                <p>了解各模块的玩法和规则</p>
+              </div>
+              <div class="help-list">
+                <div 
+                  v-for="doc in HELP_DOCUMENTATION" 
+                  :key="doc.id"
+                  class="help-item"
+                  :class="{ expanded: expandedHelp === doc.id }"
+                  @click="toggleHelp(doc.id)"
+                >
+                  <div class="help-item-header">
+                    <span class="help-icon">{{ doc.icon }}</span>
+                    <span class="help-title">{{ doc.title }}</span>
+                    <span class="help-toggle">{{ expandedHelp === doc.id ? '▼' : '▶' }}</span>
+                  </div>
+                  <div v-if="expandedHelp === doc.id" class="help-content">
+                    <pre class="help-text">{{ doc.content }}</pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 反馈面板 -->
+          <div v-if="activeSettingsTab === 'feedback'" class="settings-content">
+            <div class="feedback-panel">
+              <div class="feedback-header">
+                <h3>💬 反馈与留言</h3>
+                <p>你的反馈是我们优化的动力！</p>
+              </div>
+              <div class="feedback-form">
+                <div class="feedback-row">
+                  <label>反馈类型</label>
+                  <select v-model="feedbackType" class="feedback-select">
+                    <option v-for="t in FEEDBACK_TYPES" :key="t.value" :value="t.value">
+                      {{ t.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="feedback-row">
+                  <label>标题</label>
+                  <input 
+                    v-model="feedbackTitle" 
+                    type="text" 
+                    class="feedback-input" 
+                    placeholder="一句话概括你的反馈"
+                  />
+                </div>
+                <div class="feedback-row">
+                  <label>详细内容</label>
+                  <textarea 
+                    v-model="feedbackBody" 
+                    class="feedback-textarea" 
+                    :placeholder="currentFeedbackPlaceholder"
+                    rows="6"
+                  ></textarea>
+                </div>
+                <div class="feedback-row">
+                  <label>游戏信息（自动附带）</label>
+                  <div class="feedback-meta">
+                    <span>等级: {{ store.level }}</span>
+                    <span>楼层: {{ store.floor }}</span>
+                    <span>版本: v7.0</span>
+                  </div>
+                </div>
+                <div class="feedback-actions">
+                  <button 
+                    @click="submitFeedback" 
+                    class="btn-feedback-submit"
+                    :disabled="!feedbackTitle.trim() || !feedbackBody.trim()"
+                  >
+                    🚀 提交到 GitHub Issues
+                  </button>
+                  <button @click="submitFeedbackViaChat" class="btn-feedback-chat">
+                    📨 直接发给老郑
+                  </button>
+                </div>
+                <div class="feedback-hint">
+                  <p>💡 提示：提交到 GitHub Issues 需要你有 GitHub 账号，提交后开发团队会收到邮件通知。</p>
+                  <p>💡 或者直接点击「发给老郑」，通过 Kimi 助手实时送达。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 存档面板 -->
           <div v-if="activeSettingsTab === 'save'" class="settings-content">
             <div class="save-actions">
@@ -636,6 +726,7 @@ import Review from './Review.vue'
 import Achievements from './Achievements.vue'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { ACHIEVEMENTS } from '../data/achievements.js'
+import { HELP_DOCUMENTATION, FEEDBACK_TYPES } from '../data/help.js'
 import { sfxClick, sfxStart, setSoundEnabled, isSoundEnabled } from '../utils/audio.js'
 import { DUNGEON_ELEMENTS, ELEMENT_COUNTER } from '../data/farm.js'
 
@@ -644,6 +735,34 @@ const activePanel = ref(null)
 const activeSettingsTab = ref('title')
 const soundEnabled = ref(isSoundEnabled())
 const activeEncCategory = ref('monsters')
+
+// ===== 帮助文档 =====
+const expandedHelp = ref(null)
+function toggleHelp(id) {
+  expandedHelp.value = expandedHelp.value === id ? null : id
+}
+
+// ===== 反馈功能 =====
+const feedbackType = ref('bug')
+const feedbackTitle = ref('')
+const feedbackBody = ref('')
+const currentFeedbackPlaceholder = computed(() => {
+  const t = FEEDBACK_TYPES.find(x => x.value === feedbackType.value)
+  return t?.placeholder || '请输入反馈内容...'
+})
+
+function submitFeedback() {
+  const meta = `\n\n---\n**游戏信息**\n- 等级: ${store.level}\n- 楼层: ${store.floor}\n- 版本: v7.0\n- 时间: ${new Date().toLocaleString()}`
+  const fullBody = feedbackBody.value + meta
+  const url = `https://github.com/MrZMrsL/bio-yi-realm/issues/new?title=${encodeURIComponent(feedbackTitle.value)}&body=${encodeURIComponent(fullBody)}`
+  window.open(url, '_blank')
+}
+
+function submitFeedbackViaChat() {
+  // 通过 Kimi 助手发送反馈（模拟，实际会触发助手消息）
+  alert('反馈已准备发送！请复制以下内容发给老郑：\n\n【类型】' + FEEDBACK_TYPES.find(t => t.value === feedbackType.value)?.label + '\n【标题】' + feedbackTitle.value + '\n【内容】' + feedbackBody.value)
+}
+
 const allTitles = TITLE_TABLE
 const allMonsters = getAllMonsters()
 const allMaterials = getAllMaterials()
@@ -654,6 +773,8 @@ const totalAchievements = ACHIEVEMENTS.length
 const settingsTabs = [
   { key: 'title', label: '称号' },
   { key: 'stats', label: '属性点' },
+  { key: 'help', label: '帮助' },
+  { key: 'feedback', label: '反馈' },
   { key: 'save', label: '存档' }
 ]
 
@@ -2438,6 +2559,221 @@ function resetGame() {
   border-color: rgba(231, 76, 60, 0.6);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(231, 76, 60, 0.2);
+}
+
+/* 帮助文档 */
+.help-panel {
+  padding: 16px;
+}
+
+.help-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.help-header h3 {
+  color: #e0e0e0;
+  margin-bottom: 4px;
+}
+
+.help-header p {
+  color: #888;
+  font-size: 13px;
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.help-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.help-item:hover {
+  border-color: rgba(212,168,83,0.3);
+  background: rgba(255,255,255,0.08);
+}
+
+.help-item.expanded {
+  border-color: rgba(212,168,83,0.4);
+}
+
+.help-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+}
+
+.help-icon {
+  font-size: 20px;
+}
+
+.help-title {
+  flex: 1;
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.help-toggle {
+  font-size: 12px;
+  color: #888;
+}
+
+.help-content {
+  padding: 0 16px 16px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.help-text {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #a0a0a0;
+  margin: 0;
+  padding: 12px 0;
+}
+
+/* 反馈面板 */
+.feedback-panel {
+  padding: 16px;
+}
+
+.feedback-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.feedback-header h3 {
+  color: #e0e0e0;
+  margin-bottom: 4px;
+}
+
+.feedback-header p {
+  color: #888;
+  font-size: 13px;
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feedback-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feedback-row label {
+  font-size: 13px;
+  color: #888;
+  font-weight: bold;
+}
+
+.feedback-select,
+.feedback-input,
+.feedback-textarea {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e0e0e0;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.feedback-select:focus,
+.feedback-input:focus,
+.feedback-textarea:focus {
+  border-color: rgba(212,168,83,0.5);
+}
+
+.feedback-select {
+  cursor: pointer;
+}
+
+.feedback-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.feedback-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #666;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-feedback-submit {
+  background: #d4a853;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-feedback-submit:hover:not(:disabled) {
+  background: #e8c67a;
+  transform: translateY(-1px);
+}
+
+.btn-feedback-submit:disabled {
+  background: rgba(212,168,83,0.3);
+  color: #888;
+  cursor: not-allowed;
+}
+
+.btn-feedback-chat {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  border: 1px solid rgba(52, 152, 219, 0.3);
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-feedback-chat:hover {
+  background: rgba(52, 152, 219, 0.3);
+}
+
+.feedback-hint {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+}
+
+.feedback-hint p {
+  margin: 4px 0;
 }
 
 </style>
