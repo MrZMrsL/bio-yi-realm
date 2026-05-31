@@ -153,7 +153,7 @@
         <!-- 地牢面板 -->
         <div v-if="activePanel === 'dungeon'" class="panel-dungeon">
           <!-- 地牢入口 -->
-          <div v-if="store.dungeonPhase === 'none' && !store.inWeeklyBoss" class="dungeon-intro">
+          <div v-if="store.gameMode === 'idle'" class="dungeon-intro">
             <div class="dungeon-title">🏰 第 {{ store.floor }} 层地牢</div>
             <p class="dungeon-desc">黑暗中的密室散发着危险的气息...</p>
             <div class="dungeon-stats-hint">
@@ -165,7 +165,7 @@
           </div>
 
           <!-- 准备界面 -->
-          <div v-if="store.dungeonPhase === 'prep'" class="dungeon-prep">
+          <div v-if="store.gameMode === 'dungeon_prep'" class="dungeon-prep">
             <div class="prep-header">
               <div class="prep-title">⚔️ 第 {{ store.floor }} 层 - 战前准备</div>
               <div class="floor-element-badge" :style="{ background: floorElementColor }">
@@ -303,7 +303,7 @@
           </div>
 
           <!-- 房间选择 -->
-          <div v-if="store.dungeonPhase === 'rooms'" class="dungeon-rooms">
+          <div v-if="store.gameMode === 'dungeon_rooms'" class="dungeon-rooms">
             <div class="rooms-header">
               <div class="rooms-title">🏰 第 {{ store.floor }} 层 - 选择房间</div>
               <div class="rooms-progress">{{ store.clearedRoomsThisFloor }} / 9 已清空</div>
@@ -347,7 +347,7 @@
           </div>
 
           <!-- 战斗 -->
-          <Battle v-if="store.inBattle" />
+          <Battle v-if="store.isCombatMode()" />
         </div>
 
         <!-- 图鉴面板 -->

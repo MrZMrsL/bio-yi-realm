@@ -37,10 +37,62 @@ import {
 const SAVE_KEY = 'bioyi_realm_save'
 const WRONG_KEY = 'bioyi_realm_wrong'
 
+// ===== 状态机定义（v8.0）=====
+export const GAME_MODE = {
+  IDLE: 'idle',           // 主界面
+  DUNGEON_PREP: 'dungeon_prep',   // 地牢准备
+  DUNGEON_ROOMS: 'dungeon_rooms', // 地牢选房间
+  BATTLE: 'battle',       // 普通战斗
+  WEEKLY_BOSS: 'weekly_boss',     // 限时Boss
+  FISHING: 'fishing',     // 钓鱼面板
+  FISHING_QUIZ: 'fishing_quiz', // 钓鱼答题（解锁限制）
+  FISHING_BOOK: 'fishing_book',   // 钓到古籍
+  FISHING_BOOK_QUIZ: 'fishing_book_quiz', // 研读古籍答题
+  FISHING_CAUGHT: 'fishing_caught', // 钓到鱼
+  SHOP: 'shop',           // 商店
+  FARM: 'farm',           // 农场
+  INVENTORY: 'inventory', // 仓库
+  STUDY: 'study',         // 自习室
+  ENCYCLOPEDIA: 'encyclopedia', // 图鉴
+  SETTINGS: 'settings',   // 设置
+  CAPTURE_QUIZ: 'capture_quiz', // 捕捉答题
+  DROP: 'drop',           // 掉落展示
+  WON: 'won',             // 战斗胜利
+  LOST: 'lost',           // 战斗失败
+  FLED: 'fled',           // 逃跑
+}
+
+// 互斥组定义
+const COMBAT_MODES = [GAME_MODE.BATTLE, GAME_MODE.WEEKLY_BOSS, GAME_MODE.CAPTURE_QUIZ]
+const PANEL_MODES = [GAME_MODE.SHOP, GAME_MODE.FARM, GAME_MODE.INVENTORY, GAME_MODE.STUDY, GAME_MODE.ENCYCLOPEDIA, GAME_MODE.SETTINGS, GAME_MODE.FISHING]
+
 export const useGameStore = defineStore('game', () => {
-  // 游戏状态
+  // ===== 游戏状态 =====
   const gameStarted = ref(false)
   const activeTab = ref('dungeon')
+  
+  // ===== 状态机（v8.0）=====
+  const gameMode = ref(GAME_MODE.IDLE)
+  
+  // 状态转移函数（铁律：所有状态变更必须走这里）
+  function enterMode(newMode) {
+    // 战斗中禁止进入非战斗模式
+    if (COMBAT_MODES.includes(gameMode.value) && !COMBAT_MODES.includes(newMode)) {
+      console.warn(`[StateMachine] 拒绝转移：${gameMode.value} → ${newMode}（战斗中）`)
+      return false
+    }
+    gameMode.value = newMode
+    console.log(`[StateMachine] ${gameMode.value} → ${newMode}`)
+    return true
+  }
+  
+  function isCombatMode() {
+    return COMBAT_MODES.includes(gameMode.value)
+  }
+  
+  function isPanelMode() {
+    return PANEL_MODES.includes(gameMode.value)
+  }
 
   // 玩家属性
   const level = ref(1)
@@ -228,6 +280,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 进入地牢准备界面
   function enterDungeonPrep() {
+    enterMode(GAME_MODE.DUNGEON_PREP)
     dungeonPhase.value = 'prep'
     currentFloorElement.value = getRandomElement(currentFloorElement.value)
     generateRoomPreviews()
@@ -312,6 +365,7 @@ export const useGameStore = defineStore('game', () => {
     battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
     battleState.value = 'idle'
     inBattle.value = true
+    enterMode(GAME_MODE.BATTLE)
   }
 
   // 完成房间战斗
@@ -344,6 +398,7 @@ export const useGameStore = defineStore('game', () => {
     resetCombo()
 
     dungeonPhase.value = 'rooms'
+    enterMode(GAME_MODE.DUNGEON_ROOMS)
     saveGame()
   }
 
@@ -359,6 +414,7 @@ export const useGameStore = defineStore('game', () => {
     }
     floor.value++
     dungeonPhase.value = 'prep'
+    enterMode(GAME_MODE.DUNGEON_PREP)
     currentFloorElement.value = getRandomElement(currentFloorElement.value)
     generateRoomPreviews()
     return true
@@ -375,6 +431,7 @@ export const useGameStore = defineStore('game', () => {
     question.value = null
     battleState.value = ''
     resetCombo()
+    enterMode(GAME_MODE.IDLE)
     saveGame()
   }
 
@@ -1041,6 +1098,9 @@ export const useGameStore = defineStore('game', () => {
     if (dungeonPhase.value === 'battle') {
       dungeonPhase.value = 'rooms'
       currentRoomIndex.value = -1
+      enterMode(GAME_MODE.DUNGEON_ROOMS)
+    } else {
+      enterMode(GAME_MODE.IDLE)
     }
   }
 
@@ -1300,6 +1360,78 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // 退出限时Boss战斗
+  function exitWeeklyBoss() {
+    inWeeklyBoss.value = false
+    weeklyBossData.value = null
+    weeklyBossTurn.value = 0
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    weeklyBossTimeLeft.value = 0
+    exitBattle()
+    enterMode(GAME_MODE.IDLE)
+  }
+
+  // 击败限时Boss
+  function winWeeklyBoss() {
+    battleState.value = 'won'
+    // 清除计时器
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    weeklyBossTimeLeft.value = 0
+    const boss = weeklyBossData.value
+    if (!boss) return
+
+    const expGain = boss.reward.exp
+    const goldGain = boss.reward.gold
+    exp.value += expGain
+    gold.value += goldGain
+    battleLog.value.push(`🎉 击败 ${boss.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
+
+    // 记录击败
+    const key = getWeeklyBossKey(boss.id)
+    if (!weeklyBossDefeated.value.includes(key)) {
+      weeklyBossDefeated.value.push(key)
+    }
+
+    // 掉落材料
+    if (boss.reward.material) {
+      const mat = boss.reward.material
+      inventory.value[mat.name] = (inventory.value[mat.name] || 0) + mat.count
+      battleLog.value.push(`掉落 ${mat.count} 个 ${mat.name}！`)
+    }
+
+    // 检查升级
+    while (exp.value >= maxExp.value) {
+      exp.value -= maxExp.value
+      level.value++
+      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
+      hp.value = maxHp.value
+      statPoints.value++
+      if (level.value % 10 === 0) {
+        const milestoneBonus = Math.floor(level.value / 10)
+        atk.value += milestoneBonus
+        def.value += milestoneBonus
+        maxHp.value += milestoneBonus * 5
+        hp.value = maxHp.value
+      }
+    }
+
+    // 记录图鉴
+    if (enemy.value?.name) {
+      addToCyclopedia('monsters', enemy.value.name)
+    }
+    updateStats('totalWins', 1)
+    updateStats('totalBattles', 1)
+
+    enterMode(GAME_MODE.WON)
+    saveGame()
+  }
+
   // ===== 限时Boss系统 =====
   function enterWeeklyBoss() {
     const boss = getWeeklyBoss()
@@ -1333,6 +1465,7 @@ export const useGameStore = defineStore('game', () => {
     weeklyBossSkillUsed.value = []
     // 启动倒计时
     startWeeklyBossTimer()
+    enterMode(GAME_MODE.WEEKLY_BOSS)
     return { success: true }
   }
 
@@ -1716,6 +1849,8 @@ export const useGameStore = defineStore('game', () => {
       hpPoints: hpPoints.value,
       // 限时Boss
       weeklyBossDefeated: weeklyBossDefeated.value,
+      // 状态机（v8.0）
+      gameMode: gameMode.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1786,6 +1921,20 @@ export const useGameStore = defineStore('game', () => {
       // 加载限时Boss记录
       weeklyBossDefeated.value = saveData.weeklyBossDefeated || []
 
+      // 状态机（v8.0）— 兼容旧存档
+      gameMode.value = saveData.gameMode || GAME_MODE.IDLE
+      // 旧存档兼容：根据旧状态推断 gameMode
+      if (!saveData.gameMode) {
+        if (inBattle.value) {
+          if (weeklyBossData.value) gameMode.value = GAME_MODE.WEEKLY_BOSS
+          else if (dungeonPhase.value === 'battle') gameMode.value = GAME_MODE.BATTLE
+        } else if (dungeonPhase.value === 'prep') {
+          gameMode.value = GAME_MODE.DUNGEON_PREP
+        } else if (dungeonPhase.value === 'rooms') {
+          gameMode.value = GAME_MODE.DUNGEON_ROOMS
+        }
+      }
+
       // 加载错题本
       loadWrongQuestions()
       // 加载题目去重状态
@@ -1816,6 +1965,8 @@ export const useGameStore = defineStore('game', () => {
   const titleAchievements = computed(() => titleData.value.achievements)
 
   return {
+    // 状态机（v8.0）
+    gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     gameStarted, activeTab, inBattle, battleState,
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,
     enemy, question, battleLog,

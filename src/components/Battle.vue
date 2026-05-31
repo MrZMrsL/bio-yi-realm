@@ -2,7 +2,7 @@
   <div class="battle-container" :class="{ 'screen-shake': store.comboActive }">
     <div class="battle-header">
       <span class="floor-badge">
-        <span v-if="store.inWeeklyBoss">🔥 限时Boss</span>
+        <span v-if="store.gameMode === 'weekly_boss'">🔥 限时Boss</span>
         <span v-else>第 {{ store.floor }} 层</span>
       </span>
       <div class="enemy-info">
@@ -12,7 +12,7 @@
           v-if="store.enemy?.elementLabel">
           {{ store.enemy?.elementLabel }}
         </span>
-        <span v-if="store.inWeeklyBoss" class="weekly-boss-tag">限时</span>
+        <span v-if="store.gameMode === 'weekly_boss'" class="weekly-boss-tag">限时</span>
       </div>
     </div>
     
@@ -70,7 +70,7 @@
     </div>
     
     <!-- 限时Boss倒计时进度条 -->
-    <div v-if="store.inWeeklyBoss && store.weeklyBossTimeLeft > 0" class="timer-bar-container">
+    <div v-if="store.gameMode === 'weekly_boss' && store.weeklyBossTimeLeft > 0" class="timer-bar-container">
       <div class="timer-bar-label">
         ⏱️ {{ store.weeklyBossTimeLeft }} 秒
       </div>
@@ -84,7 +84,7 @@
     </div>
 
     <!-- Boss技能显示 -->
-    <div v-if="store.enemy?.skills && store.enemy.skills.length > 0 && store.inWeeklyBoss" class="boss-skills">
+    <div v-if="store.enemy?.skills && store.enemy.skills.length > 0 && store.gameMode === 'weekly_boss'" class="boss-skills">
       <div v-for="skill in store.enemy.skills" :key="skill.name" class="boss-skill-tag">
         ⚡ {{ skill.name }}：{{ skill.desc }}
       </div>
@@ -110,7 +110,7 @@
     
     <!-- 答题面板 -->
     <div v-if="store.battleState === 'answering'" class="quiz-panel">
-      <div v-if="store.inWeeklyBoss" class="time-limit-hint">
+      <div v-if="store.gameMode === 'weekly_boss'" class="time-limit-hint">
         ⏱️ 限时 {{ store.weeklyBossData?.timeLimit || 30 }} 秒
       </div>
       <div class="question">{{ store.question?.q }}</div>
@@ -274,7 +274,7 @@ function startAnswer() {
 function submitAnswer(index) {
   sfxClick()
   const correct = index === store.question?.answer
-  if (store.inWeeklyBoss) {
+  if (store.gameMode === 'weekly_boss') {
     store.weeklyBossAnswerAttack(correct)
   } else {
     store.answerAttack(correct)
@@ -299,14 +299,14 @@ function submitCaptureAnswer(index) {
 
 function nextBattle() {
   sfxClick()
-  if (store.inWeeklyBoss) {
+  if (store.gameMode === 'weekly_boss') {
     store.exitWeeklyBoss()
     return
   }
-  if (store.battleState === 'won' && store.dungeonPhase === 'battle') {
+  if (store.battleState === 'won' && store.gameMode === 'battle') {
     store.finishRoom(true)
   }
-  if (store.dungeonPhase === 'battle') {
+  if (store.gameMode === 'battle') {
     store.exitBattle()
   } else {
     // 非 Dungeon 模式下，捕捉成功/失败后返回主界面，不立即开下一场
