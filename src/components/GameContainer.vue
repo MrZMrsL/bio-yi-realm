@@ -50,6 +50,11 @@
         <div class="stat-value">{{ store.gold }}</div>
         <div class="stat-label">🏠 第{{ store.floor }}层</div>
       </div>
+      <div class="stat-box" v-if="store.statPoints > 0">
+        <div class="stat-title">✨ 属性点</div>
+        <div class="stat-value stat-points">{{ store.statPoints }}</div>
+        <div class="stat-label">可分配</div>
+      </div>
     </div>
 
     <!-- 主界面 - 区域网格 -->
@@ -114,6 +119,14 @@
           <div class="area-icon">⚙️</div>
           <div class="area-name">设置</div>
           <div class="area-desc">称号 · 存档</div>
+        </div>
+
+        <!-- 限时Boss -->
+        <div class="area-card weekly-boss-card" @click="openWeeklyBoss">
+          <div class="area-icon">🔥</div>
+          <div class="area-name">周常大魔王</div>
+          <div class="area-desc" v-if="weeklyBossDefeated">已击败</div>
+          <div class="area-desc" v-else>限时挑战 · 限定成就</div>
         </div>
 
         <!-- 成就 -->
@@ -535,6 +548,53 @@
             </div>
           </div>
 
+          <!-- 属性点面板 -->
+          <div v-if="activeSettingsTab === 'stats'" class="settings-content">
+            <div class="stats-panel">
+              <div class="stats-header">
+                <h3>✨ 属性点分配</h3>
+                <div class="stats-available">可用点数: <span class="highlight">{{ store.statPoints }}</span></div>
+              </div>
+              <div class="stats-current">
+                <div class="stat-row">
+                  <span class="stat-label">⚔️ 攻击力</span>
+                  <span class="stat-value">{{ store.atk }} (已分配{{ store.atkPoints }}点)</span>
+                  <button 
+                    v-if="store.statPoints > 0" 
+                    @click="store.allocateStat('atk')"
+                    class="btn-allocate"
+                  >+2</button>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">🛡️ 防御力</span>
+                  <span class="stat-value">{{ store.def }} (已分配{{ store.defPoints }}点)</span>
+                  <button 
+                    v-if="store.statPoints > 0" 
+                    @click="store.allocateStat('def')"
+                    class="btn-allocate"
+                  >+2</button>
+                </div>
+                <div class="stat-row">
+                  <span class="stat-label">❤️ 生命值</span>
+                  <span class="stat-value">{{ store.maxHp }} (已分配{{ store.hpPoints }}点)</span>
+                  <button 
+                    v-if="store.statPoints > 0" 
+                    @click="store.allocateStat('hp')"
+                    class="btn-allocate"
+                  >+10</button>
+                </div>
+              </div>
+              <div v-if="store.atkPoints + store.defPoints + store.hpPoints > 0" class="stats-reset">
+                <button @click="store.resetStats" class="btn-reset">
+                  重置属性点 (消耗 {{ Math.floor(store.level * 50) }} 金币)
+                </button>
+              </div>
+              <div v-if="store.statPoints === 0" class="stats-hint">
+                升级后获得属性点，可自由分配到攻击/防御/生命。
+              </div>
+            </div>
+          </div>
+
           <!-- 存档面板 -->
           <div v-if="activeSettingsTab === 'save'" class="settings-content">
             <div class="save-actions">
@@ -593,6 +653,7 @@ const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
+  { key: 'stats', label: '属性点' },
   { key: 'save', label: '存档' }
 ]
 
@@ -733,6 +794,23 @@ function skipTutorial() {
 function onEnterDungeon() {
   sfxStart()
   store.enterDungeonPrep()
+}
+
+// ===== 限时Boss =====
+const weeklyBossDefeated = computed(() => {
+  if (!store.weeklyBossData) return false
+  return store.weeklyBossDefeated.includes(store.weeklyBossData.id)
+})
+
+function openWeeklyBoss() {
+  sfxClick()
+  const result = store.enterWeeklyBoss()
+  if (!result.success) {
+    alert('本周的周常大魔王已被击败！下周再来挑战吧。')
+    return
+  }
+  // 进入限时Boss战斗
+  activePanel.value = 'dungeon'
 }
 
 function onEnterRoom(index) {
@@ -2235,6 +2313,131 @@ function resetGame() {
   margin: 12px 0;
   font-size: 13px;
   color: #ccc;
+}
+
+/* 属性点分配面板 */
+.stats-panel {
+  padding: 20px;
+}
+
+.stats-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.stats-header h3 {
+  color: #e0e0e0;
+  margin-bottom: 8px;
+}
+
+.stats-available {
+  font-size: 16px;
+  color: #888;
+}
+
+.stats-available .highlight {
+  color: #d4a853;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.stats-current {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 10px;
+}
+
+.stat-row .stat-label {
+  flex: 1;
+  font-size: 14px;
+  color: #e0e0e0;
+}
+
+.stat-row .stat-value {
+  font-size: 14px;
+  color: #888;
+}
+
+.btn-allocate {
+  background: #d4a853;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-allocate:hover {
+  background: #e8c67a;
+  transform: scale(1.05);
+}
+
+.stats-reset {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.btn-reset {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-reset:hover {
+  background: rgba(231, 76, 60, 0.3);
+}
+
+.stats-hint {
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+}
+
+/* 状态栏属性点 */
+.stat-points {
+  color: #d4a853;
+  font-weight: bold;
+}
+
+/* 限时Boss卡片 */
+.weekly-boss-card {
+  background: linear-gradient(135deg, rgba(231, 76, 60, 0.15), rgba(192, 57, 43, 0.1));
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.weekly-boss-card .area-icon {
+  font-size: 32px;
+}
+
+.weekly-boss-card .area-name {
+  color: #e74c3c;
+}
+
+.weekly-boss-card:hover {
+  border-color: rgba(231, 76, 60, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.2);
 }
 
 </style>

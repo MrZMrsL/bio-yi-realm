@@ -250,6 +250,68 @@ export const ACHIEVEMENTS = [
     reward: { exp: 150 }
   },
 
+  // === 限定成就（限时Boss专属）===
+  {
+    id: 'slay_element_king',
+    title: '元素征服者',
+    desc: '击败元素周期大魔王（限定成就）',
+    icon: '⚛️',
+    category: 'limited',
+    rarity: 'legendary',
+    condition: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_chem')),
+    progress: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_chem')) ? 1 : 0,
+    maxProgress: 1,
+    reward: { exp: 300 }
+  },
+  {
+    id: 'slay_gene_tyrant',
+    title: '基因猎手',
+    desc: '击败基因编辑暴君（限定成就）',
+    icon: '✂️',
+    category: 'limited',
+    rarity: 'legendary',
+    condition: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_bio')),
+    progress: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_bio')) ? 1 : 0,
+    maxProgress: 1,
+    reward: { exp: 300 }
+  },
+  {
+    id: 'slay_chaos_lord',
+    title: '破卦者',
+    desc: '击败六爻混沌主（限定成就）',
+    icon: '☯️',
+    category: 'limited',
+    rarity: 'legendary',
+    condition: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_yi')),
+    progress: (weeklyDefeated) => (weeklyDefeated || []).some(k => k.includes('weekly_yi')) ? 1 : 0,
+    maxProgress: 1,
+    reward: { exp: 300 }
+  },
+  {
+    id: 'weekly_hunter',
+    title: '周常猎手',
+    desc: '累计击败 5 次周常大魔王',
+    icon: '🏹',
+    category: 'limited',
+    rarity: 'epic',
+    condition: (weeklyDefeated) => (weeklyDefeated || []).length >= 5,
+    progress: (weeklyDefeated) => Math.min(5, (weeklyDefeated || []).length),
+    maxProgress: 5,
+    reward: { exp: 150 }
+  },
+  {
+    id: 'weekly_master',
+    title: '周常大师',
+    desc: '累计击败 10 次周常大魔王',
+    icon: '👑',
+    category: 'limited',
+    rarity: 'legendary',
+    condition: (weeklyDefeated) => (weeklyDefeated || []).length >= 10,
+    progress: (weeklyDefeated) => Math.min(10, (weeklyDefeated || []).length),
+    maxProgress: 10,
+    reward: { exp: 500 }
+  },
+
   // === 等级成就 ===
   {
     id: 'level_10',

@@ -14,7 +14,7 @@ import {
 } from '../data/farm.js'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { SHOP_ITEMS } from '../data/shop.js'
-import { getTitleData } from '../data/titles.js'
+import { getWeeklyBoss, scaleBossForLevel, getWeeklyBossKey, isWeeklyBossDefeated, formatTimeRemaining } from '../data/limited_bosses.js'
 import { getTotalCount } from '../data/cyclopedia.js'
 import {
   ACHIEVEMENTS,
@@ -130,6 +130,21 @@ export const useGameStore = defineStore('game', () => {
   // 钓鱼次数限制
   const dailyFishCount = ref(0) // 今日钓鱼次数
   const fishLimitUnlocked = ref(false) // 是否已解锁无限钓鱼（通过答题）
+
+  // ===== 属性点系统 =====
+  const statPoints = ref(0) // 未分配的属性点
+  const atkPoints = ref(0)  // 已分配的攻击力点数
+  const defPoints = ref(0)  // 已分配的防御力点数
+  const hpPoints = ref(0)   // 已分配的生命值点数
+
+  // ===== 限时Boss系统 =====
+  const weeklyBossDefeated = ref([]) // 已击败的周常Boss列表
+  const inWeeklyBoss = ref(false) // 是否在进行限时Boss挑战
+  const weeklyBossData = ref(null) // 当前限时Boss数据
+  const weeklyBossTurn = ref(0) // 当前回合计数（用于Boss技能触发）
+  const weeklyBossTimeLeft = ref(0) // 答题倒计时
+  const weeklyBossTimer = ref(null) // 计时器引用
+  const weeklyBossSkillUsed = ref([]) // 本回合已使用的技能
 
   // 计算属性
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -648,16 +663,27 @@ export const useGameStore = defineStore('game', () => {
     gold.value += goldGain
     battleLog.value.push(`击败 ${enemy.value.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
 
-    // 检查升级
+    // 检查升级（优化成长曲线：里程碑机制）
     while (exp.value >= maxExp.value) {
       exp.value -= maxExp.value
       level.value++
-      maxExp.value = Math.floor(maxExp.value * 1.2)
+      // 经验曲线：前期线性，后期指数
+      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
+      // 升级回满血
       hp.value = maxHp.value
-      atk.value += 2
-      def.value += 1
-      battleLog.value.push(`升级了！到达 ${level.value} 级！`)
+      // 属性点+1（玩家自由分配）
+      statPoints.value++
+      battleLog.value.push(`升级了！到达 ${level.value} 级！获得1属性点`)
       sfxLevelUp()
+      // 里程碑奖励：每10级额外属性
+      if (level.value % 10 === 0) {
+        const milestoneBonus = Math.floor(level.value / 10)
+        atk.value += milestoneBonus
+        def.value += milestoneBonus
+        maxHp.value += milestoneBonus * 5
+        hp.value = maxHp.value
+        battleLog.value.push(`里程碑！${level.value}级突破，全属性+${milestoneBonus}！`)
+      }
     }
 
     // 材料掉落（根据敌人元素）
@@ -1222,6 +1248,227 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // ===== 属性点分配 =====
+  function allocateStat(type) {
+    if (statPoints.value <= 0) return false
+    statPoints.value--
+    if (type === 'atk') {
+      atkPoints.value++
+      atk.value += 2
+    } else if (type === 'def') {
+      defPoints.value++
+      def.value += 2
+    } else if (type === 'hp') {
+      hpPoints.value++
+      maxHp.value += 10
+      hp.value += 10
+    }
+    saveGame()
+    return true
+  }
+
+  // 重置属性点（消耗金币）
+  function resetStats() {
+    const cost = Math.floor(level.value * 50)
+    if (gold.value < cost) return false
+    gold.value -= cost
+    // 返还属性点到基础值
+    atk.value -= atkPoints.value * 2
+    def.value -= defPoints.value * 2
+    maxHp.value -= hpPoints.value * 10
+    hp.value = Math.min(hp.value, maxHp.value)
+    // 返还属性点
+    statPoints.value += atkPoints.value + defPoints.value + hpPoints.value
+    atkPoints.value = 0
+    defPoints.value = 0
+    hpPoints.value = 0
+    saveGame()
+    return true
+  }
+
+  // ===== 限时Boss系统 =====
+  function enterWeeklyBoss() {
+    const boss = getWeeklyBoss()
+    if (isWeeklyBossDefeated(boss.id, weeklyBossDefeated.value)) {
+      return { success: false, reason: 'already_defeated' }
+    }
+    const scaledBoss = scaleBossForLevel(boss, level.value)
+    weeklyBossData.value = scaledBoss
+    weeklyBossTurn.value = 0
+    inWeeklyBoss.value = true
+    inBattle.value = true
+    enemy.value = {
+      name: scaledBoss.name,
+      icon: scaledBoss.icon,
+      hp: scaledBoss.hp,
+      maxHp: scaledBoss.maxHp,
+      atk: scaledBoss.atk,
+      def: scaledBoss.def,
+      subject: scaledBoss.subject,
+      subjectLabel: scaledBoss.subjectLabel,
+      element: scaledBoss.element,
+      isBoss: true,
+      skills: scaledBoss.skills
+    }
+    // 获取Boss专属题目
+    const questions = ALL_QUESTIONS.filter(q => q.subject === scaledBoss.subject)
+    const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+    question.value = q
+    battleLog.value = [`👹 限时Boss「${scaledBoss.name}」出现！`, `⏱️ 每题限时 ${scaledBoss.timeLimit} 秒！`]
+    battleState.value = 'idle'
+    weeklyBossSkillUsed.value = []
+    return { success: true }
+  }
+
+  // 限时Boss答题攻击（带倒计时）
+  function weeklyBossAnswerAttack(correct) {
+    if (!enemy.value || battleState.value !== 'idle') return
+    weeklyBossTurn.value++
+    weeklyBossSkillUsed.value = []
+
+    // 检查Boss技能触发
+    const bossSkills = enemy.value.skills || []
+    for (const skill of bossSkills) {
+      if (skill.cooldown > 0 && weeklyBossTurn.value % skill.cooldown === 0) {
+        weeklyBossSkillUsed.value.push(skill)
+        applyBossSkill(skill)
+      }
+    }
+
+    if (correct) {
+      consecutiveCorrect.value++
+      comboCount.value = consecutiveCorrect.value
+      sfxCorrect()
+
+      const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
+      let multiplier = 1.5 * (elementEffect?.multiplier || 1.0)
+      const comboMultiplier = 1 + consecutiveCorrect.value * 0.5
+      multiplier *= comboMultiplier
+
+      const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
+      enemy.value.hp -= damage
+
+      let logMsg = ''
+      if (consecutiveCorrect.value >= 3) {
+        logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
+        triggerCriticalEffect()
+        sfxCritical()
+        resetCombo()
+      } else if (consecutiveCorrect.value === 2) {
+        logMsg = `🔥 连击x2！造成 ${damage} 点伤害！`
+      } else {
+        logMsg = `🧠 知识攻击命中！造成 ${damage} 点伤害！`
+      }
+      if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
+      battleLog.value.push(logMsg)
+
+      updateStats('totalCorrect', 1)
+      if (consecutiveCorrect.value > stats.value.maxCombo) {
+        stats.value.maxCombo = consecutiveCorrect.value
+      }
+
+      if (enemy.value.hp <= 0) {
+        winWeeklyBoss()
+      } else {
+        battleState.value = 'idle'
+        const questions = ALL_QUESTIONS.filter(q => q.subject === enemy.value.subject)
+        const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
+        if (q) question.value = q
+      }
+    } else {
+      resetCombo()
+      sfxWrong()
+      battleLog.value.push('回答错误！受到反噬！')
+      recordWrongQuestion(question.value, -1)
+      // 限时Boss：答错Boss也会攻击
+      enemyAttack()
+    }
+  }
+
+  // 应用Boss技能效果
+  function applyBossSkill(skill) {
+    if (!enemy.value) return
+    battleLog.value.push(`👹 ${enemy.value.name} 发动「${skill.name}」！${skill.desc}`)
+    if (skill.effect === 'heal') {
+      const heal = Math.floor(enemy.value.maxHp * skill.value)
+      enemy.value.hp = Math.min(enemy.value.maxHp, enemy.value.hp + heal)
+      battleLog.value.push(`${enemy.value.name} 恢复 ${heal} 点生命！`)
+    } else if (skill.effect === 'buff') {
+      enemy.value.atk = Math.floor(enemy.value.atk * (1 + skill.value))
+      battleLog.value.push(`${enemy.value.name} 攻击力提升！`)
+    } else if (skill.effect === 'counter') {
+      // 反伤在玩家攻击时处理
+      battleLog.value.push(`⚠️ 小心反伤！`)
+    } else if (skill.effect === 'dodge') {
+      // 闪避在玩家攻击时概率处理
+      battleLog.value.push(`⚠️ 敌人可能闪避！`)
+    }
+  }
+
+  // 击败限时Boss
+  function winWeeklyBoss() {
+    battleState.value = 'won'
+    const boss = weeklyBossData.value
+    if (!boss) return
+
+    const expGain = boss.reward.exp
+    const goldGain = boss.reward.gold
+    exp.value += expGain
+    gold.value += goldGain
+    battleLog.value.push(`🎉 击败 ${boss.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
+
+    // 记录击败
+    const key = getWeeklyBossKey(boss.id)
+    if (!weeklyBossDefeated.value.includes(key)) {
+      weeklyBossDefeated.value.push(key)
+    }
+
+    // 掉落材料
+    if (boss.reward.material) {
+      const mat = boss.reward.material
+      inventory.value[mat.name] = (inventory.value[mat.name] || 0) + mat.count
+      battleLog.value.push(`掉落 ${mat.count} 个 ${mat.name}！`)
+    }
+
+    // 检查升级
+    while (exp.value >= maxExp.value) {
+      exp.value -= maxExp.value
+      level.value++
+      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
+      hp.value = maxHp.value
+      statPoints.value++
+      if (level.value % 10 === 0) {
+        const milestoneBonus = Math.floor(level.value / 10)
+        atk.value += milestoneBonus
+        def.value += milestoneBonus
+        maxHp.value += milestoneBonus * 5
+        hp.value = maxHp.value
+      }
+    }
+
+    // 记录图鉴
+    if (enemy.value?.name) {
+      addToCyclopedia('monsters', enemy.value.name)
+    }
+    updateStats('totalWins', 1)
+    updateStats('totalBattles', 1)
+
+    saveGame()
+  }
+
+  // 退出限时Boss战斗
+  function exitWeeklyBoss() {
+    inWeeklyBoss.value = false
+    weeklyBossData.value = null
+    weeklyBossTurn.value = 0
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    weeklyBossTimeLeft.value = 0
+    exitBattle()
+  }
+
   // 图鉴系统
   function addToCyclopedia(type, id) {
     if (!cyclopedia.value[type]) cyclopedia.value[type] = {}
@@ -1286,6 +1533,7 @@ export const useGameStore = defineStore('game', () => {
       level: level.value,
       allClearCount: allClearCount.value,
       cyclopedia: cyclopedia.value,
+      weeklyDefeated: weeklyBossDefeated.value,
     }
     for (const ach of ACHIEVEMENTS) {
       if (!unlockedAchievements.value.includes(ach.id) && checkAchievementUnlocked(ach, state)) {
@@ -1306,11 +1554,18 @@ export const useGameStore = defineStore('game', () => {
           while (exp.value >= maxExp.value) {
             exp.value -= maxExp.value
             level.value++
-            maxExp.value = Math.floor(maxExp.value * 1.2)
+            maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
             hp.value = maxHp.value
-            atk.value += 2
-            def.value += 1
+            statPoints.value++
+            if (level.value % 10 === 0) {
+              const milestoneBonus = Math.floor(level.value / 10)
+              atk.value += milestoneBonus
+              def.value += milestoneBonus
+              maxHp.value += milestoneBonus * 5
+              hp.value = maxHp.value
+            }
           }
+          saveGame()
         }
         // 3秒后移除通知
         setTimeout(() => {
@@ -1392,6 +1647,13 @@ export const useGameStore = defineStore('game', () => {
       stats: stats.value,
       usedQuestions: exportUsedQuestions(),
       unlockedAchievements: unlockedAchievements.value,
+      // 属性点系统
+      statPoints: statPoints.value,
+      atkPoints: atkPoints.value,
+      defPoints: defPoints.value,
+      hpPoints: hpPoints.value,
+      // 限时Boss
+      weeklyBossDefeated: weeklyBossDefeated.value,
       timestamp: Date.now()
     }
     localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
@@ -1453,6 +1715,15 @@ export const useGameStore = defineStore('game', () => {
       stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
       unlockedAchievements.value = saveData.unlockedAchievements || []
 
+      // 加载属性点系统
+      statPoints.value = saveData.statPoints || 0
+      atkPoints.value = saveData.atkPoints || 0
+      defPoints.value = saveData.defPoints || 0
+      hpPoints.value = saveData.hpPoints || 0
+
+      // 加载限时Boss记录
+      weeklyBossDefeated.value = saveData.weeklyBossDefeated || []
+
       // 加载错题本
       loadWrongQuestions()
       // 加载题目去重状态
@@ -1499,6 +1770,10 @@ export const useGameStore = defineStore('game', () => {
     dungeonPhase, roomGrid, bossRoomIndex, currentRoomIndex, allClearCount, clearedRoomsThisFloor, hasSkippedRoom,
     currentFloorElement, showTutorial, firstVisit,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
+    // 属性点
+    statPoints, atkPoints, defPoints, hpPoints,
+    // 限时Boss
+    inWeeklyBoss, weeklyBossData, weeklyBossTurn, weeklyBossTimeLeft, weeklyBossSkillUsed, weeklyBossDefeated,
     startGame, setTab,
     initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
     startCapture, submitCaptureAnswer, skipCapture,
@@ -1515,6 +1790,10 @@ export const useGameStore = defineStore('game', () => {
     updateStats,
     recordWrongQuestion, masterQuestion, removeWrongQuestion,
     startReview, submitReviewAnswer, exitReview,
-    saveGame, loadGame, hasSave, deleteSave
+    saveGame, loadGame, hasSave, deleteSave,
+    // 属性点分配
+    allocateStat, resetStats,
+    // 限时Boss
+    enterWeeklyBoss, weeklyBossAnswerAttack, winWeeklyBoss, exitWeeklyBoss
   }
 })

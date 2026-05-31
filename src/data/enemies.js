@@ -30,23 +30,70 @@ export function getRandomEnemy(subject = 'all') {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-// 按楼层获取敌人（难度递增）
+// === 平滑成长曲线公式（替代硬编码楼层筛选）===
+// 敌人属性按楼层指数增长，每层都有细微的压迫感提升
+
+// 成长参数
+const GROWTH_BASE = 1.08;      // 每层基础属性提升8%
+const GROWTH_ATK = 1.07;       // 攻击成长系数
+const GROWTH_DEF = 1.05;       // 防御成长系数
+const FLOOR_MULTIPLIER = 0.5;  // 楼层额外加成系数
+
+// 计算敌人实际属性（基于楼层）
+export function calculateEnemyStats(baseEnemy, floor) {
+  const scale = Math.pow(GROWTH_BASE, floor - 1) + (floor * FLOOR_MULTIPLIER);
+  return {
+    ...baseEnemy,
+    hp: Math.floor(baseEnemy.hp * scale),
+    atk: Math.floor(baseEnemy.atk * Math.pow(GROWTH_ATK, floor - 1)),
+    def: Math.floor((baseEnemy.def || 0) * Math.pow(GROWTH_DEF, floor - 1)),
+    // 保留原始基础值用于显示
+    baseHp: baseEnemy.hp,
+    baseAtk: baseEnemy.atk,
+    baseDef: baseEnemy.def || 0
+  };
+}
+
+// 按楼层获取敌人（平滑成长版）
 export function getEnemyForFloor(floor) {
-  let pool = ENEMIES
-  
-  // 1-5层：基础敌人
+  let pool = ENEMIES;
+
+  // 1-5层：基础敌人池
   if (floor <= 5) {
-    pool = ENEMIES.filter(e => e.hp <= 50 && e.atk <= 15)
+    pool = ENEMIES.filter(e => e.baseHp <= 55 || e.hp <= 55);
   }
-  // 6-10层：中等敌人
-  else if (floor <= 10) {
-    pool = ENEMIES.filter(e => e.hp > 30 && e.hp <= 80)
+  // 6-15层：中等敌人池
+  else if (floor <= 15) {
+    pool = ENEMIES.filter(e => (e.hp > 30 && e.hp <= 80) || e.baseHp > 30);
   }
-  // 10层以上：高级敌人
+  // 16-30层：高级敌人
+  else if (floor <= 30) {
+    pool = ENEMIES.filter(e => e.hp > 60 || e.baseHp > 60);
+  }
+  // 30层以上：全部敌人（属性已平滑缩放）
   else {
-    pool = ENEMIES.filter(e => e.hp > 60)
+    pool = ENEMIES;
   }
-  
-  if (pool.length === 0) pool = ENEMIES
-  return pool[Math.floor(Math.random() * pool.length)]
+
+  if (pool.length === 0) pool = ENEMIES;
+
+  const baseEnemy = pool[Math.floor(Math.random() * pool.length)];
+  return calculateEnemyStats(baseEnemy, floor);
+}
+
+// 获取Boss级敌人（用于Boss房间）
+export function getBossForFloor(floor) {
+  const bossPool = ENEMIES.filter(e => e.hp > 80 || e.baseHp > 80 || e.atk > 20);
+  const pool = bossPool.length > 0 ? bossPool : ENEMIES;
+  const baseEnemy = pool[Math.floor(Math.random() * pool.length)];
+  // Boss额外1.5倍属性
+  const scaled = calculateEnemyStats(baseEnemy, floor);
+  return {
+    ...scaled,
+    hp: Math.floor(scaled.hp * 1.5),
+    maxHp: Math.floor(scaled.hp * 1.5),
+    atk: Math.floor(scaled.atk * 1.3),
+    def: Math.floor(scaled.def * 1.2),
+    isBoss: true
+  };
 }

@@ -1,7 +1,10 @@
 <template>
   <div class="battle-container" :class="{ 'screen-shake': store.comboActive }">
     <div class="battle-header">
-      <span class="floor-badge">第 {{ store.floor }} 层</span>
+      <span class="floor-badge">
+        <span v-if="store.inWeeklyBoss">🔥 限时Boss</span>
+        <span v-else>第 {{ store.floor }} 层</span>
+      </span>
       <div class="enemy-info">
         <span class="enemy-name">{{ store.enemy?.name }}</span>
         <span class="enemy-subject">[{{ store.enemy?.subjectLabel }}]</span>
@@ -9,6 +12,7 @@
           v-if="store.enemy?.elementLabel">
           {{ store.enemy?.elementLabel }}
         </span>
+        <span v-if="store.inWeeklyBoss" class="weekly-boss-tag">限时</span>
       </div>
     </div>
     
@@ -65,6 +69,18 @@
       </div>
     </div>
     
+    <!-- Boss技能显示 -->
+    <div v-if="store.enemy?.skills && store.enemy.skills.length > 0 && store.inWeeklyBoss" class="boss-skills">
+      <div v-for="skill in store.enemy.skills" :key="skill.name" class="boss-skill-tag">
+        ⚡ {{ skill.name }}：{{ skill.desc }}
+      </div>
+      <div v-if="store.weeklyBossSkillUsed.length > 0" class="boss-skill-active">
+        <div v-for="skill in store.weeklyBossSkillUsed" :key="skill.name" class="skill-activated">
+          🔥 {{ skill.name }} 已激活！
+        </div>
+      </div>
+    </div>
+
     <div class="battle-log">
       <div v-for="(msg, i) in store.battleLog" :key="i" class="log-msg">{{ msg }}</div>
     </div>
@@ -80,6 +96,9 @@
     
     <!-- 答题面板 -->
     <div v-if="store.battleState === 'answering'" class="quiz-panel">
+      <div v-if="store.inWeeklyBoss" class="time-limit-hint">
+        ⏱️ 限时 {{ store.weeklyBossData?.timeLimit || 30 }} 秒
+      </div>
       <div class="question">{{ store.question?.q }}</div>
       <div class="options">
         <button 
@@ -241,7 +260,11 @@ function startAnswer() {
 function submitAnswer(index) {
   sfxClick()
   const correct = index === store.question?.answer
-  store.answerAttack(correct)
+  if (store.inWeeklyBoss) {
+    store.weeklyBossAnswerAttack(correct)
+  } else {
+    store.answerAttack(correct)
+  }
 }
 
 function showPotionMenu() {
@@ -262,6 +285,10 @@ function submitCaptureAnswer(index) {
 
 function nextBattle() {
   sfxClick()
+  if (store.inWeeklyBoss) {
+    store.exitWeeklyBoss()
+    return
+  }
   if (store.battleState === 'won' && store.dungeonPhase === 'battle') {
     store.finishRoom(true)
   }
@@ -949,5 +976,61 @@ function revive() {
 .btn-back {
   background: #666;
   color: white;
+}
+
+/* 限时Boss样式 */
+.weekly-boss-tag {
+  background: #e74c3c;
+  color: white;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: bold;
+}
+
+.boss-skills {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.boss-skill-tag {
+  font-size: 12px;
+  color: #e74c3c;
+}
+
+.boss-skill-active {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(231, 76, 60, 0.3);
+}
+
+.skill-activated {
+  font-size: 13px;
+  color: #f39c12;
+  font-weight: bold;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.time-limit-hint {
+  background: rgba(231, 76, 60, 0.2);
+  color: #e74c3c;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style>
