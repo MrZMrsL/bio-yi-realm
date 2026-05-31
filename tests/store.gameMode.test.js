@@ -188,6 +188,39 @@ describe('状态机核心规则', () => {
   })
 })
 
+describe('开发者模式', () => {
+  let store
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    store = useGameStore()
+    store.gameStarted = true
+    store.level = 1
+    store.floor = 1
+  })
+
+  it('初始 devMode 为 false', () => {
+    expect(store.devMode).toBe(false)
+  })
+
+  it('开启 devMode 后 answerAttack 直接秒杀', () => {
+    store.devMode = true
+    store.enemy = { name: 'Test', hp: 100, maxHp: 100, def: 5, atk: 10, subject: 'chem', element: 'water' }
+    store.initBattle()
+    store.answerAttack(true)  // 参数传什么都行，devMode 下强制秒杀
+    expect(store.enemy.hp).toBe(0)
+  })
+
+  it('devMode 下 enemyAttack 不掉血', () => {
+    store.devMode = true
+    store.hp = 100
+    store.maxHp = 100
+    store.enemy = { name: 'Test', hp: 100, atk: 50, def: 5, subject: 'chem', element: 'water' }
+    store.enemyAttack()
+    expect(store.hp).toBe(100)  // 不掉血
+  })
+})
+
 describe('状态机兼容旧存档', () => {
   let store
 

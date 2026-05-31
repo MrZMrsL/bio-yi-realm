@@ -788,7 +788,8 @@ const settingsTabs = [
   { key: 'stats', label: '属性点' },
   { key: 'help', label: '帮助' },
   { key: 'feedback', label: '反馈' },
-  { key: 'save', label: '存档' }
+  { key: 'save', label: '存档' },
+  { key: 'dev', label: '开发' }
 ]
 
 const encyclopediaCategories = [

@@ -28,14 +28,19 @@ import {
   sfxLevelUp,
   sfxItemGet,
   sfxSplash,
+  sfxHit,
   sfxCaptureSuccess,
   sfxCaptureFail,
-  sfxHit,
-  sfxStart
-} from '../utils/audio.js'
-
-const SAVE_KEY = 'bioyi_realm_save'
-const WRONG_KEY = 'bioyi_realm_wrong'
+  isSoundEnabled
+} from '../utils/sfx.js'
+import { getTitleForLevel, getRandomElement } from '../utils/dungeon.js'
+import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/encyclopedia.js'
+import { getAllQuestions } from '../data/questions.js'
+import { getAllFishes as getAllFishesFromData } from '../data/fishing.js'
+import { getAllBooks as getAllBooksFromData } from '../data/fishing.js'
+import { TITLE_TABLE } from '../data/title.js'
+import { FEEDBACK_TYPES } from '../data/feedback.js'
+import { getWrongQuestions, saveWrongQuestion, loadWrongQuestions, clearWrongQuestions } from '../data/wrong_book.js'
 
 // ===== 状态机定义（v8.0）=====
 export const GAME_MODE = {
@@ -69,12 +74,19 @@ const PANEL_MODES = [GAME_MODE.SHOP, GAME_MODE.FARM, GAME_MODE.INVENTORY, GAME_M
 export const useGameStore = defineStore('game', () => {
   // ===== 游戏状态 =====
   const gameStarted = ref(false)
-  const isLoadingQuestions = ref(false)
   const activeTab = ref('dungeon')
-  
+
+  // ===== 开发者模式（测试密令）=====
+  const devMode = ref(false)
+  function toggleDevMode() {
+    devMode.value = !devMode.value
+    saveGame()
+    return devMode.value
+  }
+
   // ===== 状态机（v8.0）=====
   const gameMode = ref(GAME_MODE.IDLE)
-  
+
   // 状态转移函数（铁律：所有状态变更必须走这里）
   function enterMode(newMode) {
     // 战斗中禁止进入非战斗模式
@@ -86,175 +98,172 @@ export const useGameStore = defineStore('game', () => {
     console.log(`[StateMachine] ${gameMode.value} → ${newMode}`)
     return true
   }
-  
+
   function isCombatMode() {
     return COMBAT_MODES.includes(gameMode.value)
   }
-  
+
   function isPanelMode() {
     return PANEL_MODES.includes(gameMode.value)
   }
 
-  // 玩家属性
+  // ===== 玩家状态 =====
   const level = ref(1)
   const exp = ref(0)
-  const maxExp = ref(100)
+  const maxExp = computed(() => Math.floor(100 * Math.pow(1.15, level.value - 1)))
   const hp = ref(100)
   const maxHp = ref(100)
-  const atk = ref(15)
-  const def = ref(8)
+  const atk = ref(10)
+  const def = ref(5)
   const gold = ref(0)
   const floor = ref(1)
-  const title = computed(() => getTitleData(level.value).title)
+  const title = ref('菜鸟学徒')
+  const titleData = ref(getTitleForLevel(1))
+  const titleBio = ref('刚踏入知识领域的初学者，对一切都充满好奇。')
+  const titleEra = ref('远古')
+  const titleField = ref('化学')
+  const titleAchievements = ref([])
 
-  // 战斗状态
+  // ===== 属性点系统 =====
+  const statPoints = ref(0)
+  const atkPoints = ref(0)
+  const defPoints = ref(0)
+  const hpPoints = ref(0)
+
+  // ===== 战斗状态 =====
   const inBattle = ref(false)
+  const battleState = ref('')
   const enemy = ref(null)
   const question = ref(null)
   const battleLog = ref([])
-  const battleState = ref('') // 'idle', 'answering', 'won', 'lost', 'fled', 'capture', 'captureQuiz'
+  const drop = ref(null)
 
-  // 背包
+  // ===== 装备与物品 =====
   const equipment = ref([])
   const consumables = ref([])
   const equipped = ref({ weapon: null, armor: null, accessory: null })
+  const inventory = ref({})
 
-  // 材料背包
-  const inventory = ref({}) // { '水之精华': 5, '火焰核心': 3, ... }
-
-  // 农场系统
+  // ===== 农场与宠物 =====
   const farm = ref([])
   const activeMonster = ref(null)
+  const captureMonsterData = ref(null)
+  const captureQuestions = ref([])
+  const captureIndex = ref(0)
+  const captureCorrectCount = ref(0)
 
-  // 捕捉状态（多题模式）
-  const captureMonsterData = ref(null) // 待捕捉的怪物数据
-  const captureQuestions = ref([]) // 捕捉题目数组（3题）
-  const captureIndex = ref(0) // 当前答题索引
-  const captureCorrectCount = ref(0) // 答对计数
-
-  // 钓鱼系统
-  const fishingLevel = ref(1)
-  const recentCatches = ref([])
-  const fishCollection = ref({}) // { common: 5, rare: 2, ... }
-
-  // 战斗掉落
-  const drop = ref(null) // { type: 'equipment' | 'consumable', item: object }
-
-  // 连击系统
+  // ===== 连击系统 =====
   const comboCount = ref(0)
   const comboActive = ref(false)
   const consecutiveCorrect = ref(0)
 
-  // 图鉴系统
-  const cyclopedia = ref({ monsters: {}, materials: {}, fishes: {}, books: {}, titles: {} })
-  const newDiscoveries = ref([]) // 新发现通知队列
+  // ===== 图鉴系统 =====
+  const cyclopedia = ref({})
+  const newDiscoveries = ref([])
+  const stats = ref({ totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 })
 
-  // 错题本
+  // ===== 成就系统 =====
+  const unlockedAchievements = ref([])
+  const newAchievementUnlocks = ref([])
+
+  // ===== 钓鱼系统 =====
+  const fishingLevel = ref(1)
+  const recentCatches = ref([])
+  const fishCollection = ref({})
+  const bookStudyQuestion = ref(null)
+  const bookStudyMode = ref(false)
+  const dailyFishCount = ref(0)
+  const fishLimitUnlocked = ref(false)
+
+  // ===== 错题本 =====
   const wrongQuestions = ref([])
-  // [{ id, q, options, answer, subject, diff, wrongAnswer, wrongCount, lastWrongTime, mastered }]
-
-  // 复习模式状态
+  const wrongStats = ref({})
   const reviewMode = ref(false)
-  const reviewCurrent = ref(null) // 当前正在复习的题目
+  const reviewCurrent = ref(null)
   const reviewIndex = ref(0)
   const reviewPool = ref([])
   const reviewResults = ref([])
 
-  // 地牢房间系统
-  const dungeonPhase = ref('none') // 'none' | 'prep' | 'rooms' | 'battle'
-  const roomGrid = ref([]) // 9个房间数据 [{ index, enemyPreview, cleared, isBoss }]
+  // ===== 地牢系统 =====
+  const dungeonPhase = ref('none')
+  const roomGrid = ref([])
   const bossRoomIndex = ref(-1)
   const currentRoomIndex = ref(-1)
-  const allClearCount = ref(0) // "我全都要"成就计数
+  const allClearCount = ref(0)
   const clearedRoomsThisFloor = ref(0)
-  const hasSkippedRoom = ref(false) // 本层是否有未清空的房间就进入下一层
-  const currentFloorElement = ref('water') // 本层主导元素
-  const firstVisit = ref(true) // 是否首次访问（新手引导用）
-  const showTutorial = ref(false) // 是否显示新手引导
+  const hasSkippedRoom = ref(false)
+  const currentFloorElement = ref('water')
+  const showTutorial = ref(false)
+  const firstVisit = ref(true)
 
-  // 成就系统
-  const unlockedAchievements = ref([])
-  const newAchievementUnlocks = ref([]) // 新解锁成就通知队列
+  // ===== 限时Boss =====
+  const inWeeklyBoss = ref(false)
+  const weeklyBossData = ref(null)
+  const weeklyBossTurn = ref(0)
+  const weeklyBossTimeLeft = ref(0)
+  const weeklyBossSkillUsed = ref([])
+  const weeklyBossDefeated = ref([])
+  const weeklyBossTimer = ref(null)
 
-  // 钓鱼研读古籍状态
-  const bookStudyQuestion = ref(null) // 当前研读题目
-  const bookStudyMode = ref(false) // 是否处于研读模式
-
-  // 钓鱼次数限制
-  const dailyFishCount = ref(0) // 今日钓鱼次数
-  const fishLimitUnlocked = ref(false) // 是否已解锁无限钓鱼（通过答题）
-
-  // ===== 属性点系统 =====
-  const statPoints = ref(0) // 未分配的属性点
-  const atkPoints = ref(0)  // 已分配的攻击力点数
-  const defPoints = ref(0)  // 已分配的防御力点数
-  const hpPoints = ref(0)   // 已分配的生命值点数
-
-  // ===== 限时Boss系统 =====
-  const weeklyBossDefeated = ref([]) // 已击败的周常Boss列表
-  const inWeeklyBoss = ref(false) // 是否在进行限时Boss挑战
-  const weeklyBossData = ref(null) // 当前限时Boss数据
-  const weeklyBossTurn = ref(0) // 当前回合计数（用于Boss技能触发）
-  const weeklyBossTimeLeft = ref(0) // 答题倒计时
-  const weeklyBossTimer = ref(null) // 计时器引用
-  const weeklyBossSkillUsed = ref([]) // 本回合已使用的技能
-
-  // 计算属性
+  // ===== 计算属性 =====
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
   const hpPercent = computed(() => (hp.value / maxHp.value) * 100)
   const monsterBonus = computed(() => {
-    if (!activeMonster.value) return { atkBonus: 0, defBonus: 0 }
-    return activeMonster.value.ability || { atkBonus: 0, defBonus: 0 }
-  })
-  const totalAtk = computed(() => {
-    let base = atk.value + (equipped.value.weapon?.atk || 0)
-    base += monsterBonus.value.atkBonus || 0
-    return base
-  })
-  const totalDef = computed(() => {
-    let base = def.value + (equipped.value.armor?.def || 0) + (equipped.value.accessory?.def || 0)
-    base += monsterBonus.value.defBonus || 0
-    return base
-  })
-
-  // 错题本统计
-  const wrongStats = computed(() => {
-    const bySubject = { chem: 0, bio: 0, yi: 0 }
-    const byDiff = { easy: 0, medium: 0, hard: 0 }
-    const mastered = wrongQuestions.value.filter(q => q.mastered).length
-    wrongQuestions.value.forEach(q => {
-      if (!q.mastered) {
-        bySubject[q.subject] = (bySubject[q.subject] || 0) + 1
-        byDiff[q.diff] = (byDiff[q.diff] || 0) + 1
-      }
-    })
+    if (!activeMonster.value) return { atk: 0, def: 0, hp: 0 }
     return {
-      total: wrongQuestions.value.length,
-      pending: wrongQuestions.value.length - mastered,
-      mastered,
-      bySubject,
-      byDiff
+      atk: Math.floor(activeMonster.value.atk * 0.1),
+      def: Math.floor(activeMonster.value.def * 0.1),
+      hp: Math.floor(activeMonster.value.maxHp * 0.1)
     }
   })
+  const totalAtk = computed(() => atk.value + monsterBonus.value.atk)
+  const totalDef = computed(() => def.value + monsterBonus.value.def)
 
-  // 开始游戏
-  async function startGame() {
-    isLoadingQuestions.value = true
-    await preloadQuestions()
-    isLoadingQuestions.value = false
-    gameStarted.value = true
-    sfxStart()
-    // 初始材料归零，玩家自行积累
-    inventory.value = {}
+  // ===== 属性点分配 =====
+  function allocateStat(type) {
+    if (statPoints.value <= 0) return false
+    statPoints.value--
+    if (type === 'atk') {
+      atkPoints.value++
+      atk.value += 2
+    } else if (type === 'def') {
+      defPoints.value++
+      def.value += 1
+    } else if (type === 'hp') {
+      hpPoints.value++
+      maxHp.value += 10
+      hp.value += 10
+    }
+    saveGame()
+    return true
+  }
+
+  function resetStats() {
+    statPoints.value += atkPoints.value + defPoints.value + hpPoints.value
+    atk.value -= atkPoints.value * 2
+    def.value -= defPoints.value
+    maxHp.value -= hpPoints.value * 10
+    hp.value = Math.min(hp.value, maxHp.value)
+    atkPoints.value = 0
+    defPoints.value = 0
+    hpPoints.value = 0
     saveGame()
   }
 
-  // 切换标签页
+  // ===== 游戏启动 =====
+  function startGame() {
+    gameStarted.value = true
+    firstVisit.value = false
+    activeTab.value = 'dungeon'
+    preloadQuestions()
+    saveGame()
+  }
+
   function setTab(tab) {
     activeTab.value = tab
   }
 
-  // 初始化战斗
+  // ===== 战斗系统 =====
   function initBattle() {
     enterMode(GAME_MODE.BATTLE)
     const e = getEnemyForFloor(floor.value)
@@ -278,202 +287,13 @@ export const useGameStore = defineStore('game', () => {
     inBattle.value = true
   }
 
-  // ===== 地牢房间系统 =====
-
-  // 随机确定主导元素（不与前一层重复）
-  function getRandomElement(exclude) {
-    const elementKeys = ['water', 'fire', 'acid', 'electric', 'ice', 'wind']
-    const available = elementKeys.filter(k => k !== exclude)
-    return available[Math.floor(Math.random() * available.length)]
-  }
-
-  // 进入地牢准备界面
-  function enterDungeonPrep() {
-    enterMode(GAME_MODE.DUNGEON_PREP)
-    dungeonPhase.value = 'prep'
-    currentFloorElement.value = getRandomElement(currentFloorElement.value)
-    generateRoomPreviews()
-  }
-
-  // 生成9个房间预览（8普通 + 1 Boss）
-  function generateRoomPreviews() {
-    const rooms = []
-    // 先确定Boss位置
-    bossRoomIndex.value = Math.floor(Math.random() * 9)
-    // 本层主导元素
-    const floorEl = currentFloorElement.value
-    const el = DUNGEON_ELEMENTS[floorEl] || DUNGEON_ELEMENTS.water
-
-    for (let i = 0; i < 9; i++) {
-      const isBoss = i === bossRoomIndex.value
-      // Boss敌人：从高级池选取
-      let e
-      if (isBoss) {
-        const bossPool = ENEMIES.filter(e => e.hp > 60 || e.atk > 20)
-        e = bossPool.length > 0
-          ? bossPool[Math.floor(Math.random() * bossPool.length)]
-          : ENEMIES[Math.floor(Math.random() * ENEMIES.length)]
-      } else {
-        e = getEnemyForFloor(floor.value)
-      }
-
-      // 统一元素为本层主导元素
-      rooms.push({
-        index: i,
-        enemyPreview: {
-          name: e.name,
-          icon: e.icon || e.name.charAt(0),
-          subject: e.subject,
-          subjectLabel: e.subject === 'chem' ? '化学' : e.subject === 'bio' ? '生物' : '易学',
-          element: floorEl,
-          elementLabel: el.name,
-          elementColor: el.color,
-          hp: isBoss ? Math.floor(e.hp * 1.5) : e.hp,
-          atk: isBoss ? Math.floor(e.atk * 1.3) : e.atk,
-          def: e.def || 0,
-          desc: e.desc
-        },
-        cleared: false,
-        isBoss
-      })
-    }
-
-    roomGrid.value = rooms
-    clearedRoomsThisFloor.value = 0
-    hasSkippedRoom.value = false
-    currentRoomIndex.value = -1
-  }
-
-  // 进入指定房间战斗
-  function enterRoom(roomIndex) {
-    const room = roomGrid.value[roomIndex]
-    if (!room || room.cleared) return
-
-    currentRoomIndex.value = roomIndex
-    dungeonPhase.value = 'battle'
-
-    const preview = room.enemyPreview
-    // 生成实际的敌人实例
-    enemy.value = {
-      name: preview.name,
-      icon: preview.icon,
-      hp: preview.hp,
-      maxHp: preview.hp,
-      atk: preview.atk,
-      def: preview.def,
-      subject: preview.subject,
-      element: preview.element,
-      subjectLabel: preview.subjectLabel,
-      elementLabel: preview.elementLabel
-    }
-
-    // 获取题目
-    const q = getQuestionsForFloor(floor.value, 1)[0]
-    if (!q) {
-      console.error('[enterRoom] 题目加载失败，无法进入房间战斗')
+  function enemyAttack() {
+    // 开发者模式：无敌
+    if (devMode.value) {
+      battleLog.value.push('💠 [Dev] 开发者模式：免疫伤害')
       return
     }
-    question.value = q
 
-    battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
-    battleState.value = 'idle'
-    inBattle.value = true
-    enterMode(GAME_MODE.BATTLE)
-  }
-
-  // 完成房间战斗
-  function finishRoom(cleared) {
-    if (currentRoomIndex.value < 0) return
-
-    const room = roomGrid.value[currentRoomIndex.value]
-    if (room) {
-      room.cleared = cleared
-      if (cleared) clearedRoomsThisFloor.value++
-    }
-
-    // 检查"我全都要"成就
-    const allCleared = roomGrid.value.every(r => r.cleared)
-    if (allCleared) {
-      allClearCount.value++
-      if (allClearCount.value >= 10) {
-        battleLog.value.push('🏆 解锁成就：我全都要！（连续10层清空所有房间）')
-      }
-    }
-
-    currentRoomIndex.value = -1
-    inBattle.value = false
-    enemy.value = null
-    question.value = null
-    // 不覆盖 captureSuccess/captureFail 状态，让用户能看到结果面板
-    if (battleState.value !== 'captureSuccess' && battleState.value !== 'captureFail') {
-      battleState.value = ''
-    }
-    resetCombo()
-
-    dungeonPhase.value = 'rooms'
-    enterMode(GAME_MODE.DUNGEON_ROOMS)
-    saveGame()
-  }
-
-  // 进入下一层（必须击败 Boss）
-  function nextFloor() {
-    const bossRoom = roomGrid.value[bossRoomIndex.value]
-    if (!bossRoom || !bossRoom.cleared) {
-      return false
-    }
-    const allCleared = roomGrid.value.every(r => r.cleared)
-    if (!allCleared) {
-      hasSkippedRoom.value = true
-    }
-    floor.value++
-    dungeonPhase.value = 'prep'
-    enterMode(GAME_MODE.DUNGEON_PREP)
-    currentFloorElement.value = getRandomElement(currentFloorElement.value)
-    generateRoomPreviews()
-    return true
-  }
-
-  // 退出地牢
-  function exitDungeon() {
-    dungeonPhase.value = 'none'
-    roomGrid.value = []
-    bossRoomIndex.value = -1
-    currentRoomIndex.value = -1
-    inBattle.value = false
-    enemy.value = null
-    question.value = null
-    battleState.value = ''
-    resetCombo()
-    enterMode(GAME_MODE.IDLE)
-    saveGame()
-  }
-
-  // ===== 地牢房间系统结束 =====
-
-  // 攻击
-  function attack() {
-    if (!enemy.value || battleState.value !== 'idle') return
-
-    // 计算元素克制
-    const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
-    let multiplier = elementEffect?.multiplier || 1.0
-
-    const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
-    enemy.value.hp -= damage
-
-    let logMsg = `你对 ${enemy.value.name} 造成 ${damage} 点伤害！`
-    if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
-    battleLog.value.push(logMsg)
-
-    if (enemy.value.hp <= 0) {
-      winBattle()
-    } else {
-      enemyAttack()
-    }
-  }
-
-  // 敌人攻击
-  function enemyAttack() {
     // 检查玩家元素是否克制敌人（减少伤害）
     const elementEffect = checkElementCounter(enemy.value.element, activeMonster.value?.element)
     let multiplier = elementEffect?.multiplier || 1.0
@@ -481,7 +301,7 @@ export const useGameStore = defineStore('game', () => {
     if (elementEffect && elementEffect.desc === '被克制...') {
       multiplier = 0.7  // 敌人被克制，对玩家伤害减少
     } else if (elementEffect && elementEffect.desc === '克制！') {
-      multiplier = 1.5  // 敌人克制玩家，对玩家伤害增加
+      multiplier = 1.5  // 敌人克制玩家，伤害增加
     } else {
       multiplier = 1.0
     }
@@ -526,126 +346,30 @@ export const useGameStore = defineStore('game', () => {
     } else {
       wrongQuestions.value.push({
         id: q.id,
-        q: q.q,
-        options: q.options,
-        answer: q.answer,
-        subject: q.subject,
-        diff: q.diff,
-        wrongAnswer,
+        question: q,
+        wrongAnswer: wrongAnswer,
         wrongCount: 1,
         lastWrongTime: Date.now(),
         mastered: false
       })
     }
-    updateStats('totalWrong', 1)
-    saveWrongQuestions()
-  }
-
-  // 标记错题为已掌握
-  function masterQuestion(qid) {
-    const q = wrongQuestions.value.find(wq => wq.id === qid)
-    if (q) {
-      q.mastered = true
-      saveWrongQuestions()
-    }
-  }
-
-  // 从错题本移除
-  function removeWrongQuestion(qid) {
-    const idx = wrongQuestions.value.findIndex(wq => wq.id === qid)
-    if (idx !== -1) {
-      wrongQuestions.value.splice(idx, 1)
-      saveWrongQuestions()
-    }
-  }
-
-  // 保存错题本（单独存储）
-  function saveWrongQuestions() {
-    localStorage.setItem(WRONG_KEY, JSON.stringify(wrongQuestions.value))
-  }
-
-  // 加载错题本
-  function loadWrongQuestions() {
-    const data = localStorage.getItem(WRONG_KEY)
-    if (data) {
-      try {
-        wrongQuestions.value = JSON.parse(data)
-      } catch (e) {
-        console.error('错题本加载失败:', e)
-      }
-    }
-  }
-
-  // 开始复习模式
-  function startReview(subjectFilter = null, diffFilter = null) {
-    let pool = wrongQuestions.value.filter(q => !q.mastered)
-    if (subjectFilter) {
-      pool = pool.filter(q => q.subject === subjectFilter)
-    }
-    if (diffFilter) {
-      pool = pool.filter(q => q.diff === diffFilter)
-    }
-    if (pool.length === 0) return false
-
-    // 按做错次数降序排列（优先复习做错多的）
-    pool.sort((a, b) => b.wrongCount - a.wrongCount)
-
-    reviewPool.value = pool
-    reviewIndex.value = 0
-    reviewResults.value = []
-    reviewCurrent.value = pool[0]
-    reviewMode.value = true
-    return true
-  }
-
-  // 提交复习答案
-  function submitReviewAnswer(index) {
-    if (!reviewCurrent.value) return
-    const q = reviewCurrent.value
-    const correct = index === q.answer
-
-    reviewResults.value.push({
-      id: q.id,
-      correct,
-      subject: q.subject,
-      diff: q.diff
-    })
-
-    if (correct) {
-      // 答对：标记为已掌握
-      masterQuestion(q.id)
-    } else {
-      // 答错：增加计数
-      const existing = wrongQuestions.value.find(wq => wq.id === q.id)
-      if (existing) {
-        existing.wrongCount++
-        existing.wrongAnswer = index
-        existing.lastWrongTime = Date.now()
-        saveWrongQuestions()
-      }
-    }
-
-    reviewIndex.value++
-    if (reviewIndex.value < reviewPool.value.length) {
-      reviewCurrent.value = reviewPool.value[reviewIndex.value]
-    } else {
-      reviewCurrent.value = null
-      reviewMode.value = false
-    }
-  }
-
-  // 退出复习模式
-  function exitReview() {
-    reviewMode.value = false
-    reviewCurrent.value = null
-    reviewIndex.value = 0
-    reviewPool.value = []
-    reviewResults.value = []
+    saveWrongQuestion(wrongQuestions.value)
   }
 
   // 答题攻击
   function answerAttack(correct) {
     if (!enemy.value) return
+
+    // 开发者模式：自动答对+秒杀
+    if (devMode.value) {
+      sfxCorrect()
+      battleLog.value.push('💠 [Dev] 开发者模式：自动命中，秒杀！')
+      enemy.value.hp = 0
+      consecutiveCorrect.value++
+      updateStats('totalCorrect', 1)
+      winBattle()
+      return
+    }
 
     if (correct) {
       // 连击逻辑：连续答对增加连击数
@@ -717,7 +441,11 @@ export const useGameStore = defineStore('game', () => {
       battleLog.value.push(`使用 ${item.name}，恢复 ${heal} 点生命！`)
     } else if (item.type === 'buff') {
       atk.value += item.bonusAtk
-      battleLog.value.push(`使用 ${item.name}，攻击力提升 ${item.bonusAtk} 点！`)
+      def.value += item.bonusDef
+      battleLog.value.push(`使用 ${item.name}，攻击+${item.bonusAtk} 防御+${item.bonusDef}！`)
+    } else if (item.type === 'revive') {
+      hp.value = maxHp.value
+      battleLog.value.push(`使用 ${item.name}，满血复活！`)
     }
 
     consumables.value.splice(idx, 1)
@@ -725,183 +453,115 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
-  // 胜利（触发捕捉流程）
+  // 胜利
   function winBattle() {
     battleState.value = 'won'
-    const expGain = Math.floor(15 * (1 + floor.value * 0.1))
-    const goldGain = Math.floor(10 * (1 + floor.value * 0.1))
+    const e = enemy.value
+    if (!e) return
 
+    const expGain = Math.floor(e.hp * 0.5 + e.atk * 2)
+    const goldGain = Math.floor(e.atk * 1.5)
     exp.value += expGain
     gold.value += goldGain
-    battleLog.value.push(`击败 ${enemy.value.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
+    battleLog.value.push(`🎉 战斗胜利！获得 ${expGain} 经验和 ${goldGain} 金币！`)
 
-    // 检查升级（优化成长曲线：里程碑机制）
+    // 掉落物品
+    const dropItem = generateDrop(e)
+    if (dropItem) {
+      drop.value = dropItem
+      battleLog.value.push(`掉落 ${dropItem.item.name}！`)
+    }
+
+    // 捕捉数据（如果是可捕捉的怪物）
+    if (e.captureable) {
+      captureMonsterData.value = {
+        name: e.name,
+        icon: e.icon,
+        element: e.element,
+        baseHp: e.hp,
+        baseAtk: e.atk,
+        baseDef: e.def,
+        captureFloor: floor.value
+      }
+      // 生成3道捕捉题目
+      const qs = getQuestionsForFloor(floor.value, 3)
+      captureQuestions.value = qs
+      captureIndex.value = 0
+      captureCorrectCount.value = 0
+    }
+
+    // 检查升级
     while (exp.value >= maxExp.value) {
       exp.value -= maxExp.value
       level.value++
-      // 经验曲线：前期线性，后期指数
-      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
-      // 升级回满血
+      maxHp.value = Math.floor(maxHp.value * 1.2)
       hp.value = maxHp.value
-      // 属性点+1（玩家自由分配）
+      atk.value += 2
+      def.value += 1
       statPoints.value++
-      battleLog.value.push(`升级了！到达 ${level.value} 级！获得1属性点`)
+      battleLog.value.push(`🎊 升级！到达 Lv.${level.value}！`)
       sfxLevelUp()
-      // 里程碑奖励：每10级额外属性
-      if (level.value % 10 === 0) {
-        const milestoneBonus = Math.floor(level.value / 10)
-        atk.value += milestoneBonus
-        def.value += milestoneBonus
-        maxHp.value += milestoneBonus * 5
-        hp.value = maxHp.value
-        battleLog.value.push(`里程碑！${level.value}级突破，全属性+${milestoneBonus}！`)
+
+      // 更新称号
+      const newTitle = getTitleForLevel(level.value)
+      if (newTitle.title !== title.value) {
+        title.value = newTitle.title
+        titleData.value = newTitle
+        titleBio.value = newTitle.bio
+        titleEra.value = newTitle.era
+        titleField.value = newTitle.field
+        titleAchievements.value = newTitle.achievements || []
       }
     }
 
-    // 材料掉落（根据敌人元素）
-    const matName = getUpgradeMaterialName(enemy.value.element)
-    const matDrop = Math.floor(1 + floor.value * 0.3)
-    inventory.value[matName] = (inventory.value[matName] || 0) + matDrop
-    battleLog.value.push(`掉落 ${matDrop} 个 ${matName}！`)
-
-    // ===== 捕捉准备（在掉落之前，确保有掉落也能触发捕捉）=====
-    const canCapture = farm.value.length < FARM_MAX_CAPACITY
-      && enemy.value?.name
-      && !farm.value.some(m => m.name === enemy.value.name)
-
-    if (canCapture) {
-      const triggerChance = Math.min(0.6, 0.3 + floor.value * 0.02)
-      if (Math.random() <= triggerChance) {
-        captureMonsterData.value = {
-          name: enemy.value.name,
-          icon: enemy.value.icon || enemy.value.name.charAt(0),
-          element: enemy.value.element,
-          baseHp: enemy.value.maxHp,
-          baseAtk: enemy.value.atk,
-          baseDef: enemy.value.def,
-          captureFloor: floor.value
-        }
-
-        const subject = ELEMENT_SUBJECT_MAP[captureMonsterData.value.element] || 'chem'
-        const questions = ALL_QUESTIONS.filter(q => q.subject === subject && q.diff === 'medium')
-        const qPool = questions.length > 0 ? questions : [...ALL_QUESTIONS]
-        if (qPool.length === 0) {
-          console.warn('[winBattle] 题库为空，无法生成捕捉题目')
-        }
-        captureQuestions.value = []
-        const usedIndices = new Set()
-        for (let i = 0; i < 3 && i < qPool.length; i++) {
-          let idx
-          do { idx = Math.floor(Math.random() * qPool.length) } while (usedIndices.has(idx))
-          usedIndices.add(idx)
-          captureQuestions.value.push(qPool[idx])
-        }
-        captureIndex.value = 0
-        captureCorrectCount.value = 0
-      }
-    }
-
-    // 装备/消耗品掉落
-    const itemDrop = generateDrop()
-    if (itemDrop) {
-      drop.value = itemDrop
-      sfxItemGet()
-      if (itemDrop.type === 'equipment') {
-        battleLog.value.push(`获得装备 ${itemDrop.item.name}！`)
-      } else {
-        battleLog.value.push(`获得 ${itemDrop.item.name} ×${itemDrop.item.count}！`)
-      }
-
-      battleState.value = 'drop' // 先展示掉落，再进入 won
-      saveGame()
-      return
-    }
-    
-    // 记录图鉴和统计
-    if (enemy.value?.name) {
-      addToCyclopedia('monsters', enemy.value.name)
-    }
+    // 记录图鉴
+    addToCyclopedia('monsters', e.name)
     updateStats('totalWins', 1)
+    updateStats('totalBattles', 1)
+
+    // 记录最高层
     if (floor.value > stats.value.maxFloor) {
       stats.value.maxFloor = floor.value
     }
-    updateStats('totalBattles', 1)
 
-    // 房间模式：不立即处理楼层递增，等用户交互后统一处理
-    if (dungeonPhase.value === 'battle') {
-      saveGame()
-      return
-    }
-
-    // 非房间模式：未触发捕捉时递增楼层
-    if (!captureMonsterData.value) {
-      floor.value++
-    }
     saveGame()
   }
 
-  // 生成战斗掉落（按楼层分难度掉落率）
-  function generateDrop() {
-    const roll = Math.random()
-
-    // 掉落率按楼层递增：前期压低，后期放开
-    let consumableRate, equipmentRate
-    if (floor.value <= 5) {
-      consumableRate = 0.15
-      equipmentRate = 0.10
-    } else if (floor.value <= 10) {
-      consumableRate = 0.25
-      equipmentRate = 0.20
-    } else {
-      consumableRate = 0.40
-      equipmentRate = 0.30
+  // 生成掉落
+  function generateDrop(e) {
+    const rand = Math.random()
+    if (rand < 0.3) {
+      // 30% 掉落装备
+      const item = EQUIPMENT[Math.floor(Math.random() * EQUIPMENT.length)]
+      return { type: 'equipment', item }
+    } else if (rand < 0.6) {
+      // 30% 掉落消耗品
+      const item = CONSUMABLES[Math.floor(Math.random() * CONSUMABLES.length)]
+      return { type: 'consumable', item }
     }
-
-    // 先判定消耗品
-    if (roll < consumableRate) {
-      const pick = CONSUMABLES[Math.floor(Math.random() * CONSUMABLES.length)]
-      const count = Math.floor(1 + Math.random() * 2)
-      const consumable = { ...pick, count, slot: Math.random() }
-      consumables.value.push(consumable)
-      return { type: 'consumable', item: consumable }
-    }
-
-    // 再判定装备
-    if (roll < consumableRate + equipmentRate) {
-      const type = Math.random() < 0.4 ? 'weapon' : Math.random() < 0.7 ? 'armor' : 'accessory'
-      const candidates = EQUIPMENT.filter(e => e.type === type)
-      if (candidates.length === 0) return null
-
-      const pick = candidates[Math.floor(Math.random() * candidates.length)]
-      const level = Math.floor(floor.value / 5) + 1
-      const multiplier = 1 + (floor.value * 0.05)
-
-      const gear = {
-        ...pick,
-        id: `${pick.id}_${floor.value}_${Math.floor(Math.random() * 10000)}`,
-        level,
-        atk: Math.floor((pick.atk || 0) * multiplier),
-        def: Math.floor((pick.def || 0) * multiplier),
-        desc: `${pick.desc} (Lv.${level})`,
-        price: Math.floor(pick.price * multiplier)
-      }
-
-      equipment.value.push(gear)
-      return { type: 'equipment', item: gear }
-    }
-
     return null
   }
 
   // 领取掉落
   function claimDrop() {
-    drop.value = null
-    // 房间模式下，如果没有捕捉数据，直接返回房间界面
-    if (dungeonPhase.value === 'battle' && !captureMonsterData.value) {
-      finishRoom(true)
-    } else {
-      battleState.value = 'won'
+    if (!drop.value) return
+    const item = drop.value
+    if (item.type === 'equipment') {
+      equipment.value.push(item.item)
+      addToCyclopedia('materials', item.item.name)
+    } else if (item.type === 'consumable') {
+      consumables.value.push(item.item)
     }
+    drop.value = null
+    battleState.value = 'idle'
+
+    // 记录图鉴和统计
+    if (enemy.value?.name) {
+      addToCyclopedia('monsters', enemy.value.name)
+    }
+    updateStats('totalBattles', 1)
+
+    saveGame()
   }
 
   // 开始捕捉流程
@@ -917,7 +577,8 @@ export const useGameStore = defineStore('game', () => {
     if (captureIndex.value >= captureQuestions.value.length) return
 
     const q = captureQuestions.value[captureIndex.value]
-    const correct = index === q.answer
+    // 开发者模式：自动答对
+    const correct = devMode.value ? true : (index === q.answer)
 
     if (!correct) {
       recordWrongQuestion(q, index)
@@ -1002,6 +663,18 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // 装备物品
+  function equip(item) {
+    if (item.type === 'weapon') {
+      equipped.value.weapon = item
+    } else if (item.type === 'armor') {
+      equipped.value.armor = item
+    } else if (item.type === 'accessory') {
+      equipped.value.accessory = item
+    }
+    saveGame()
+  }
+
   // 设置跟随怪物
   function setFollowMonster(idx) {
     if (!farm.value[idx]) return
@@ -1047,31 +720,112 @@ export const useGameStore = defineStore('game', () => {
     // 重新计算能力
     const newAbility = generateMonsterAbility(m.element, m.captureFloor)
     const levelMultiplier = 1 + (m.level - 1) * 0.2
-    newAbility.atkBonus = Math.floor(newAbility.atkBonus * levelMultiplier)
-    newAbility.defBonus = Math.floor(newAbility.defBonus * levelMultiplier)
-    newAbility.desc = `攻击+${newAbility.atkBonus} 防御+${newAbility.defBonus}`
-    m.ability = newAbility
+    m.atk = Math.floor(newAbility.atk * levelMultiplier)
+    m.def = Math.floor(newAbility.def * levelMultiplier)
+    m.maxHp = Math.floor(newAbility.hp * levelMultiplier)
+    m.hp = m.maxHp
 
     saveGame()
     return true
   }
 
-  // 放生怪物
+  // 释放怪物
   function releaseMonster(idx) {
-    const m = farm.value[idx]
-    if (!m) return
-
-    // 如果放生的是当前跟随的怪物，取消跟随
-    if (activeMonster.value && activeMonster.value.name === m.name) {
+    if (!farm.value[idx]) return false
+    farm.value.splice(idx, 1)
+    if (activeMonster.value && !farm.value.includes(activeMonster.value)) {
       activeMonster.value = null
     }
-
-    // 获得材料回报
-    const returnMat = getUpgradeMaterialName(m.element)
-    inventory.value[returnMat] = (inventory.value[returnMat] || 0) + Math.floor(m.level)
-
-    farm.value.splice(idx, 1)
     saveGame()
+    return true
+  }
+
+  // 添加物品到背包
+  function addItem(item) {
+    if (item.type === 'equipment') {
+      equipment.value.push(item)
+    } else if (item.type === 'consumable') {
+      consumables.value.push(item)
+    }
+    saveGame()
+  }
+
+  // 添加材料
+  function addMaterial(name, count) {
+    inventory.value[name] = (inventory.value[name] || 0) + count
+    saveGame()
+  }
+
+  // 锻造物品
+  function forgeItem(recipe) {
+    if (!canForge(recipe, inventory.value)) return false
+
+    // 消耗材料
+    for (const [mat, count] of Object.entries(recipe.materials)) {
+      inventory.value[mat] -= count
+      if (inventory.value[mat] <= 0) {
+        delete inventory.value[mat]
+      }
+    }
+
+    // 生成装备
+    const item = {
+      ...recipe.result,
+      id: Date.now() + Math.random()
+    }
+    equipment.value.push(item)
+    updateStats('totalForges', 1)
+    saveGame()
+    return true
+  }
+
+  // 商店购买
+  function buyItem(item) {
+    if (gold.value < item.price) return false
+    gold.value -= item.price
+    if (item.type === 'equipment') {
+      equipment.value.push({ ...item, id: Date.now() + Math.random() })
+    } else if (item.type === 'consumable') {
+      consumables.value.push({ ...item, id: Date.now() + Math.random() })
+    } else if (item.type === 'material') {
+      inventory.value[item.name] = (inventory.value[item.name] || 0) + item.count
+    }
+    saveGame()
+    return true
+  }
+
+  // 图鉴系统
+  function addToCyclopedia(category, name) {
+    if (!cyclopedia.value[category]) {
+      cyclopedia.value[category] = []
+    }
+    if (!cyclopedia.value[category].includes(name)) {
+      cyclopedia.value[category].push(name)
+      newDiscoveries.value.push({ category, name, time: Date.now() })
+    }
+  }
+
+  function getCyclopediaProgress(category) {
+    const discovered = cyclopedia.value[category] || []
+    let total = 0
+    if (category === 'monsters') total = getAllMonsters().length
+    else if (category === 'materials') total = getAllMaterials().length
+    else if (category === 'fishes') total = getAllFishesFromData().length
+    else if (category === 'books') total = getAllBooksFromData().length
+    return { discovered: discovered.length, total }
+  }
+
+  function isDiscovered(category, name) {
+    return cyclopedia.value[category]?.includes(name) || false
+  }
+
+  function getDiscoveryCount(category) {
+    return cyclopedia.value[category]?.length || 0
+  }
+
+  // 统计更新
+  function updateStats(key, delta) {
+    stats.value[key] = (stats.value[key] || 0) + delta
   }
 
   // 逃跑
@@ -1080,7 +834,9 @@ export const useGameStore = defineStore('game', () => {
     battleLog.value.push('你逃跑了...')
     if (inWeeklyBoss.value) {
       // 限时Boss战斗中逃跑，直接退出
-      setTimeout(() => exitWeeklyBoss(), 500)
+      setTimeout(() => {
+        exitWeeklyBoss()
+      }, 500)
       return
     }
     if (dungeonPhase.value === 'battle') {
@@ -1120,266 +876,6 @@ export const useGameStore = defineStore('game', () => {
     } else {
       enterMode(GAME_MODE.IDLE)
     }
-  }
-
-  // 装备物品
-  function equip(item) {
-    if (item.type === 'weapon') {
-      equipped.value.weapon = item
-    } else if (item.type === 'armor') {
-      equipped.value.armor = item
-    } else if (item.type === 'accessory') {
-      equipped.value.accessory = item
-    }
-    saveGame()
-  }
-
-  // 获取掉落物品
-  function claimDrop() {
-    if (!drop.value) return
-    const item = drop.value
-    if (item.type === 'equipment') {
-      equipment.value.push(item.item)
-      addToCyclopedia('materials', item.item.name)
-    } else if (item.type === 'consumable') {
-      consumables.value.push(item.item)
-    }
-    drop.value = null
-    battleState.value = 'idle'
-
-    // 记录图鉴和统计
-    if (enemy.value?.name) {
-      addToCyclopedia('monsters', enemy.value.name)
-    }
-    updateStats('totalWins', 1)
-    if (floor.value > stats.value.maxFloor) {
-      stats.value.maxFloor = floor.value
-    }
-    updateStats('totalBattles', 1)
-
-    // 房间模式：完成房间
-    if (dungeonPhase.value === 'battle') {
-      finishRoom(true)
-    } else {
-      // 非房间模式：递增楼层
-      floor.value++
-      exitBattle()
-    }
-    saveGame()
-  }
-
-  // 设置研读题目
-  function startBookStudy(subject = 'all') {
-    const questions = ALL_QUESTIONS.filter(q => q.subject === subject || subject === 'all')
-    const mediumQuestions = questions.filter(q => q.diff === 'medium')
-    const pool = mediumQuestions.length > 0 ? mediumQuestions : questions
-    if (pool.length === 0) {
-      console.warn('[startBookStudy] 题库为空，无法生成研读题目')
-      return
-    }
-    const q = pool[Math.floor(Math.random() * pool.length)]
-    bookStudyQuestion.value = q
-    bookStudyMode.value = true
-  }
-
-  // 提交研读答案
-  function submitBookStudyAnswer(index) {
-    if (!bookStudyQuestion.value) return { correct: false, error: 'no_question' }
-    const correct = index === bookStudyQuestion.value.answer
-    bookStudyMode.value = false
-    if (correct) {
-      // 答对：加经验，古籍收入收藏
-      const expGain = 25
-      exp.value += expGain
-      // 检查升级
-      while (exp.value >= maxExp.value) {
-        exp.value -= maxExp.value
-        level.value++
-        maxExp.value = Math.floor(maxExp.value * 1.2)
-        hp.value = maxHp.value
-        atk.value += 2
-        def.value += 1
-      }
-      bookStudyQuestion.value = null
-      saveGame()
-      return { correct: true, expGain }
-    } else {
-      // 答错：古籍跑了，但没有任何限制，下次钓鱼还能再遇到
-      bookStudyQuestion.value = null
-      saveGame()
-      return { correct: false }
-    }
-  }
-
-  // 取消研读
-  function cancelBookStudy() {
-    bookStudyMode.value = false
-    bookStudyQuestion.value = null
-  }
-
-  // 钓鱼次数检查 — 每5次需要答题一次（周期性，非永久解锁）
-  function canFishToday() {
-    if (dailyFishCount.value < 5) return { allowed: true, reason: null }
-    return { allowed: false, reason: 'limit_reached' }
-  }
-
-  // 解锁钓鱼限制（答题通过）— 重置计数，开始新一轮5次
-  function unlockFishLimit() {
-    dailyFishCount.value = 0 // 重置计数，开始新一轮
-    saveGame()
-  }
-
-  // 获取物品
-  function addItem(item) {
-    if (item.type === 'potion') {
-      consumables.value.push(item)
-    } else {
-      equipment.value.push(item)
-    }
-  }
-
-  // 添加材料
-  function addMaterial(name, count) {
-    inventory.value[name] = (inventory.value[name] || 0) + count
-  }
-
-  // 锻造（合成）
-  function forgeItem(recipeId) {
-    const recipe = FORGE_RECIPES.find(r => r.id === recipeId)
-    if (!recipe) return false
-
-    if (!canForge(recipe, inventory.value, gold.value)) {
-      return false
-    }
-
-    // 扣除材料
-    for (const [mat, need] of Object.entries(recipe.materials)) {
-      inventory.value[mat] -= need
-      if (inventory.value[mat] <= 0) delete inventory.value[mat]
-    }
-
-    // 扣除金币
-    gold.value -= recipe.gold
-
-    // 生成物品
-    if (recipe.type === 'potion') {
-      const item = {
-        id: `${recipe.id}_${Math.floor(Math.random() * 10000)}`,
-        name: recipe.name,
-        type: recipe.type === 'potion' ? 'heal' : 'buff',
-        ratio: recipe.ratio,
-        bonusAtk: recipe.bonusAtk,
-        desc: recipe.desc,
-        count: 1,
-        slot: Math.random()
-      }
-      consumables.value.push(item)
-    } else {
-      // 装备
-      const gear = {
-        id: `${recipe.id}_${Math.floor(Math.random() * 10000)}`,
-        name: recipe.name,
-        type: recipe.type,
-        icon: recipe.icon,
-        atk: recipe.atk || 0,
-        def: recipe.def || 0,
-        desc: recipe.desc,
-        level: recipe.unlockLevel
-      }
-      equipment.value.push(gear)
-    }
-
-    saveGame()
-    return true
-  }
-
-  // 商店购买
-  function buyItem(shopItem) {
-    if (gold.value < shopItem.price) return false
-
-    gold.value -= shopItem.price
-
-    if (shopItem.type === 'consumable') {
-      const item = {
-        id: `${shopItem.id}_${Math.floor(Math.random() * 10000)}`,
-        name: shopItem.name,
-        type: shopItem.subtype,
-        count: 1,
-        slot: Math.random(),
-        desc: shopItem.desc
-      }
-      if (shopItem.subtype === 'heal') {
-        item.value = shopItem.effect.hp
-      } else if (shopItem.subtype === 'exp') {
-        item.value = shopItem.effect.exp
-      } else if (shopItem.subtype === 'buff') {
-        item.bonusAtk = shopItem.effect.atk
-      }
-      consumables.value.push(item)
-    } else if (shopItem.type === 'equipment') {
-      const gear = {
-        id: `${shopItem.id}_${Math.floor(Math.random() * 10000)}`,
-        name: shopItem.name,
-        type: shopItem.subtype,
-        atk: shopItem.atk || 0,
-        def: shopItem.def || 0,
-        desc: shopItem.desc,
-        price: shopItem.price
-      }
-      equipment.value.push(gear)
-    } else if (shopItem.type === 'material') {
-      const materialMap = {
-        'shop_water_essence': '水之精华',
-        'shop_fire_core': '火焰核心',
-        'shop_acid_crystal': '酸液结晶',
-        'shop_thunder_stone': '雷电石',
-        'shop_ice_shard': '冰霜碎片',
-        'shop_wind_feather': '风之羽毛'
-      }
-      const matName = materialMap[shopItem.id] || shopItem.name
-      inventory.value[matName] = (inventory.value[matName] || 0) + 1
-    }
-
-    saveGame()
-    return true
-  }
-
-  // ===== 属性点分配 =====
-  function allocateStat(type) {
-    if (statPoints.value <= 0) return false
-    statPoints.value--
-    if (type === 'atk') {
-      atkPoints.value++
-      atk.value += 2
-    } else if (type === 'def') {
-      defPoints.value++
-      def.value += 2
-    } else if (type === 'hp') {
-      hpPoints.value++
-      maxHp.value += 10
-      hp.value += 10
-    }
-    saveGame()
-    return true
-  }
-
-  // 重置属性点（消耗金币）
-  function resetStats() {
-    const cost = Math.floor(level.value * 50)
-    if (gold.value < cost) return false
-    gold.value -= cost
-    // 返还属性点到基础值
-    atk.value -= atkPoints.value * 2
-    def.value -= defPoints.value * 2
-    maxHp.value -= hpPoints.value * 10
-    hp.value = Math.min(hp.value, maxHp.value)
-    // 返还属性点
-    statPoints.value += atkPoints.value + defPoints.value + hpPoints.value
-    atkPoints.value = 0
-    defPoints.value = 0
-    hpPoints.value = 0
-    saveGame()
-    return true
   }
 
   // 退出限时Boss战斗
@@ -1480,16 +976,7 @@ export const useGameStore = defineStore('game', () => {
     }
     // 获取Boss专属题目
     const questions = ALL_QUESTIONS.filter(q => q.subject === scaledBoss.subject)
-    let q = null
-    if (questions.length > 0) {
-      q = questions[Math.floor(Math.random() * questions.length)]
-    } else if (ALL_QUESTIONS.length > 0) {
-      q = ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
-    }
-    if (!q) {
-      console.error('[enterWeeklyBoss] 题库为空，无法生成Boss题目')
-      return { success: false, reason: 'no_questions' }
-    }
+    const q = questions.length > 0 ? questions[Math.floor(Math.random() * questions.length)] : ALL_QUESTIONS[Math.floor(Math.random() * ALL_QUESTIONS.length)]
     question.value = q
     battleLog.value = [`👹 限时Boss「${scaledBoss.name}」出现！`, `⏱️ 每题限时 ${scaledBoss.timeLimit} 秒！`]
     battleState.value = 'idle'
@@ -1500,7 +987,6 @@ export const useGameStore = defineStore('game', () => {
     return { success: true }
   }
 
-  // 限时Boss答题攻击（带倒计时）
   function weeklyBossAnswerAttack(correct) {
     if (!enemy.value) return
     // 清除计时器
@@ -1518,6 +1004,17 @@ export const useGameStore = defineStore('game', () => {
         weeklyBossSkillUsed.value.push(skill)
         applyBossSkill(skill)
       }
+    }
+
+    // 开发者模式：自动答对+秒杀
+    if (devMode.value) {
+      sfxCorrect()
+      battleLog.value.push('💠 [Dev] 开发者模式：自动命中，秒杀Boss！')
+      enemy.value.hp = 0
+      consecutiveCorrect.value++
+      updateStats('totalCorrect', 1)
+      winWeeklyBoss()
+      return
     }
 
     if (correct) {
@@ -1588,256 +1085,271 @@ export const useGameStore = defineStore('game', () => {
         }
         if (q) {
           question.value = q
-          // 重启倒计时给下一题
           startWeeklyBossTimer()
         }
       }
     }
   }
 
-  // 启动限时Boss倒计时
   function startWeeklyBossTimer() {
+    const boss = weeklyBossData.value
+    if (!boss) return
+    weeklyBossTimeLeft.value = boss.timeLimit
     if (weeklyBossTimer.value) {
       clearInterval(weeklyBossTimer.value)
-      weeklyBossTimer.value = null
     }
-    const timeLimit = weeklyBossData.value?.timeLimit || 60
-    weeklyBossTimeLeft.value = timeLimit
     weeklyBossTimer.value = setInterval(() => {
       weeklyBossTimeLeft.value--
       if (weeklyBossTimeLeft.value <= 0) {
-        // 超时自动判错
         clearInterval(weeklyBossTimer.value)
         weeklyBossTimer.value = null
-        battleLog.value.push('⏰ 时间到！超时未答！')
+        // 超时算答错
         weeklyBossAnswerAttack(false)
       }
     }, 1000)
   }
 
-  // 应用Boss技能效果
   function applyBossSkill(skill) {
-    if (!enemy.value) return
-    battleLog.value.push(`👹 ${enemy.value.name} 发动「${skill.name}」！${skill.desc}`)
+    if (!skill) return
+    battleLog.value.push(`👹 ${enemy.value.name} 使用 ${skill.name}！${skill.desc}`)
+    // 应用技能效果
     if (skill.effect === 'heal') {
-      const heal = Math.floor(enemy.value.maxHp * skill.value)
-      enemy.value.hp = Math.min(enemy.value.maxHp, enemy.value.hp + heal)
-      battleLog.value.push(`${enemy.value.name} 恢复 ${heal} 点生命！`)
+      enemy.value.hp = Math.min(enemy.value.maxHp, enemy.value.hp + skill.value)
+      battleLog.value.push(`${enemy.value.name} 恢复了 ${skill.value} 点生命！`)
     } else if (skill.effect === 'buff') {
-      enemy.value.atk = Math.floor(enemy.value.atk * (1 + skill.value))
-      battleLog.value.push(`${enemy.value.name} 攻击力提升！`)
-    } else if (skill.effect === 'counter') {
-      // 反伤在玩家攻击时处理
-      battleLog.value.push(`⚠️ 小心反伤！`)
-    } else if (skill.effect === 'dodge') {
-      // 闪避在玩家攻击时概率处理
-      battleLog.value.push(`⚠️ 敌人可能闪避！`)
+      enemy.value.atk += skill.value
+      battleLog.value.push(`${enemy.value.name} 攻击力提升了 ${skill.value} 点！`)
+    } else if (skill.effect === 'debuff') {
+      atk.value -= skill.value
+      battleLog.value.push(`你的攻击力降低了 ${skill.value} 点！`)
+    } else if (skill.effect === 'shield') {
+      enemy.value.def += skill.value
+      battleLog.value.push(`${enemy.value.name} 防御力提升了 ${skill.value} 点！`)
     }
   }
 
-  // 击败限时Boss
-  function winWeeklyBoss() {
-    battleState.value = 'won'
-    // 清除计时器
-    if (weeklyBossTimer.value) {
-      clearInterval(weeklyBossTimer.value)
-      weeklyBossTimer.value = null
-    }
-    weeklyBossTimeLeft.value = 0
-    const boss = weeklyBossData.value
-    if (!boss) return
-
-    const expGain = boss.reward.exp
-    const goldGain = boss.reward.gold
-    exp.value += expGain
-    gold.value += goldGain
-    battleLog.value.push(`🎉 击败 ${boss.name}！获得 ${expGain} 经验和 ${goldGain} 金币！`)
-
-    // 记录击败
-    const key = getWeeklyBossKey(boss.id)
-    if (!weeklyBossDefeated.value.includes(key)) {
-      weeklyBossDefeated.value.push(key)
-    }
-
-    // 掉落材料
-    if (boss.reward.material) {
-      const mat = boss.reward.material
-      inventory.value[mat.name] = (inventory.value[mat.name] || 0) + mat.count
-      battleLog.value.push(`掉落 ${mat.count} 个 ${mat.name}！`)
-    }
-
-    // 检查升级
-    while (exp.value >= maxExp.value) {
-      exp.value -= maxExp.value
-      level.value++
-      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
-      hp.value = maxHp.value
-      statPoints.value++
-      if (level.value % 10 === 0) {
-        const milestoneBonus = Math.floor(level.value / 10)
-        atk.value += milestoneBonus
-        def.value += milestoneBonus
-        maxHp.value += milestoneBonus * 5
-        hp.value = maxHp.value
-      }
-    }
-
-    // 记录图鉴
-    if (enemy.value?.name) {
-      addToCyclopedia('monsters', enemy.value.name)
-    }
-    updateStats('totalWins', 1)
-    updateStats('totalBattles', 1)
-
+  // ===== 地牢系统 =====
+  // 进入地牢准备
+  function enterDungeonPrep() {
+    enterMode(GAME_MODE.DUNGEON_PREP)
+    dungeonPhase.value = 'prep'
+    currentFloorElement.value = getRandomElement(currentFloorElement.value)
+    generateRoomPreviews()
     saveGame()
   }
 
-  // 退出限时Boss战斗
-  function exitWeeklyBoss() {
-    inWeeklyBoss.value = false
-    weeklyBossData.value = null
-    weeklyBossTurn.value = 0
-    if (weeklyBossTimer.value) {
-      clearInterval(weeklyBossTimer.value)
-      weeklyBossTimer.value = null
+  // 生成房间预览
+  function generateRoomPreviews() {
+    const floorNum = floor.value
+    const element = currentFloorElement.value
+    const enemyList = getEnemyForFloor(floorNum, element)
+    const rooms = []
+    const used = new Set()
+    for (let i = 0; i < 9; i++) {
+      let e
+      do { e = enemyList[Math.floor(Math.random() * enemyList.length)] } while (used.has(e.name) && used.size < enemyList.length)
+      used.add(e.name)
+      rooms.push({
+        index: i,
+        enemyPreview: e,
+        cleared: false,
+        isBoss: false
+      })
     }
-    weeklyBossTimeLeft.value = 0
-    exitBattle()
+    const bossIdx = Math.floor(Math.random() * 9)
+    bossRoomIndex.value = bossIdx
+    rooms[bossIdx].isBoss = true
+    rooms[bossIdx].enemyPreview = getBossForFloor(floorNum, element)
+    roomGrid.value = rooms
+    clearedRoomsThisFloor.value = 0
+    currentRoomIndex.value = -1
   }
 
-  // 图鉴系统
-  function addToCyclopedia(type, id) {
-    if (!cyclopedia.value[type]) cyclopedia.value[type] = {}
-    if (!cyclopedia.value[type][id]) {
-      cyclopedia.value[type][id] = { found: true, count: 1 }
-      showNewDiscovery(type, id)
-    } else {
-      cyclopedia.value[type][id].count++
+  // 进入指定房间战斗
+  function enterRoom(roomIndex) {
+    const room = roomGrid.value[roomIndex]
+    if (!room || room.cleared) return
+
+    currentRoomIndex.value = roomIndex
+    dungeonPhase.value = 'battle'
+
+    const preview = room.enemyPreview
+    // 生成实际的敌人实例
+    enemy.value = {
+      name: preview.name,
+      icon: preview.icon,
+      hp: preview.hp,
+      maxHp: preview.hp,
+      atk: preview.atk,
+      def: preview.def,
+      subject: preview.subject,
+      element: preview.element,
+      subjectLabel: preview.subjectLabel,
+      elementLabel: preview.elementLabel
     }
+
+    // 获取题目
+    const q = getQuestionsForFloor(floor.value, 1)[0]
+    question.value = q
+
+    battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
+    battleState.value = 'idle'
+    inBattle.value = true
+    enterMode(GAME_MODE.BATTLE)
   }
 
-  function showNewDiscovery(type, id) {
-    const typeNames = { monsters: '怪物', materials: '材料', fishes: '鱼类', books: '古籍', titles: '人物' }
-    const name = id
-    newDiscoveries.value.push({ type: typeNames[type], name, time: Date.now() })
-    // 3秒后自动移除通知
-    setTimeout(() => {
-      newDiscoveries.value.shift()
-    }, 3000)
-  }
+  // 完成房间战斗
+  function finishRoom(cleared) {
+    if (currentRoomIndex.value < 0) return
 
-  function getCyclopediaProgress(type) {
-    const data = cyclopedia.value[type] || {}
-    const found = Object.keys(data).filter(k => data[k].found).length
-    const total = getTotalCount(type)
-    return { found, total, pct: total > 0 ? Math.round(found / total * 100) : 0 }
-  }
-
-  function isDiscovered(type, id) {
-    return cyclopedia.value[type]?.[id]?.found || false
-  }
-
-  function getDiscoveryCount(type, id) {
-    return cyclopedia.value[type]?.[id]?.count || 0
-  }
-
-  // 统计系统
-  const stats = ref({
-    totalCorrect: 0,
-    totalWrong: 0,
-    maxCombo: 0,
-    maxFloor: 1,
-    totalBattles: 0,
-    totalWins: 0,
-    totalFishes: 0,
-    totalForges: 0
-  })
-
-  function updateStats(key, value) {
-    if (stats.value[key] !== undefined) {
-      stats.value[key] += value
+    const room = roomGrid.value[currentRoomIndex.value]
+    if (room) {
+      room.cleared = cleared
+      if (cleared) clearedRoomsThisFloor.value++
     }
-    // 每次统计更新后检查成就
-    checkAchievements()
-  }
 
-  // 成就系统
-  function checkAchievements() {
-    const state = {
-      stats: stats.value,
-      farm: farm.value,
-      level: level.value,
-      allClearCount: allClearCount.value,
-      cyclopedia: cyclopedia.value,
-      weeklyDefeated: weeklyBossDefeated.value,
-    }
-    for (const ach of ACHIEVEMENTS) {
-      if (!unlockedAchievements.value.includes(ach.id) && checkAchievementUnlocked(ach, state)) {
-        unlockedAchievements.value.push(ach.id)
-        newAchievementUnlocks.value.push({
-          id: ach.id,
-          title: ach.title,
-          icon: ach.icon,
-          rarity: ach.rarity,
-          reward: ach.reward,
-          time: Date.now()
-        })
-        // 发放奖励
-        if (ach.reward?.exp) {
-          exp.value += ach.reward.exp
-          battleLog.value.push(`🏆 解锁成就「${ach.title}」！获得 ${ach.reward.exp} 经验！`)
-          // 检查升级
-          while (exp.value >= maxExp.value) {
-            exp.value -= maxExp.value
-            level.value++
-            maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
-            hp.value = maxHp.value
-            statPoints.value++
-            if (level.value % 10 === 0) {
-              const milestoneBonus = Math.floor(level.value / 10)
-              atk.value += milestoneBonus
-              def.value += milestoneBonus
-              maxHp.value += milestoneBonus * 5
-              hp.value = maxHp.value
-            }
-          }
-          saveGame()
-        }
-        // 3秒后移除通知
-        setTimeout(() => {
-          newAchievementUnlocks.value.shift()
-        }, 5000)
+    // 检查"我全都要"成就
+    const allCleared = roomGrid.value.every(r => r.cleared)
+    if (allCleared) {
+      allClearCount.value++
+      if (allClearCount.value >= 10) {
+        battleLog.value.push('🏆 解锁成就：我全都要！（连续10层清空所有房间）')
       }
     }
+
+    currentRoomIndex.value = -1
+    inBattle.value = false
+    enemy.value = null
+    question.value = null
+    // 不覆盖 captureSuccess/captureFail 状态，让用户能看到结果面板
+    if (battleState.value !== 'captureSuccess' && battleState.value !== 'captureFail') {
+      battleState.value = ''
+    }
+    resetCombo()
+
+    dungeonPhase.value = 'rooms'
+    enterMode(GAME_MODE.DUNGEON_ROOMS)
+    saveGame()
   }
 
-  // 钓鱼相关方法
+  // 进入下一层（必须击败 Boss）
+  function nextFloor() {
+    const bossRoom = roomGrid.value[bossRoomIndex.value]
+    if (!bossRoom || !bossRoom.cleared) {
+      return false
+    }
+    const allCleared = roomGrid.value.every(r => r.cleared)
+    if (!allCleared) {
+      hasSkippedRoom.value = true
+    }
+    floor.value++
+    dungeonPhase.value = 'prep'
+    enterMode(GAME_MODE.DUNGEON_PREP)
+    currentFloorElement.value = getRandomElement(currentFloorElement.value)
+    generateRoomPreviews()
+    return true
+  }
+
+  // 退出地牢
+  function exitDungeon() {
+    dungeonPhase.value = 'none'
+    roomGrid.value = []
+    bossRoomIndex.value = -1
+    currentRoomIndex.value = -1
+    inBattle.value = false
+    enemy.value = null
+    question.value = null
+    battleState.value = ''
+    resetCombo()
+    enterMode(GAME_MODE.IDLE)
+    saveGame()
+  }
+
+  // ===== 钓鱼系统 =====
+  // 记录捕获
   function recordFishCatch(fish) {
     if (!fish) return
-    recentCatches.value.push(fish)
-    // 只保留最近50条
+    recentCatches.value.unshift(fish)
     if (recentCatches.value.length > 50) {
-      recentCatches.value = recentCatches.value.slice(-50)
+      recentCatches.value.pop()
     }
-    // 更新图鉴计数
-    fishCollection.value[fish.rarity] = (fishCollection.value[fish.rarity] || 0) + 1
-    // 钓鱼经验（每10条升1级）
-    const totalCatches = Object.values(fishCollection.value).reduce((a, b) => a + b, 0)
-    fishingLevel.value = Math.floor(totalCatches / 10) + 1
-    // 记录图鉴
-    addToCyclopedia('fishes', fish.name)
+    fishCollection.value[fish.name] = (fishCollection.value[fish.name] || 0) + 1
     updateStats('totalFishes', 1)
-    saveGame()
   }
 
+  // 从记录中移除鱼（吃掉了）
   function removeFishFromRecent(fish) {
+    if (!fish) return
     const idx = recentCatches.value.findIndex(f => f.name === fish.name)
     if (idx !== -1) {
       recentCatches.value.splice(idx, 1)
     }
+    if (fishCollection.value[fish.name]) {
+      fishCollection.value[fish.name]--
+      if (fishCollection.value[fish.name] <= 0) {
+        delete fishCollection.value[fish.name]
+      }
+    }
   }
 
-  // 保存游戏
+  // 开始研读
+  function startBookStudy() {
+    const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1)[0]
+    if (!q) return false
+    bookStudyQuestion.value = q
+    bookStudyMode.value = true
+    return true
+  }
+
+  // 提交研读答案
+  function submitBookStudyAnswer(index) {
+    if (!bookStudyQuestion.value) return { correct: false, error: 'no_question' }
+    // 开发者模式：自动答对
+    const correct = devMode.value ? true : (index === bookStudyQuestion.value.answer)
+    bookStudyMode.value = false
+    if (correct) {
+      // 答对：加经验，古籍收入收藏
+      const expGain = 25
+      exp.value += expGain
+      // 检查升级
+      while (exp.value >= maxExp.value) {
+        exp.value -= maxExp.value
+        level.value++
+        maxExp.value = Math.floor(maxExp.value * 1.2)
+        hp.value = maxHp.value
+        atk.value += 2
+        def.value += 1
+      }
+      bookStudyQuestion.value = null
+      saveGame()
+      return { correct: true, expGain }
+    } else {
+      // 答错：古籍跑了，但没有任何限制，下次钓鱼还能再遇到
+      bookStudyQuestion.value = null
+      saveGame()
+      return { correct: false }
+    }
+  }
+
+  // 取消研读
+  function cancelBookStudy() {
+    bookStudyQuestion.value = null
+    bookStudyMode.value = false
+  }
+
+  // 钓鱼次数检查 — 每5次需要答题一次（周期性，非永久解锁）
+  function canFishToday() {
+    if (dailyFishCount.value < 5) return { allowed: true, reason: null }
+    return { allowed: false, reason: 'limit_reached' }
+  }
+
+  // 解锁钓鱼限制（答题通过）— 重置计数，开始新一轮5次
+  function unlockFishLimit() {
+    dailyFishCount.value = 0 // 重置计数，开始新一轮
+    saveGame()
+  }
+
+  // ===== 存档系统 =====
   function saveGame() {
     const saveData = {
       gameStarted: gameStarted.value,
@@ -1852,24 +1364,39 @@ export const useGameStore = defineStore('game', () => {
       gold: gold.value,
       floor: floor.value,
       title: title.value,
+      titleData: titleData.value,
+      titleBio: titleBio.value,
+      titleEra: titleEra.value,
+      titleField: titleField.value,
+      titleAchievements: titleAchievements.value,
+      statPoints: statPoints.value,
+      atkPoints: atkPoints.value,
+      defPoints: defPoints.value,
+      hpPoints: hpPoints.value,
       equipment: equipment.value,
       consumables: consumables.value,
       equipped: equipped.value,
       inventory: inventory.value,
       farm: farm.value,
       activeMonster: activeMonster.value,
+      cyclopedia: cyclopedia.value,
+      stats: stats.value,
+      unlockedAchievements: unlockedAchievements.value,
       fishingLevel: fishingLevel.value,
       recentCatches: recentCatches.value,
       fishCollection: fishCollection.value,
-      captureMonsterData: captureMonsterData.value,
-      captureQuestions: captureQuestions.value,
-      captureIndex: captureIndex.value,
-      captureCorrectCount: captureCorrectCount.value,
-      drop: drop.value,
       bookStudyQuestion: bookStudyQuestion.value,
       bookStudyMode: bookStudyMode.value,
       dailyFishCount: dailyFishCount.value,
       fishLimitUnlocked: fishLimitUnlocked.value,
+      wrongQuestions: wrongQuestions.value,
+      wrongStats: wrongStats.value,
+      reviewMode: reviewMode.value,
+      reviewCurrent: reviewCurrent.value,
+      reviewIndex: reviewIndex.value,
+      reviewPool: reviewPool.value,
+      reviewResults: reviewResults.value,
+      // 地牢房间系统
       dungeonPhase: dungeonPhase.value,
       roomGrid: roomGrid.value,
       bossRoomIndex: bossRoomIndex.value,
@@ -1879,10 +1406,6 @@ export const useGameStore = defineStore('game', () => {
       hasSkippedRoom: hasSkippedRoom.value,
       currentFloorElement: currentFloorElement.value,
       firstVisit: firstVisit.value,
-      cyclopedia: cyclopedia.value,
-      stats: stats.value,
-      usedQuestions: exportUsedQuestions(),
-      unlockedAchievements: unlockedAchievements.value,
       // 属性点系统
       statPoints: statPoints.value,
       atkPoints: atkPoints.value,
@@ -1894,52 +1417,56 @@ export const useGameStore = defineStore('game', () => {
       battleState: battleState.value,
       // 状态机（v8.0）
       gameMode: gameMode.value,
+      // 开发者模式
+      devMode: devMode.value,
       timestamp: Date.now()
     }
-    localStorage.setItem(SAVE_KEY, JSON.stringify(saveData))
-    // 错题本单独保存
-    saveWrongQuestions()
-    return true
+
+    localStorage.setItem('bio_yi_realm_save', JSON.stringify(saveData))
+    console.log('存档已保存')
   }
 
-  // 加载游戏
-  async function loadGame() {
-    const saveStr = localStorage.getItem(SAVE_KEY)
-    if (!saveStr) return false
-
-    isLoadingQuestions.value = true
-    await preloadQuestions()
-    isLoadingQuestions.value = false
-
+  function loadGame() {
     try {
+      const saveStr = localStorage.getItem('bio_yi_realm_save')
+      if (!saveStr) return false
+
       const saveData = JSON.parse(saveStr)
 
+      // 加载玩家状态
       gameStarted.value = saveData.gameStarted || false
       activeTab.value = saveData.activeTab || 'dungeon'
       level.value = saveData.level || 1
       exp.value = saveData.exp || 0
-      maxExp.value = saveData.maxExp || 100
-      hp.value = saveData.hp || 100
       maxHp.value = saveData.maxHp || 100
-      atk.value = saveData.atk || 15
-      def.value = saveData.def || 8
+      hp.value = saveData.hp || maxHp.value
+      atk.value = saveData.atk || 10
+      def.value = saveData.def || 5
       gold.value = saveData.gold || 0
       floor.value = saveData.floor || 1
-      // title 是 computed，不需要从存档加载
+      title.value = saveData.title || '菜鸟学徒'
+      titleData.value = saveData.titleData || getTitleForLevel(1)
+      titleBio.value = saveData.titleBio || '刚踏入知识领域的初学者，对一切都充满好奇。'
+      titleEra.value = saveData.titleEra || '远古'
+      titleField.value = saveData.titleField || '化学'
+      titleAchievements.value = saveData.titleAchievements || []
+      statPoints.value = saveData.statPoints || 0
+      atkPoints.value = saveData.atkPoints || 0
+      defPoints.value = saveData.defPoints || 0
+      hpPoints.value = saveData.hpPoints || 0
+
+      // 加载装备和物品
       equipment.value = saveData.equipment || []
       consumables.value = saveData.consumables || []
       equipped.value = saveData.equipped || { weapon: null, armor: null, accessory: null }
       inventory.value = saveData.inventory || {}
       farm.value = saveData.farm || []
       activeMonster.value = saveData.activeMonster || null
+
+      // 加载钓鱼系统
       fishingLevel.value = saveData.fishingLevel || 1
       recentCatches.value = saveData.recentCatches || []
       fishCollection.value = saveData.fishCollection || {}
-      drop.value = saveData.drop || null
-      captureMonsterData.value = saveData.captureMonsterData || null
-      captureQuestions.value = saveData.captureQuestions || []
-      captureIndex.value = saveData.captureIndex || 0
-      captureCorrectCount.value = saveData.captureCorrectCount || 0
       bookStudyQuestion.value = saveData.bookStudyQuestion || null
       bookStudyMode.value = saveData.bookStudyMode || false
       dailyFishCount.value = saveData.dailyFishCount || 0
@@ -1961,18 +1488,14 @@ export const useGameStore = defineStore('game', () => {
       // 加载战斗状态（v8.0 兼容旧存档）
       inBattle.value = saveData.inBattle || false
       battleState.value = saveData.battleState || ''
-
-      // 加载属性点系统
-      statPoints.value = saveData.statPoints || 0
-      atkPoints.value = saveData.atkPoints || 0
-      defPoints.value = saveData.defPoints || 0
-      hpPoints.value = saveData.hpPoints || 0
-
       // 加载限时Boss记录
       weeklyBossDefeated.value = saveData.weeklyBossDefeated || []
       weeklyBossData.value = saveData.weeklyBossData || null
       weeklyBossTurn.value = saveData.weeklyBossTurn || 0
       weeklyBossTimeLeft.value = saveData.weeklyBossTimeLeft || 0
+
+      // 开发者模式
+      devMode.value = saveData.devMode || false
 
       // 状态机（v8.0）— 兼容旧存档
       gameMode.value = saveData.gameMode || GAME_MODE.IDLE
@@ -2000,27 +1523,88 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // 检查是否有存档
   function hasSave() {
-    return !!localStorage.getItem(SAVE_KEY)
+    return !!localStorage.getItem('bio_yi_realm_save')
   }
 
-  // 删除存档
   function deleteSave() {
-    localStorage.removeItem(SAVE_KEY)
-    localStorage.removeItem(WRONG_KEY)
+    localStorage.removeItem('bio_yi_realm_save')
+    // 重置所有状态
+    gameStarted.value = false
+    level.value = 1
+    exp.value = 0
+    hp.value = 100
+    maxHp.value = 100
+    atk.value = 10
+    def.value = 5
+    gold.value = 0
+    floor.value = 1
+    title.value = '菜鸟学徒'
+    equipment.value = []
+    consumables.value = []
+    equipped.value = { weapon: null, armor: null, accessory: null }
+    inventory.value = {}
+    farm.value = []
+    activeMonster.value = null
+    cyclopedia.value = {}
+    stats.value = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
+    unlockedAchievements.value = []
+    fishingLevel.value = 1
+    recentCatches.value = []
+    fishCollection.value = {}
+    bookStudyQuestion.value = null
+    bookStudyMode.value = false
+    dailyFishCount.value = 0
+    fishLimitUnlocked.value = false
+    dungeonPhase.value = 'none'
+    roomGrid.value = []
+    bossRoomIndex.value = -1
+    currentRoomIndex.value = -1
+    allClearCount.value = 0
+    clearedRoomsThisFloor.value = 0
+    hasSkippedRoom.value = false
+    currentFloorElement.value = 'water'
+    firstVisit.value = true
+    wrongQuestions.value = []
+    wrongStats.value = {}
+    reviewMode.value = false
+    reviewCurrent.value = null
+    reviewIndex.value = 0
+    reviewPool.value = []
+    reviewResults.value = []
+    inBattle.value = false
+    battleState.value = ''
+    enemy.value = null
+    question.value = null
+    battleLog.value = []
+    drop.value = null
+    captureMonsterData.value = null
+    captureQuestions.value = []
+    captureIndex.value = 0
+    captureCorrectCount.value = 0
+    comboCount.value = 0
+    comboActive.value = false
+    consecutiveCorrect.value = 0
+    weeklyBossDefeated.value = []
+    weeklyBossData.value = null
+    weeklyBossTurn.value = 0
+    weeklyBossTimeLeft.value = 0
+    weeklyBossSkillUsed.value = []
+    if (weeklyBossTimer.value) {
+      clearInterval(weeklyBossTimer.value)
+      weeklyBossTimer.value = null
+    }
+    devMode.value = false
+    gameMode.value = GAME_MODE.IDLE
+    saveGame()
   }
-
-  const titleData = computed(() => getTitleData(level.value))
-  const titleBio = computed(() => titleData.value.bio)
-  const titleEra = computed(() => titleData.value.era)
-  const titleField = computed(() => titleData.value.field)
-  const titleAchievements = computed(() => titleData.value.achievements)
 
   return {
     // 状态机（v8.0）
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
-    gameStarted, isLoadingQuestions, activeTab, inBattle, battleState,
+    // 开发者模式
+    devMode, toggleDevMode,
+    gameStarted, activeTab, inBattle, battleState,
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,
     enemy, question, battleLog,
     equipment, consumables, equipped, inventory,
