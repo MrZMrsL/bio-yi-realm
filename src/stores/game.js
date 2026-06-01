@@ -84,6 +84,12 @@ export const useGameStore = defineStore('game', () => {
     return devMode.value
   }
 
+  // 玩家专精选择
+  const playerSpecialization = ref(null)
+  function setSpecialization(spec) {
+    playerSpecialization.value = spec
+  }
+
   // ===== 状态机（v8.0）=====
   const gameMode = ref(GAME_MODE.IDLE)
 
@@ -267,7 +273,7 @@ export const useGameStore = defineStore('game', () => {
   function initBattle() {
     enterMode(GAME_MODE.BATTLE)
     const e = getEnemyForFloor(floor.value)[0] || getRandomEnemy()
-    const q = getQuestionsForFloor(floor.value, 1)[0]
+    const q = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
     if (!q) {
       console.error('[initBattle] 题目加载失败，无法初始化战斗')
       return
@@ -473,7 +479,7 @@ export const useGameStore = defineStore('game', () => {
       } else {
         battleState.value = 'idle'
         // 刷新题目，避免同一题反复出现
-        const newQ = getQuestionsForFloor(floor.value, 1)[0]
+        const newQ = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
         if (newQ) question.value = newQ
       }
     } else {
@@ -541,7 +547,7 @@ export const useGameStore = defineStore('game', () => {
         captureFloor: floor.value
       }
       // 生成3道捕捉题目
-      const qs = getQuestionsForFloor(floor.value, 3)
+      const qs = getQuestionsForFloor(floor.value, 3, playerSpecialization.value)
       captureQuestions.value = qs
       captureIndex.value = 0
       captureCorrectCount.value = 0
@@ -1254,7 +1260,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     // 获取题目
-    const q = getQuestionsForFloor(floor.value, 1)[0]
+    const q = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
     question.value = q
 
     battleLog.value = [`${room.isBoss ? '👹 BOSS战！' : ''}遭遇 ${preview.name}！`]
@@ -1359,7 +1365,7 @@ export const useGameStore = defineStore('game', () => {
 
   // 开始研读
   function startBookStudy() {
-    const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1)[0]
+    const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1, playerSpecialization.value)[0]
     if (!q) return false
     bookStudyQuestion.value = q
     bookStudyMode.value = true
@@ -1483,6 +1489,7 @@ export const useGameStore = defineStore('game', () => {
       // 状态机（v8.0）
       gameMode: gameMode.value,
       // 开发者模式
+      playerSpecialization: playerSpecialization.value,
       devMode: devMode.value,
       timestamp: Date.now()
     }
@@ -1559,6 +1566,7 @@ export const useGameStore = defineStore('game', () => {
       weeklyBossTurn.value = saveData.weeklyBossTurn || 0
       weeklyBossTimeLeft.value = saveData.weeklyBossTimeLeft || 0
 
+      playerSpecialization.value = saveData.playerSpecialization || null
       // 开发者模式
       devMode.value = saveData.devMode || false
 
@@ -1668,6 +1676,7 @@ export const useGameStore = defineStore('game', () => {
     // 状态机（v8.0）
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     // 开发者模式
+    playerSpecialization, setSpecialization,
     devMode, toggleDevMode,
     gameStarted, activeTab, inBattle, battleState,
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,

@@ -201,10 +201,18 @@ export function getAllQuestions() {
   return [...ALL_QUESTIONS, ...CHEM_QUESTIONS, ...BIO_QUESTIONS, ...YI_QUESTIONS]
 }
 
-export function getQuestionsForFloor(floor, count = 5) {
+export function getQuestionsForFloor(floor, count = 5, spec = 'all') {
   let difficulty = 'easy'
   if (floor >= 10) difficulty = 'hard'
   else if (floor >= 5) difficulty = 'medium'
 
-  return getQuestions('all', difficulty, count)
+  let subject = 'all'
+  if (spec === 'chem') subject = 'chem'
+  else if (spec === 'bio') subject = 'bio'
+  else if (spec === 'yi') subject = 'yi'
+  else if (spec === 'biochem') {
+    subject = Math.random() < 0.5 ? 'chem' : 'bio'
+  }
+
+  return getQuestions(subject, difficulty, count)
 }
