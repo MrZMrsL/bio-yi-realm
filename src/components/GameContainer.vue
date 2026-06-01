@@ -685,7 +685,44 @@
             </div>
           </div>
 
-          <!-- 存档面板 -->
+          <!-- 开发面板 -->
+          <div v-if="activeSettingsTab === 'dev'" class="settings-content">
+            <div v-if="!devUnlocked" class="dev-lock-panel">
+              <div class="dev-lock-icon">🔐</div>
+              <div class="dev-lock-title">开发者选项</div>
+              <div class="dev-lock-desc">请输入开发者密令以解锁</div>
+              <input
+                v-model="devPassphrase"
+                type="password"
+                class="dev-passphrase-input"
+                placeholder="输入密令..."
+                @keyup.enter="unlockDev"
+              />
+              <button @click="unlockDev" class="btn-dev-unlock">解锁</button>
+            </div>
+            <div v-else class="dev-panel">
+              <div class="dev-header">
+                <h3>🛠️ 开发者选项</h3>
+                <button @click="devUnlocked = false" class="btn-dev-lock">重新锁定</button>
+              </div>
+              <div class="dev-options">
+                <div class="dev-option">
+                  <span class="dev-label">开发者模式（秒杀）</span>
+                  <button @click="store.toggleDevMode" class="btn-dev-toggle" :class="{ active: store.devMode }">
+                    {{ store.devMode ? '✅ 开启' : '❌ 关闭' }}
+                  </button>
+                </div>
+                <div class="dev-option">
+                  <span class="dev-label">当前 gameMode</span>
+                  <span class="dev-value">{{ store.gameMode }}</span>
+                </div>
+                <div class="dev-option">
+                  <span class="dev-label">重置本地存储</span>
+                  <button @click="resetLocalStorage" class="btn-dev-danger">🗑️ 清除所有数据</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div v-if="activeSettingsTab === 'save'" class="settings-content">
             <div class="save-actions">
               <button class="save-btn" @click="saveGame">
@@ -748,6 +785,19 @@ const activePanel = ref(null)
 const activeSettingsTab = ref('title')
 const soundEnabled = ref(isSoundEnabled())
 const activeEncCategory = ref('monsters')
+const devPassphrase = ref('')
+const devUnlocked = ref(false)
+
+const DEV_SECRET = 'laozheng666'  // 开发者密令
+
+function unlockDev() {
+  if (devPassphrase.value === DEV_SECRET) {
+    devUnlocked.value = true
+    devPassphrase.value = ''
+  } else {
+    alert('密令错误！')
+  }
+}
 
 // ===== 帮助文档 =====
 const expandedHelp = ref(null)
@@ -774,6 +824,14 @@ function submitFeedback() {
 function submitFeedbackViaChat() {
   // 通过 Kimi 助手发送反馈（模拟，实际会触发助手消息）
   alert('反馈已准备发送！请复制以下内容发给老郑：\n\n【类型】' + FEEDBACK_TYPES.find(t => t.value === feedbackType.value)?.label + '\n【标题】' + feedbackTitle.value + '\n【内容】' + feedbackBody.value)
+}
+
+function resetLocalStorage() {
+  if (confirm('⚠️ 确定要清除所有本地存档数据吗？此操作不可恢复！')) {
+    localStorage.clear()
+    alert('本地存储已清除，页面将刷新。')
+    location.reload()
+  }
 }
 
 const allTitles = TITLE_TABLE
