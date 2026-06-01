@@ -61,6 +61,7 @@
           </div>
           <div class="achievement-status">
             <div v-if="isUnlocked(ach.id)" class="status-badge unlocked">✅ 已解锁</div>
+            <div v-if="isUnlocked(ach.id) && unlockTime(ach.id)" class="unlock-time">{{ formatUnlockTime(unlockTime(ach.id)) }}</div>
             <div v-else class="status-badge locked">🔒 未解锁</div>
           </div>
         </div>
@@ -146,7 +147,17 @@ const gameState = computed(() => ({
 }))
 
 function isUnlocked(achId) {
-  return store.unlockedAchievements?.includes(achId) || false
+  return !!store.unlockedAchievements?.[achId]
+}
+
+function unlockTime(achId) {
+  return store.unlockedAchievements?.[achId]
+}
+
+function formatUnlockTime(timestamp) {
+  if (!timestamp) return ''
+  const d = new Date(timestamp)
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
 function progressPctFor(ach) {
@@ -358,8 +369,10 @@ function categoryCount(cat) {
 }
 
 .achievement-card.locked {
-  opacity: 0.6;
-  border-color: rgba(100, 100, 100, 0.2);
+  opacity: 0.45;
+  filter: grayscale(0.7);
+  border-color: rgba(80, 80, 80, 0.15);
+  background: rgba(30, 30, 30, 0.3);
 }
 
 .achievement-card.unlocked.rarity-normal {
@@ -438,6 +451,12 @@ function categoryCount(cat) {
 .status-badge.locked {
   background: rgba(100, 100, 100, 0.2);
   color: #888;
+}
+
+.unlock-time {
+  font-size: 10px;
+  color: #d4a853;
+  white-space: nowrap;
 }
 
 /* 右侧信息 */

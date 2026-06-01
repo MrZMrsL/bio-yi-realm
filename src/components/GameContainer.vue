@@ -133,7 +133,7 @@
         <div class="area-card achievements-card" @click="openPanel('achievements')">
           <div class="area-icon">🏆</div>
           <div class="area-name">成就殿堂</div>
-          <div class="area-desc">{{ store.unlockedAchievements?.length || 0 }} / {{ totalAchievements }} 已解锁</div>
+          <div class="area-desc">{{ Object.keys(store.unlockedAchievements || {}).length || 0 }} / {{ totalAchievements }} 已解锁</div>
         </div>
       </div>
     </div>

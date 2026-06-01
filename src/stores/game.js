@@ -163,7 +163,7 @@ export const useGameStore = defineStore('game', () => {
   const stats = ref({ totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 })
 
   // ===== 成就系统 =====
-  const unlockedAchievements = ref([])
+  const unlockedAchievements = ref({})
   const newAchievementUnlocks = ref([])
 
   // ===== 钓鱼系统 =====
@@ -1549,7 +1549,7 @@ export const useGameStore = defineStore('game', () => {
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
       cyclopedia.value = saveData.cyclopedia || {}
       stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
-      unlockedAchievements.value = saveData.unlockedAchievements || []
+      unlockedAchievements.value = typeof saveData.unlockedAchievements === 'object' && !Array.isArray(saveData.unlockedAchievements) ? saveData.unlockedAchievements : (Array.isArray(saveData.unlockedAchievements) ? Object.fromEntries(saveData.unlockedAchievements.map(id => [id, Date.now()])) : {})
       // 加载战斗状态（v8.0 兼容旧存档）
       inBattle.value = saveData.inBattle || false
       battleState.value = saveData.battleState || ''
@@ -1613,7 +1613,7 @@ export const useGameStore = defineStore('game', () => {
     activeMonster.value = null
     cyclopedia.value = {}
     stats.value = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
-    unlockedAchievements.value = []
+    unlockedAchievements.value = {}
     fishingLevel.value = 1
     recentCatches.value = []
     fishCollection.value = {}
