@@ -135,6 +135,8 @@ export const useGameStore = defineStore('game', () => {
   const atkPoints = ref(0)
   const defPoints = ref(0)
   const hpPoints = ref(0)
+  const activeBuffs = ref([]) // [{ effect, value, remaining }]
+
 
   // ===== 战斗状态 =====
   const inBattle = ref(false)
@@ -222,8 +224,18 @@ export const useGameStore = defineStore('game', () => {
       hp: Math.floor(activeMonster.value.maxHp * 0.1)
     }
   })
-  const totalAtk = computed(() => atk.value + monsterBonus.value.atk)
-  const totalDef = computed(() => def.value + monsterBonus.value.def)
+  const totalAtk = computed(() => {
+    let base = atk.value + monsterBonus.value.atk
+    if (equipped.value.weapon) base += equipped.value.weapon.atk || 0
+    if (equipped.value.accessory) base += equipped.value.accessory.atk || 0
+    return base
+  })
+  const totalDef = computed(() => {
+    let base = def.value + monsterBonus.value.def
+    if (equipped.value.armor) base += equipped.value.armor.def || 0
+    if (equipped.value.accessory) base += equipped.value.accessory.def || 0
+    return base
+  })
 
   // ===== 属性点分配 =====
   function allocateStat(type) {
@@ -503,9 +515,19 @@ export const useGameStore = defineStore('game', () => {
       hp.value = Math.min(maxHp.value, hp.value + heal)
       battleLog.value.push(`使用 ${item.name}，恢复 ${heal} 点生命！`)
     } else if (item.type === 'buff') {
-      atk.value += item.bonusAtk
-      def.value += item.bonusDef
-      battleLog.value.push(`使用 ${item.name}，攻击+${item.bonusAtk} 防御+${item.bonusDef}！`)
+      const val = item.value || 0
+      if (item.effect === 'atk') {
+        atk.value += val
+        activeBuffs.value.push({ effect: 'atk', value: val, remaining: 3 })
+        battleLog.value.push(`使用 ${item.name}，攻击+${val}（持续3场战斗）！`)
+      } else if (item.effect === 'def') {
+        def.value += val
+        activeBuffs.value.push({ effect: 'def', value: val, remaining: 3 })
+        battleLog.value.push(`使用 ${item.name}，防御+${val}（持续3场战斗）！`)
+      } else if (item.effect === 'crit') {
+        activeBuffs.value.push({ effect: 'crit', value: val, remaining: 3 })
+        battleLog.value.push(`使用 ${item.name}，暴击率+${val}%（持续3场战斗）！`)
+      }
     } else if (item.type === 'revive') {
       hp.value = maxHp.value
       battleLog.value.push(`使用 ${item.name}，满血复活！`)
@@ -586,6 +608,24 @@ export const useGameStore = defineStore('game', () => {
     if (floor.value > stats.value.maxFloor) {
       stats.value.maxFloor = floor.value
     }
+
+    // 衰减 buff（每场胜利后减少1场剩余，归零时移除属性）
+    activeBuffs.value = activeBuffs.value.filter(b => {
+      b.remaining--
+      if (b.remaining <= 0) {
+        if (b.effect === 'atk') {
+          atk.value -= b.value
+          battleLog.value.push(`⚠️ 攻击增益效果结束！攻击-${b.value}`)
+        } else if (b.effect === 'def') {
+          def.value -= b.value
+          battleLog.value.push(`⚠️ 防御增益效果结束！防御-${b.value}`)
+        } else if (b.effect === 'crit') {
+          battleLog.value.push(`⚠️ 暴击增益效果结束！`)
+        }
+        return false
+      }
+      return true
+    })
 
     saveGame()
   }
@@ -1482,6 +1522,7 @@ export const useGameStore = defineStore('game', () => {
       atkPoints: atkPoints.value,
       defPoints: defPoints.value,
       hpPoints: hpPoints.value,
+      activeBuffs: activeBuffs.value,
       // 限时Boss
       weeklyBossDefeated: weeklyBossDefeated.value,
       inBattle: inBattle.value,
@@ -1526,6 +1567,7 @@ export const useGameStore = defineStore('game', () => {
       atkPoints.value = saveData.atkPoints || 0
       defPoints.value = saveData.defPoints || 0
       hpPoints.value = saveData.hpPoints || 0
+      activeBuffs.value = saveData.activeBuffs || []
 
       // 加载装备和物品
       equipment.value = saveData.equipment || []
@@ -1650,6 +1692,7 @@ export const useGameStore = defineStore('game', () => {
     enemy.value = null
     question.value = null
     battleLog.value = []
+    activeBuffs.value = []
     drop.value = null
     captureMonsterData.value = null
     captureQuestions.value = []
@@ -1695,7 +1738,7 @@ export const useGameStore = defineStore('game', () => {
     currentFloorElement, showTutorial, firstVisit,
     expPercent, hpPercent, monsterBonus, totalAtk, totalDef,
     // 属性点
-    statPoints, atkPoints, defPoints, hpPoints,
+    statPoints, atkPoints, defPoints, hpPoints, activeBuffs,
     // 限时Boss
     inWeeklyBoss, weeklyBossData, weeklyBossTurn, weeklyBossTimeLeft, weeklyBossSkillUsed, weeklyBossDefeated,
     startGame, setTab,
