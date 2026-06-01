@@ -79,10 +79,17 @@
           <div class="area-desc">怪物 · 材料 · 鱼</div>
         </div>
 
-        <!-- 仓库 -->
+        <!-- 人物 -->
+        <div class="area-card character-card" @click="openPanel('character')">
+          <div class="area-icon">👤</div>
+          <div class="area-name">人物</div>
+          <div class="area-desc">装备 · 属性点</div>
+        </div>
+
+        <!-- 背包 -->
         <div class="area-card inventory-card" @click="openPanel('inventory')">
           <div class="area-icon">🎒</div>
-          <div class="area-name">仓库</div>
+          <div class="area-name">背包</div>
           <div class="area-desc">装备 · 材料 · 药水</div>
         </div>
 
@@ -414,7 +421,12 @@
           </div>
         </div>
 
-        <!-- 仓库面板 -->
+        <!-- 人物面板 -->
+        <div v-if="activePanel === 'character'" class="panel-character">
+          <CharacterPanel />
+        </div>
+
+        <!-- 背包面板 -->
         <div v-if="activePanel === 'inventory'" class="panel-inventory">
           <Inventory />
         </div>
@@ -544,53 +556,6 @@
                 </div>
                 <p class="enc-lore" v-if="isDiscovered('books', book.name)">{{ book.lore }}</p>
                 <p class="enc-lore hidden" v-else>尚未发现此古籍...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- 属性点面板 -->
-          <div v-if="activeSettingsTab === 'stats'" class="settings-content">
-            <div class="stats-panel">
-              <div class="stats-header">
-                <h3>✨ 属性点分配</h3>
-                <div class="stats-available">可用点数: <span class="highlight">{{ store.statPoints }}</span></div>
-              </div>
-              <div class="stats-current">
-                <div class="stat-row">
-                  <span class="stat-label">⚔️ 攻击力</span>
-                  <span class="stat-value">{{ store.atk }} (已分配{{ store.atkPoints }}点)</span>
-                  <button 
-                    v-if="store.statPoints > 0" 
-                    @click="store.allocateStat('atk')"
-                    class="btn-allocate"
-                  >+2</button>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-label">🛡️ 防御力</span>
-                  <span class="stat-value">{{ store.def }} (已分配{{ store.defPoints }}点)</span>
-                  <button 
-                    v-if="store.statPoints > 0" 
-                    @click="store.allocateStat('def')"
-                    class="btn-allocate"
-                  >+2</button>
-                </div>
-                <div class="stat-row">
-                  <span class="stat-label">❤️ 生命值</span>
-                  <span class="stat-value">{{ store.maxHp }} (已分配{{ store.hpPoints }}点)</span>
-                  <button 
-                    v-if="store.statPoints > 0" 
-                    @click="store.allocateStat('hp')"
-                    class="btn-allocate"
-                  >+10</button>
-                </div>
-              </div>
-              <div v-if="store.atkPoints + store.defPoints + store.hpPoints > 0" class="stats-reset">
-                <button @click="store.resetStats" class="btn-reset">
-                  重置属性点 (消耗 {{ Math.floor(store.level * 50) }} 金币)
-                </button>
-              </div>
-              <div v-if="store.statPoints === 0" class="stats-hint">
-                升级后获得属性点，可自由分配到攻击/防御/生命。
               </div>
             </div>
           </div>
@@ -774,6 +739,7 @@ const Fishing = asyncComp(() => import('./Fishing.vue'))
 const Shop = asyncComp(() => import('./Shop.vue'))
 const Review = asyncComp(() => import('./Review.vue'))
 const Achievements = asyncComp(() => import('./Achievements.vue'))
+const CharacterPanel = asyncComp(() => import('./CharacterPanel.vue'))
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { ACHIEVEMENTS } from '../data/achievements.js'
 import { HELP_DOCUMENTATION, FEEDBACK_TYPES } from '../data/help.js'
@@ -843,7 +809,6 @@ const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
-  { key: 'stats', label: '属性点' },
   { key: 'help', label: '帮助' },
   { key: 'feedback', label: '反馈' },
   { key: 'save', label: '存档' },
@@ -874,7 +839,8 @@ const panelTitle = computed(() => {
   const titles = {
     dungeon: '地牢探索',
     encyclopedia: '图鉴',
-    inventory: '仓库',
+    inventory: '背包',
+    character: '人物',
     farm: '怪物农场',
     fishing: '钓鱼塘',
     study: '自习室',
@@ -912,6 +878,7 @@ function openPanel(panel) {
     shop: 'shop',
     farm: 'farm',
     inventory: 'inventory',
+    character: 'character',
     fishing: 'fishing',
     study: 'study',
     achievements: 'achievements',
@@ -1520,6 +1487,7 @@ function resetGame() {
 .dungeon-card { border-top: 3px solid #e74c3c; }
 .encyclopedia-card { border-top: 3px solid #e67e22; }
 .inventory-card { border-top: 3px solid #3498db; }
+.character-card { border-top: 3px solid #e74c3c; }
 .farm-card { border-top: 3px solid #2ecc71; }
 .fishing-card { border-top: 3px solid #1abc9c; }
 .study-card { border-top: 3px solid #9b59b6; }
