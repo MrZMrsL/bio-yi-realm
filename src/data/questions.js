@@ -197,6 +197,10 @@ export function getQuestions(subject, difficulty, count = 5) {
 }
 
 // 按楼层获取题目（难度递增）
+export function getAllQuestions() {
+  return [...ALL_QUESTIONS, ...CHEM_QUESTIONS, ...BIO_QUESTIONS, ...YI_QUESTIONS]
+}
+
 export function getQuestionsForFloor(floor, count = 5) {
   let difficulty = 'easy'
   if (floor >= 10) difficulty = 'hard'

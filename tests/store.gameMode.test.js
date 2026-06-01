@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useGameStore, GAME_MODE } from '../src/stores/game.js'
 
-// 注意：需要先在项目里安装 vitest 和 @vitejs/plugin-vue
-// npm install -D vitest @vitejs/plugin-vue
-// 然后在 package.json 的 scripts 里加: "test": "vitest"
+// Mock localStorage for testing
+vi.stubGlobal('localStorage', {
+  getItem: vi.fn(() => null),
+  setItem: vi.fn(),
+  removeItem: vi.fn()
+})
 
 describe('状态机核心规则', () => {
   let store
@@ -233,6 +236,7 @@ describe('状态机兼容旧存档', () => {
     store.dungeonPhase = 'none'
     store.inBattle = false
     store.weeklyBossData = null
+    store.gameMode = null  // 模拟旧存档无 gameMode
     // 模拟 loadGame 的兼容逻辑
     if (!store.gameMode) {
       if (store.inBattle) {
@@ -242,6 +246,8 @@ describe('状态机兼容旧存档', () => {
         store.gameMode = GAME_MODE.DUNGEON_PREP
       } else if (store.dungeonPhase === 'rooms') {
         store.gameMode = GAME_MODE.DUNGEON_ROOMS
+      } else {
+        store.gameMode = GAME_MODE.IDLE
       }
     }
     expect(store.gameMode).toBe(GAME_MODE.IDLE)
@@ -251,6 +257,7 @@ describe('状态机兼容旧存档', () => {
     store.dungeonPhase = 'battle'
     store.inBattle = true
     store.weeklyBossData = null
+    store.gameMode = null  // 模拟旧存档无 gameMode
     if (!store.gameMode) {
       if (store.inBattle) {
         if (store.weeklyBossData) store.gameMode = GAME_MODE.WEEKLY_BOSS

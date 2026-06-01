@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions } from '../data/questions.js'
-import { ENEMIES, getEnemyForFloor } from '../data/enemies.js'
+import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import {
   createFarmMonster,
@@ -266,7 +266,7 @@ export const useGameStore = defineStore('game', () => {
   // ===== 战斗系统 =====
   function initBattle() {
     enterMode(GAME_MODE.BATTLE)
-    const e = getEnemyForFloor(floor.value)
+    const e = getEnemyForFloor(floor.value)[0] || getRandomEnemy()
     const q = getQuestionsForFloor(floor.value, 1)[0]
     if (!q) {
       console.error('[initBattle] 题目加载失败，无法初始化战斗')
@@ -354,6 +354,63 @@ export const useGameStore = defineStore('game', () => {
       })
     }
     saveWrongQuestion(wrongQuestions.value)
+  }
+
+  // 错题本操作
+  function masterQuestion(id) {
+    const wq = wrongQuestions.value.find(wq => wq.id === id)
+    if (wq) {
+      wq.mastered = true
+      saveWrongQuestion(wrongQuestions.value)
+    }
+  }
+  function removeWrongQuestion(id) {
+    wrongQuestions.value = wrongQuestions.value.filter(wq => wq.id !== id)
+    saveWrongQuestion(wrongQuestions.value)
+  }
+  function startReview(subjectFilter) {
+    reviewMode.value = true
+    reviewIndex.value = 0
+    reviewResults.value = []
+    let pool = wrongQuestions.value.filter(wq => !wq.mastered)
+    if (subjectFilter) {
+      pool = pool.filter(wq => wq.question?.subject === subjectFilter || wq.subject === subjectFilter)
+    }
+    reviewPool.value = pool.map(wq => ({
+      id: wq.id,
+      q: wq.question?.q || wq.q,
+      options: wq.question?.options || wq.options,
+      answer: wq.question?.answer ?? wq.answer,
+      subject: wq.question?.subject || wq.subject,
+      diff: wq.question?.diff || wq.diff,
+      wrongCount: wq.wrongCount
+    }))
+    reviewCurrent.value = reviewPool.value[0] || null
+  }
+  function submitReviewAnswer(index) {
+    if (!reviewCurrent.value) return
+    const correct = index === reviewCurrent.value.answer
+    reviewResults.value.push({
+      id: reviewCurrent.value.id,
+      correct,
+      subject: reviewCurrent.value.subject,
+      diff: reviewCurrent.value.diff
+    })
+    if (correct) {
+      masterQuestion(reviewCurrent.value.id)
+    }
+    reviewIndex.value++
+    reviewCurrent.value = reviewPool.value[reviewIndex.value] || null
+    if (!reviewCurrent.value) {
+      reviewMode.value = false
+    }
+  }
+  function exitReview() {
+    reviewMode.value = false
+    reviewCurrent.value = null
+    reviewIndex.value = 0
+    reviewPool.value = []
+    reviewResults.value = []
   }
 
   // 答题攻击
@@ -888,13 +945,16 @@ export const useGameStore = defineStore('game', () => {
       weeklyBossTimer.value = null
     }
     weeklyBossTimeLeft.value = 0
-    exitBattle()
-    enterMode(GAME_MODE.IDLE)
+    inBattle.value = false
+    battleState.value = ''
+    gameMode.value = GAME_MODE.IDLE
+    return true
   }
 
   // 击败限时Boss
   function winWeeklyBoss() {
     battleState.value = 'won'
+    gameMode.value = GAME_MODE.WON
     // 清除计时器
     if (weeklyBossTimer.value) {
       clearInterval(weeklyBossTimer.value)
@@ -1228,7 +1288,7 @@ export const useGameStore = defineStore('game', () => {
     resetCombo()
 
     dungeonPhase.value = 'rooms'
-    enterMode(GAME_MODE.DUNGEON_ROOMS)
+    gameMode.value = GAME_MODE.DUNGEON_ROOMS
     saveGame()
   }
 
@@ -1625,7 +1685,7 @@ export const useGameStore = defineStore('game', () => {
     // 限时Boss
     inWeeklyBoss, weeklyBossData, weeklyBossTurn, weeklyBossTimeLeft, weeklyBossSkillUsed, weeklyBossDefeated,
     startGame, setTab,
-    initBattle, attack, answerAttack, usePotion, winBattle, flee, exitBattle,
+    initBattle, enemyAttack, answerAttack, usePotion, winBattle, flee, exitBattle,
     startCapture, submitCaptureAnswer, skipCapture,
     enterDungeonPrep, generateRoomPreviews, enterRoom, finishRoom, nextFloor, exitDungeon,
     setFollowMonster, unfollowMonster, upgradeMonster, releaseMonster,

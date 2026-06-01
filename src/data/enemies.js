@@ -77,8 +77,7 @@ export function getEnemyForFloor(floor) {
 
   if (pool.length === 0) pool = ENEMIES;
 
-  const baseEnemy = pool[Math.floor(Math.random() * pool.length)];
-  return calculateEnemyStats(baseEnemy, floor);
+  return pool.map(e => calculateEnemyStats(e, floor));
 }
 
 // 获取Boss级敌人（用于Boss房间）
