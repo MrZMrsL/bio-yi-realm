@@ -325,7 +325,14 @@ function reelIn() {
   // 抽鱼！
   const fish = drawFish(store.fishingLevel)
 
-  if (fish && (fish.rarity === 'legendary' || fish.rarity === 'mythic')) {
+  if (!fish) {
+    // 没钓到鱼，空杆
+    fishingState.value = 'idle'
+    store.enterMode('idle')
+    return
+  }
+
+  if (fish.rarity === 'legendary' || fish.rarity === 'mythic') {
     // 传说/神话鱼需要答题
     caughtFish.value = fish
     fishingState.value = 'quiz'
@@ -338,12 +345,8 @@ function reelIn() {
   caughtFish.value = fish
   fishingState.value = 'caught'
   store.enterMode('fishing_caught')  // 状态机同步
-
-  // 记录捕获
-  if (fish) {
-    store.recordFishCatch(fish)
-    sfxItemGet()
-  }
+  store.recordFishCatch(fish)
+  sfxItemGet()
   store.saveGame()
 }
 
