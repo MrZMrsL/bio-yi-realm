@@ -858,7 +858,12 @@ export const useGameStore = defineStore('game', () => {
     }
     if (!cyclopedia.value[category].includes(name)) {
       cyclopedia.value[category].push(name)
-      newDiscoveries.value.push({ category, name, time: Date.now() })
+      const discovery = { type: category, name, time: Date.now(), id: Math.random() }
+      newDiscoveries.value.push(discovery)
+      // 3秒后自动移除新发现通知
+      setTimeout(() => {
+        newDiscoveries.value = newDiscoveries.value.filter(d => d.id !== discovery.id)
+      }, 3000)
     }
   }
 

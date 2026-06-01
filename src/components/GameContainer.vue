@@ -1,8 +1,8 @@
 <template>
   <div id="game-container">
     <!-- 新发现通知 -->
-  <div class="discovery-notifications">
-    <div v-for="(notif, idx) in store.newDiscoveries" :key="notif.time + idx" class="discovery-notif">
+  <div class="discovery-notifications" v-if="store.newDiscoveries.length > 0">
+    <div v-for="(notif, idx) in store.newDiscoveries" :key="notif.id" class="discovery-notif">
       <div class="discovery-notif-title">📖 新发现！</div>
       <div class="discovery-notif-text">发现{{ notif.type }}"{{ notif.name }}"</div>
     </div>
