@@ -633,6 +633,7 @@ export const useGameStore = defineStore('game', () => {
     })
 
     saveGame()
+    checkAchievements()
   }
 
   // 生成掉落
@@ -669,6 +670,7 @@ export const useGameStore = defineStore('game', () => {
     }
 
     saveGame()
+    checkAchievements()
   }
 
   // 开始捕捉流程
@@ -886,6 +888,7 @@ export const useGameStore = defineStore('game', () => {
     }
     equipment.value.push(item)
     updateStats('totalForges', 1)
+    checkAchievements()
     saveGame()
     return true
   }
@@ -905,20 +908,113 @@ export const useGameStore = defineStore('game', () => {
     return true
   }
 
+  // 敌人名 → 图鉴名映射表（两个数据源的名字完全不匹配）
+  const ENEMY_TO_ENCYCLOPEDIA_MAP = {
+    // === 基础敌人（5个）===
+    "混沌史莱姆": "酸液史莱姆",
+    "有机幽灵": "蒸馏幽灵",
+    "DNA螺旋怪": "DNA编织者",
+    "细胞壁守卫": "抗体骑士",
+    "八卦阵灵": "八卦守卫",
+    // === bio 额外敌人（24个）===
+    "病毒变异体": "病毒传播者",
+    "耐药菌株": "抗体骑士",
+    "线粒体损伤者": "线粒体狂战士",
+    "癌细胞增殖体": "细胞吞噬者",
+    "免疫逃逸者": "抗体骑士",
+    "表观遗传沉默者": "DNA编织者",
+    "蛋白错误折叠体": "基因窃取者",
+    "基因重组突变体": "基因窃取者",
+    "信号通路失控者": "细胞吞噬者",
+    "端粒耗尽者": "生态主宰",
+    "自噬缺陷体": "细胞吞噬者",
+    "氧化应激体": "线粒体狂战士",
+    "神经退行体": "生态主宰",
+    "代谢综合征体": "生态主宰",
+    "细胞凋亡逃避者": "细胞吞噬者",
+    "CRISPR编辑体": "DNA编织者",
+    "酶催化体": "蛋白酶猎手",
+    "光敏色素体": "叶绿体精灵",
+    "突触传导体": "生态主宰",
+    "血红蛋白体": "生态主宰",
+    "溶酶体消化体": "蛋白酶猎手",
+    "光合作用体": "叶绿体精灵",
+    "有丝分裂体": "细胞吞噬者",
+    "转录因子体": "DNA编织者",
+    // === chem 额外敌人（25个）===
+    "自由基链反应体": "试剂融合怪",
+    "配位饱和体": "结晶傀儡",
+    "酸碱缓冲体": "碳酸蟹",
+    "过电位体": "电解精灵",
+    "晶格缺陷体": "合金巨人",
+    "手性异构体": "毒理蛇",
+    "胶体聚沉体": "硫磺蝎",
+    "反应坐标能垒": "催化剂兽",
+    "熵增混沌体": "汞妖",
+    "共振杂化体": "硝石龙",
+    "电负性差异体": "氧化守卫",
+    "溶度积边界体": "结晶傀儡",
+    "Markovnikov规则体": "试剂融合怪",
+    "勒夏特列逆反体": "元素贤者",
+    "轨道对称禁阻体": "元素贤者",
+    "配位场体": "结晶傀儡",
+    "氧化还原体": "氧化守卫",
+    "表面活性体": "试剂融合怪",
+    "sp3杂化体": "合金巨人",
+    "π共轭体": "硝石龙",
+    "质子酸体": "酸液史莱姆",
+    "过渡金属体": "合金巨人",
+    "氢键缔合体": "碳酸蟹",
+    "同分异构体": "毒理蛇",
+    "滴定终点体": "试剂融合怪",
+    // === yi 额外敌人（25个）===
+    "六冲煞": "卦象幻影",
+    "六害劫": "卦象幻影",
+    "三刑狱": "五行灵",
+    "空亡虚": "爻变虫",
+    "伏吟局": "太极兽",
+    "反吟局": "太极兽",
+    "太岁压": "河图守护者",
+    "月破击": "洛书使者",
+    "日辰克": "阴阳师",
+    "动化退": "爻变虫",
+    "动化绝": "爻变虫",
+    "游魂卦": "卦象幻影",
+    "归魂卦": "卦象幻影",
+    "用神墓": "五行灵",
+    "忌神旺": "五行灵",
+    "青龙腾": "河图守护者",
+    "白虎啸": "洛书使者",
+    "朱雀鸣": "阴阳师",
+    "玄武隐": "六爻术士",
+    "勾陈滞": "六爻术士",
+    "螣蛇缠": "六爻术士",
+    "天乙贵": "乾坤主宰",
+    "文昌星": "河图守护者",
+    "桃花煞": "阴阳师",
+    "驿马动": "六爻术士",
+  }
+
   // 图鉴系统
   function addToCyclopedia(category, name) {
+    // 如果是 monsters 分类，将敌人名转换成图鉴名
+    let displayName = name
+    if (category === 'monsters' && ENEMY_TO_ENCYCLOPEDIA_MAP[name]) {
+      displayName = ENEMY_TO_ENCYCLOPEDIA_MAP[name]
+    }
     if (!cyclopedia.value[category]) {
       cyclopedia.value[category] = []
     }
-    if (!cyclopedia.value[category].includes(name)) {
-      cyclopedia.value[category].push(name)
-      const discovery = { type: category, name, time: Date.now(), id: Math.random() }
+    if (!cyclopedia.value[category].includes(displayName)) {
+      cyclopedia.value[category].push(displayName)
+      const discovery = { type: category, name: displayName, time: Date.now(), id: Math.random() }
       newDiscoveries.value.push(discovery)
       // 3秒后自动移除新发现通知
       setTimeout(() => {
         newDiscoveries.value = newDiscoveries.value.filter(d => d.id !== discovery.id)
       }, 3000)
     }
+    checkAchievements()
   }
 
   function getCyclopediaProgress(category) {
@@ -942,6 +1038,44 @@ export const useGameStore = defineStore('game', () => {
   // 统计更新
   function updateStats(key, delta) {
     stats.value[key] = (stats.value[key] || 0) + delta
+    checkAchievements()
+  }
+
+  // 成就自动检查
+  function checkAchievements() {
+    const state = {
+      stats: stats.value || {},
+      farm: farm.value || [],
+      level: level.value || 1,
+      allClearCount: allClearCount.value || 0,
+      cyclopedia: cyclopedia.value || {},
+      weeklyBossDefeated: weeklyBossDefeated.value || []
+    }
+
+    for (const ach of ACHIEVEMENTS) {
+      if (unlockedAchievements.value[ach.id]) continue
+      let unlocked = false
+      if (ach.category === 'limited') {
+        unlocked = checkAchievementUnlocked(ach, state.weeklyBossDefeated)
+      } else {
+        unlocked = checkAchievementUnlocked(ach, state)
+      }
+      if (unlocked) {
+        unlockedAchievements.value[ach.id] = Date.now()
+        battleLog.value.push(`🏆 成就解锁：${ach.title}！获得 ${ach.reward?.exp || 0} 经验`)
+        if (ach.reward?.exp) {
+          exp.value += ach.reward.exp
+          while (exp.value >= maxExp.value) {
+            exp.value -= maxExp.value
+            level.value++
+            hp.value = maxHp.value
+            atk.value += 2
+            def.value += 1
+          }
+        }
+        saveGame()
+      }
+    }
   }
 
   // 逃跑
@@ -1403,6 +1537,7 @@ export const useGameStore = defineStore('game', () => {
     }
     fishCollection.value[fish.name] = (fishCollection.value[fish.name] || 0) + 1
     updateStats('totalFishes', 1)
+    addToCyclopedia('fishes', fish.name)
   }
 
   // 从记录中移除鱼（吃掉了）
@@ -1782,7 +1917,7 @@ export const useGameStore = defineStore('game', () => {
     startBookStudy, submitBookStudyAnswer, cancelBookStudy,
     canFishToday, unlockFishLimit,
     addToCyclopedia, getCyclopediaProgress, isDiscovered, getDiscoveryCount,
-    updateStats,
+    updateStats, checkAchievements,
     recordWrongQuestion, masterQuestion, removeWrongQuestion,
     startReview, submitReviewAnswer, exitReview,
     saveGame, loadGame, hasSave, deleteSave,

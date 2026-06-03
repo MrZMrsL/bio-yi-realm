@@ -60,8 +60,10 @@
             <span v-else class="icon-locked">🔒</span>
           </div>
           <div class="achievement-status">
-            <div v-if="isUnlocked(ach.id)" class="status-badge unlocked">✅ 已解锁</div>
-            <div v-if="isUnlocked(ach.id) && unlockTime(ach.id)" class="unlock-time">{{ formatUnlockTime(unlockTime(ach.id)) }}</div>
+            <template v-if="isUnlocked(ach.id)">
+              <div class="status-badge unlocked">✅ 已解锁</div>
+              <div v-if="unlockTime(ach.id)" class="unlock-time">{{ formatUnlockTime(unlockTime(ach.id)) }}</div>
+            </template>
             <div v-else class="status-badge locked">🔒 未解锁</div>
           </div>
         </div>
@@ -128,6 +130,7 @@ const categories = [
   { key: 'knowledge', label: CATEGORY_NAMES.knowledge },
   { key: 'collection', label: CATEGORY_NAMES.collection },
   { key: 'level', label: CATEGORY_NAMES.level },
+  { key: 'limited', label: '限时' },
 ]
 
 const rarityColors = RARITY_COLORS
@@ -144,6 +147,7 @@ const gameState = computed(() => ({
   level: store.level,
   allClearCount: store.allClearCount,
   cyclopedia: store.cyclopedia,
+  weeklyBossDefeated: store.weeklyBossDefeated,
 }))
 
 function isUnlocked(achId) {
