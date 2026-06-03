@@ -1,6 +1,6 @@
 // enemies.js - 生化易界敌人数据（合并旧版全部数据，含元素属性）
 import { EXTRA_ENEMIES } from './enemies_extra.js'
-import { assignElementToEnemies } from './farm.js'
+import { assignElementToEnemies, ELEMENT_SUBJECT_MAP } from './farm.js'
 
 const RAW_ENEMIES = [
   // 基础敌人（1-5层）
@@ -55,7 +55,7 @@ export function calculateEnemyStats(baseEnemy, floor) {
 }
 
 // 按楼层获取敌人（平滑成长版）
-export function getEnemyForFloor(floor) {
+export function getEnemyForFloor(floor, element) {
   let pool = ENEMIES;
 
   // 1-5层：基础敌人池
@@ -77,12 +77,25 @@ export function getEnemyForFloor(floor) {
 
   if (pool.length === 0) pool = ENEMIES;
 
+  // 如果指定了元素，按元素对应的学科过滤
+  if (element && ELEMENT_SUBJECT_MAP[element]) {
+    const subject = ELEMENT_SUBJECT_MAP[element]
+    const filtered = pool.filter(e => e.subject === subject)
+    if (filtered.length > 0) pool = filtered
+  }
+
   return pool.map(e => calculateEnemyStats(e, floor));
 }
 
 // 获取Boss级敌人（用于Boss房间）
-export function getBossForFloor(floor) {
-  const bossPool = ENEMIES.filter(e => e.hp > 80 || e.baseHp > 80 || e.atk > 20);
+export function getBossForFloor(floor, element) {
+  let bossPool = ENEMIES.filter(e => e.hp > 80 || e.baseHp > 80 || e.atk > 20);
+  // 如果指定了元素，按学科过滤
+  if (element && ELEMENT_SUBJECT_MAP[element]) {
+    const subject = ELEMENT_SUBJECT_MAP[element]
+    const filtered = bossPool.filter(e => e.subject === subject)
+    if (filtered.length > 0) bossPool = filtered
+  }
   const pool = bossPool.length > 0 ? bossPool : ENEMIES;
   const baseEnemy = pool[Math.floor(Math.random() * pool.length)];
   // Boss额外1.5倍属性

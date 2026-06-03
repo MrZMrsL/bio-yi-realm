@@ -224,7 +224,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
-import { RARITY_CONFIG, drawFish, drawBook, FISH_RARITY_COUNTS, TOTAL_FISH_COUNT } from '../data/fishing.js'
+import { RARITY_CONFIG, drawFish, drawBook, FISH_RARITY_COUNTS, TOTAL_FISH_COUNT, ALL_FISH } from '../data/fishing.js'
 import { getQuestions } from '../data/questions.js'
 import { sfxClick, sfxSplash, sfxItemGet, sfxCorrect, sfxWrong } from '../utils/audio.js'
 
@@ -246,7 +246,12 @@ const fishCollectionPercent = computed(() => {
 })
 
 function collectionCount(rarity) {
-  return store.fishCollection[rarity] || 0
+  let count = 0
+  for (const [fishName, fishCount] of Object.entries(store.fishCollection)) {
+    const fishData = ALL_FISH.find(f => f.name === fishName)
+    if (fishData && fishData.rarity === rarity) count += fishCount
+  }
+  return count
 }
 
 function totalByRarity(rarity) {
@@ -469,7 +474,6 @@ function releaseFish() {
   while (store.exp >= store.maxExp) {
     store.exp -= store.maxExp
     store.level++
-    store.maxExp = Math.floor(store.maxExp * 1.2)
     store.hp = store.maxHp
     store.atk += 2
     store.def += 1

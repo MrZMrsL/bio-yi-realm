@@ -33,7 +33,7 @@ import {
   sfxCaptureFail,
   isSoundEnabled
 } from '../utils/sfx.js'
-import { getTitleForLevel, getRandomElement } from '../utils/dungeon.js'
+import { getTitleForLevel } from '../utils/dungeon.js'
 import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/encyclopedia.js'
 import { getAllQuestions } from '../data/questions.js'
 import { getAllFishes as getAllFishesFromData } from '../data/fishing.js'
@@ -100,8 +100,9 @@ export const useGameStore = defineStore('game', () => {
       console.warn(`[StateMachine] 拒绝转移：${gameMode.value} → ${newMode}（战斗中）`)
       return false
     }
+    const oldMode = gameMode.value
     gameMode.value = newMode
-    console.log(`[StateMachine] ${gameMode.value} → ${newMode}`)
+    console.log(`[StateMachine] ${oldMode} → ${newMode}`)
     return true
   }
 
@@ -465,7 +466,10 @@ export const useGameStore = defineStore('game', () => {
 
       let logMsg = ''
       if (consecutiveCorrect.value >= 3) {
-        // 三连暴击
+        // 三连暴击：先更新 maxCombo 统计，再重置连击
+        if (consecutiveCorrect.value > stats.value.maxCombo) {
+          stats.value.maxCombo = consecutiveCorrect.value
+        }
         logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
         triggerCriticalEffect()
         sfxCritical()
@@ -554,6 +558,7 @@ export const useGameStore = defineStore('game', () => {
     const dropItem = generateDrop(e)
     if (dropItem) {
       drop.value = dropItem
+      battleState.value = 'drop'
       battleLog.value.push(`掉落 ${dropItem.item.name}！`)
     }
 
@@ -656,13 +661,12 @@ export const useGameStore = defineStore('game', () => {
       consumables.value.push(item.item)
     }
     drop.value = null
-    battleState.value = 'idle'
+    battleState.value = 'won'
 
     // 记录图鉴和统计
     if (enemy.value?.name) {
       addToCyclopedia('monsters', enemy.value.name)
     }
-    updateStats('totalBattles', 1)
 
     saveGame()
   }
@@ -694,10 +698,10 @@ export const useGameStore = defineStore('game', () => {
       captureCorrectCount.value++
     }
 
-    captureIndex.value++
+    // 计算当前题之后的剩余题数
+    const remaining = captureQuestions.value.length - captureIndex.value - 1
 
     // 提前终止：如果剩余题数 + 已答对 < 3，不可能成功
-    const remaining = captureQuestions.value.length - captureIndex.value
     if (captureCorrectCount.value + remaining < 3) {
       battleState.value = 'captureFail'
       sfxCaptureFail()
@@ -718,6 +722,8 @@ export const useGameStore = defineStore('game', () => {
       }
       return
     }
+
+    captureIndex.value++
 
     // 全部答完
     if (captureIndex.value >= captureQuestions.value.length) {
@@ -792,11 +798,13 @@ export const useGameStore = defineStore('game', () => {
   // 升级怪物
   function upgradeMonster(idx) {
     const m = farm.value[idx]
-    if (!m) return
+    if (!m) return false
 
-    // 检查经验是否足够
-    if (m.exp < m.maxExp) {
-      // 检查材料
+    // 路径A：经验已满，直接消耗经验升级
+    if (m.exp >= m.maxExp) {
+      m.exp -= m.maxExp
+    } else {
+      // 路径B：经验不足，消耗材料填充经验
       const matCost = Math.floor(m.level * 2)
       const matName = getUpgradeMaterialName(m.element)
       const matCount = inventory.value[matName] || 0
@@ -811,9 +819,6 @@ export const useGameStore = defineStore('game', () => {
       if (inventory.value[matName] <= 0) {
         delete inventory.value[matName]
       }
-    } else {
-      // 经验足够，消耗经验升级
-      m.exp -= m.maxExp
     }
 
     // 升级
@@ -861,7 +866,10 @@ export const useGameStore = defineStore('game', () => {
 
   // 锻造物品
   function forgeItem(recipe) {
-    if (!canForge(recipe, inventory.value)) return false
+    if (!canForge(recipe, inventory.value, gold.value)) return false
+
+    // 消耗金币
+    gold.value -= recipe.gold
 
     // 消耗材料
     for (const [mat, count] of Object.entries(recipe.materials)) {
@@ -1038,7 +1046,6 @@ export const useGameStore = defineStore('game', () => {
     while (exp.value >= maxExp.value) {
       exp.value -= maxExp.value
       level.value++
-      maxExp.value = Math.floor(100 * Math.pow(1.15, level.value - 1))
       hp.value = maxHp.value
       statPoints.value++
       if (level.value % 10 === 0) {
@@ -1143,6 +1150,10 @@ export const useGameStore = defineStore('game', () => {
 
       let logMsg = ''
       if (consecutiveCorrect.value >= 3) {
+        // 三连暴击：先更新 maxCombo 统计，再重置连击
+        if (consecutiveCorrect.value > stats.value.maxCombo) {
+          stats.value.maxCombo = consecutiveCorrect.value
+        }
         logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
         triggerCriticalEffect()
         sfxCritical()
@@ -1244,7 +1255,10 @@ export const useGameStore = defineStore('game', () => {
   function enterDungeonPrep() {
     enterMode(GAME_MODE.DUNGEON_PREP)
     dungeonPhase.value = 'prep'
-    currentFloorElement.value = getRandomElement(currentFloorElement.value)
+    currentFloorElement.value = (() => {
+      const elements = Object.keys(DUNGEON_ELEMENTS)
+      return elements[Math.floor(Math.random() * elements.length)]
+    })()
     generateRoomPreviews()
     saveGame()
   }
@@ -1356,7 +1370,10 @@ export const useGameStore = defineStore('game', () => {
     floor.value++
     dungeonPhase.value = 'prep'
     enterMode(GAME_MODE.DUNGEON_PREP)
-    currentFloorElement.value = getRandomElement(currentFloorElement.value)
+    currentFloorElement.value = (() => {
+      const elements = Object.keys(DUNGEON_ELEMENTS)
+      return elements[Math.floor(Math.random() * elements.length)]
+    })()
     generateRoomPreviews()
     return true
   }
@@ -1426,7 +1443,7 @@ export const useGameStore = defineStore('game', () => {
       while (exp.value >= maxExp.value) {
         exp.value -= maxExp.value
         level.value++
-        maxExp.value = Math.floor(maxExp.value * 1.2)
+        // maxExp 是 computed(level)，level++ 后自动重算，无需手动赋值
         hp.value = maxHp.value
         atk.value += 2
         def.value += 1
@@ -1532,6 +1549,8 @@ export const useGameStore = defineStore('game', () => {
       // 开发者模式
       playerSpecialization: playerSpecialization.value,
       devMode: devMode.value,
+      // 题目去重状态
+      usedQuestions: exportUsedQuestions ? exportUsedQuestions() : [],
       timestamp: Date.now()
     }
 
@@ -1630,6 +1649,15 @@ export const useGameStore = defineStore('game', () => {
       loadWrongQuestions()
       // 加载题目去重状态
       importUsedQuestions(saveData.usedQuestions)
+
+      // 恢复错题复习状态（会话级数据，仅当存档中存在时恢复）
+      if (saveData.reviewMode !== undefined) {
+        reviewMode.value = saveData.reviewMode
+        reviewCurrent.value = saveData.reviewCurrent || null
+        reviewIndex.value = saveData.reviewIndex || 0
+        reviewPool.value = saveData.reviewPool || []
+        reviewResults.value = saveData.reviewResults || []
+      }
 
       return true
     } catch (e) {

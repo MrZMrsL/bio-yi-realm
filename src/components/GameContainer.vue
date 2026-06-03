@@ -911,16 +911,8 @@ function closePanel() {
     if (saveProgress) {
       store.saveGame()
     } else {
-      // 不保存：清空当前地牢进度
-      store.dungeonPhase = 'none'
-      store.roomGrid = []
-      store.bossRoomIndex = -1
-      store.currentRoomIndex = -1
-      store.clearedRoomsThisFloor = 0
-      store.inBattle = false
-      store.enemy = null
-      store.question = null
-      store.battleState = ''
+      // 不保存：使用 store 的 action 清空地牢进度
+      store.exitDungeon()
     }
   }
   // 关闭面板时，如果当前是非战斗面板模式，回到 idle
@@ -1069,7 +1061,7 @@ function saveGame() {
 }
 
 function exportSave() {
-  const saveData = localStorage.getItem('bioyi_realm_save')
+  const saveData = localStorage.getItem('bio_yi_realm_save')
   if (saveData) {
     navigator.clipboard.writeText(saveData)
     alert('存档已复制到剪贴板！')
@@ -1081,7 +1073,7 @@ function importSave() {
   if (data) {
     try {
       JSON.parse(data)
-      localStorage.setItem('bioyi_realm_save', data)
+      localStorage.setItem('bio_yi_realm_save', data)
       store.loadGame()
       alert('存档已恢复！')
     } catch (e) {

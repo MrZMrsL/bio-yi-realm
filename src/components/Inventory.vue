@@ -108,7 +108,9 @@ function canForgeRecipe(recipe) {
 }
 
 function doForge(recipeId) {
-  const ok = store.forgeItem(recipeId)
+  const recipe = FORGE_RECIPES.find(r => r.id === recipeId)
+  if (!recipe) return
+  const ok = store.forgeItem(recipe)
   if (ok) {
     // 成功提示
   }
