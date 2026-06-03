@@ -4,11 +4,11 @@ import { assignElementToEnemies, ELEMENT_SUBJECT_MAP } from './farm.js'
 
 const RAW_ENEMIES = [
   // 基础敌人（1-5层）
-  { name: "混沌史莱姆", icon: "🧪", hp: 45, atk: 12, def: 4, subject: "chem", desc: "一团不稳定的化学混合物，似乎随时会爆炸" },
-  { name: "DNA螺旋怪", icon: "🧬", hp: 48, atk: 14, def: 3, subject: "bio", desc: "由错乱DNA链构成的生物，能修复自身损伤" },
-  { name: "八卦阵灵", icon: "☯️", hp: 52, atk: 15, def: 5, subject: "yi", desc: "守护着易学知识的阵灵，会出题考验入侵者" },
-  { name: "有机幽灵", icon: "👻", hp: 40, atk: 18, def: 2, subject: "chem", desc: "失去电子的有机分子，攻击带有腐蚀性" },
-  { name: "细胞壁守卫", icon: "🛡️", hp: 60, atk: 10, def: 8, subject: "bio", desc: "拥有厚实细胞壁的防御型生物，难以击破" },
+  { name: "混沌史莱姆", icon: "🧪", hp: 45, atk: 12, def: 4, subject: "chem", desc: "一团不稳定的化学混合物，似乎随时会爆炸", captureable: true },
+  { name: "DNA螺旋怪", icon: "🧬", hp: 48, atk: 14, def: 3, subject: "bio", desc: "由错乱DNA链构成的生物，能修复自身损伤", captureable: true },
+  { name: "八卦阵灵", icon: "☯️", hp: 52, atk: 15, def: 5, subject: "yi", desc: "守护着易学知识的阵灵，会出题考验入侵者", captureable: true },
+  { name: "有机幽灵", icon: "👻", hp: 40, atk: 18, def: 2, subject: "chem", desc: "失去电子的有机分子，攻击带有腐蚀性", captureable: true },
+  { name: "细胞壁守卫", icon: "🛡️", hp: 60, atk: 10, def: 8, subject: "bio", desc: "拥有厚实细胞壁的防御型生物，难以击破", captureable: true },
   
   // 新增敌人（10-30层）
   ...EXTRA_ENEMIES.bio,

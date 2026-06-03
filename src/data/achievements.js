@@ -395,6 +395,10 @@ export function checkAchievementUnlocked(achievement, state) {
       return achievement.condition(stats || {})
     case 'level':
       return achievement.condition(level || 1)
+    case 'limited': {
+      const bossData = Array.isArray(state) ? state : (state.weeklyBossDefeated || [])
+      return achievement.condition(bossData)
+    }
     default:
       return false
   }
@@ -421,6 +425,10 @@ export function getAchievementProgress(achievement, state) {
       return achievement.progress(stats || {})
     case 'level':
       return achievement.progress(level || 1)
+    case 'limited': {
+      const bossData = Array.isArray(state) ? state : (state.weeklyBossDefeated || [])
+      return achievement.progress(bossData)
+    }
     default:
       return 0
   }

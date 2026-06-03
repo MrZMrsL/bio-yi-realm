@@ -1062,6 +1062,7 @@ export const useGameStore = defineStore('game', () => {
       }
       if (unlocked) {
         unlockedAchievements.value[ach.id] = Date.now()
+        newAchievementUnlocks.value.push(ach.id)
         battleLog.value.push(`🏆 成就解锁：${ach.title}！获得 ${ach.reward?.exp || 0} 经验`)
         if (ach.reward?.exp) {
           exp.value += ach.reward.exp
