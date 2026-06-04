@@ -145,11 +145,6 @@
       </div>
     </div>
 
-    <!-- 成就面板 -->
-    <div v-if="activePanel === 'achievements'" class="panel-achievements">
-      <Achievements />
-    </div>
-
     <!-- 面板覆盖层 -->
     <div v-if="activePanel" class="panel-overlay">
       <div class="panel-header">
@@ -157,6 +152,11 @@
         <span class="panel-title">{{ panelTitle }}</span>
       </div>
       <div class="panel-content">
+        <!-- 成就面板 -->
+        <div v-if="activePanel === 'achievements'" class="panel-achievements">
+          <Achievements />
+        </div>
+
         <!-- 地牢面板 -->
         <div v-if="activePanel === 'dungeon'" class="panel-dungeon">
           <!-- 地牢入口 -->
