@@ -1148,6 +1148,7 @@ export const useGameStore = defineStore('game', () => {
   // 击败限时Boss
   function winWeeklyBoss() {
     battleState.value = 'won'
+    inBattle.value = false
     gameMode.value = GAME_MODE.WON
     // 清除计时器
     if (weeklyBossTimer.value) {

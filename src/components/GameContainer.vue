@@ -910,10 +910,9 @@ function closePanel() {
     const saveProgress = confirm('是否保存当前地牢进度？\n保存后可在下次继续探索。\n不保存则本层进度将丢失，重进会刷新。')
     if (saveProgress) {
       store.saveGame()
-    } else {
-      // 不保存：使用 store 的 action 清空地牢进度
-      store.exitDungeon()
     }
+    // 保存后也退出地牢战斗状态，允许切换其他面板
+    store.exitDungeon()
   }
   // 关闭面板时，如果当前是非战斗面板模式，回到 idle
   if (store.isPanelMode()) {

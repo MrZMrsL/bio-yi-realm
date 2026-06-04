@@ -57,21 +57,21 @@ export const WEEKLY_BOSSES = [
       {
         name: '基因突变',
         effect: 'buff',
-        value: 0.4,
-        cooldown: 4,
-        desc: '每4回合攻击提升40%'
+        value: 0.3,
+        cooldown: 5,
+        desc: '每5回合攻击提升30%'
       },
       {
         name: '端粒修复',
         effect: 'heal',
-        value: 0.20,
-        cooldown: 3,
-        desc: '每3回合恢复20%最大生命'
+        value: 0.15,
+        cooldown: 4,
+        desc: '每4回合恢复15%最大生命'
       }
     ],
-    baseHp: 250,
-    baseAtk: 22,
-    baseDef: 12,
+    baseHp: 220,
+    baseAtk: 20,
+    baseDef: 10,
     timeLimit: 60,
     achievement: {
       id: 'slay_gene_tyrant',
@@ -132,7 +132,7 @@ export const WEEKLY_BOSSES = [
 
 // Boss属性缩放：根据玩家等级动态调整
 export function scaleBossForLevel(boss, playerLevel) {
-  const scale = 1 + (playerLevel - 1) * 0.08; // 每级提升8%
+  const scale = 1 + (playerLevel - 1) * 0.05; // 每级提升5%（原为8%，太难打）
   return {
     ...boss,
     hp: Math.floor(boss.baseHp * scale),
