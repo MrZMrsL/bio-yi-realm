@@ -200,8 +200,6 @@ function categoryCount(cat) {
   flex-direction: column;
   gap: 16px;
   padding: 12px;
-  max-height: 80vh;
-  overflow-y: auto;
 }
 
 /* 头部统计 */
