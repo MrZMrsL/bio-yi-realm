@@ -1,0 +1,63 @@
+// 易学easy题库 - 1-9层使用（基础概念，正确率>80%）
+// 覆盖：八卦基础、五行、天干地支、基本术语
+export const YI_EASY = [
+  // ===== 八卦基础（15题）=====
+  { q: "八卦中，'乾'卦象征（ ）", options: ["A. 地", "B. 天", "C. 水", "D. 火"], answer: 1, diff: "easy", subject: "yi", explain: "乾卦三阳爻，象征天、父亲、刚健。坤卦象征地，坎卦象征水，离卦象征火。" },
+  { q: "八卦中，'坤'卦象征（ ）", options: ["A. 天", "B. 地", "C. 风", "D. 雷"], answer: 1, diff: "easy", subject: "yi", explain: "坤卦三阴爻，象征地、母亲、柔顺。乾为天，巽为风，震为雷。" },
+  { q: "八卦中，'离'卦象征（ ）", options: ["A. 水", "B. 火", "C. 山", "D. 泽"], answer: 1, diff: "easy", subject: "yi", explain: "离卦上下阴中阳，象征火、中女、日、电。坎为水，艮为山，兑为泽。" },
+  { q: "八卦中，'坎'卦象征（ ）", options: ["A. 水", "B. 火", "C. 雷", "D. 风"], answer: 0, diff: "easy", subject: "yi", explain: "坎卦上下阳中阴，象征水、中男、月、险。离为火，震为雷，巽为风。" },
+  { q: "八卦中，'震'卦象征（ ）", options: ["A. 风", "B. 雷", "C. 山", "D. 泽"], answer: 1, diff: "easy", subject: "yi", explain: "震卦一阳在下、二阴在上，象征雷、长子、震动。巽为风，艮为山，兑为泽。" },
+  { q: "八卦中，'巽'卦象征（ ）", options: ["A. 雷", "B. 风", "C. 山", "D. 泽"], answer: 1, diff: "easy", subject: "yi", explain: "巽卦一阴在下、二阳在上，象征风、长女、入、顺。震为雷，艮为山，兑为泽。" },
+  { q: "八卦中，'艮'卦象征（ ）", options: ["A. 风", "B. 雷", "C. 山", "D. 火"], answer: 2, diff: "easy", subject: "yi", explain: "艮卦一阳在上、二阴在下，象征山、少男、止。巽为风，震为雷，离为火。" },
+  { q: "八卦中，'兑'卦象征（ ）", options: ["A. 水", "B. 火", "C. 山", "D. 泽"], answer: 3, diff: "easy", subject: "yi", explain: "兑卦一阴在上、二阳在下，象征泽、少女、喜悦。坎为水，离为火，艮为山。" },
+  { q: "八卦由（ ）个爻组成", options: ["A. 三个", "B. 六个", "C. 两个", "D. 四个"], answer: 0, diff: "easy", subject: "yi", explain: "八卦每卦由三个爻组成，故称'三爻卦'。六十四卦由两个八卦叠成，为六爻卦。" },
+  { q: "六十四卦由（ ）个爻组成", options: ["A. 三个", "B. 四个", "C. 六个", "D. 八个"], answer: 2, diff: "easy", subject: "yi", explain: "六十四卦每卦由六个爻组成，故称'六爻卦'。它是由两个八卦上下相叠而成。" },
+  { q: "以下哪个是'阳爻'的符号（ ）", options: ["A. —", "B. --", "C. ⚊", "D. ○"], answer: 0, diff: "easy", subject: "yi", explain: "阳爻用实线'—'表示，阴爻用断线'--'表示。这是最基础的易学符号。" },
+  { q: "以下哪个是'阴爻'的符号（ ）", options: ["A. —", "B. --", "C. ⚊", "D. ●"], answer: 1, diff: "easy", subject: "yi", explain: "阴爻用断线'--'表示，阳爻用实线'—'表示。两短横代表阴柔。" },
+  { q: "'四象'包括太阳、少阴和（ ）", options: ["A. 太阴、少阳", "B. 天、地", "C. 阴、阳", "D. 刚、柔"], answer: 0, diff: "easy", subject: "yi", explain: "四象由两仪（阴阳）衍生，即：太阳、少阴、少阳、太阴。" },
+  { q: "先天八卦的创始人是（ ）", options: ["A. 周文王", "B. 伏羲", "C. 孔子", "D. 老子"], answer: 1, diff: "easy", subject: "yi", explain: "先天八卦（伏羲八卦）由伏羲氏创立。后天八卦（文王八卦）由周文王推演。" },
+  { q: "后天八卦的创始人是（ ）", options: ["A. 伏羲", "B. 周文王", "C. 神农氏", "D. 黄帝"], answer: 1, diff: "easy", subject: "yi", explain: "后天八卦（文王八卦）由周文王推演，主要用于占卜和风水。先天八卦由伏羲创立。" },
+
+  // ===== 五行基础（10题）=====
+  { q: "五行包括木、火、土、金和（ ）", options: ["A. 风", "B. 水", "C. 雷", "D. 泽"], answer: 1, diff: "easy", subject: "yi", explain: "五行：木、火、土、金、水。五行学说是中国古代哲学的重要概念。" },
+  { q: "五行中，谁生火（ ）", options: ["A. 木", "B. 土", "C. 金", "D. 水"], answer: 0, diff: "easy", subject: "yi", explain: "木生火，火生土，土生金，金生水，水生木。钻木取火即木生火之意。" },
+  { q: "五行中，谁生土（ ）", options: ["A. 木", "B. 火", "C. 金", "D. 水"], answer: 1, diff: "easy", subject: "yi", explain: "火生土——火燃烧后化为灰烬，即为土。木生火、火生土、土生金、金生水、水生木。" },
+  { q: "五行中，谁克木（ ）", options: ["A. 火", "B. 土", "C. 金", "D. 水"], answer: 2, diff: "easy", subject: "yi", explain: "金克木——金属刀具可以砍伐树木。木克土、土克水、水克火、火克金。" },
+  { q: "五行中，谁克水（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 金"], answer: 2, diff: "easy", subject: "yi", explain: "土克水——土可以筑堤挡水。木克土、土克水、水克火、火克金。" },
+  { q: "五行中，'木'对应的颜色是（ ）", options: ["A. 红色", "B. 白色", "C. 青色/绿色", "D. 黑色"], answer: 2, diff: "easy", subject: "yi", explain: "木行对应青色/绿色（东方），火行对应红色（南方），土行对应黄色（中央），金行对应白色（西方），水行对应黑色（北方）。" },
+  { q: "五行中，'火'对应的颜色是（ ）", options: ["A. 青色", "B. 红色", "C. 白色", "D. 黑色"], answer: 1, diff: "easy", subject: "yi", explain: "火行对应红色（南方）。木青、火红、土黄、金白、水黑。" },
+  { q: "五行中，'金'对应的方向是（ ）", options: ["A. 东方", "B. 南方", "C. 西方", "D. 北方"], answer: 2, diff: "easy", subject: "yi", explain: "金行对应西方。木东、火南、土中、金西、水北。" },
+  { q: "五行中，'水'对应的方向是（ ）", options: ["A. 东方", "B. 南方", "C. 西方", "D. 北方"], answer: 3, diff: "easy", subject: "yi", explain: "水行对应北方。木东、火南、土中、金西、水北。" },
+  { q: "五行中，'木'对应的季节是（ ）", options: ["A. 春", "B. 夏", "C. 秋", "D. 冬"], answer: 0, diff: "easy", subject: "yi", explain: "木行对应春季（万物生发）。木春、火夏、土季夏（长夏）、金秋、水冬。" },
+
+  // ===== 十天干（10题）=====
+  { q: "十天干的第一位是（ ）", options: ["A. 甲", "B. 乙", "C. 丙", "D. 丁"], answer: 0, diff: "easy", subject: "yi", explain: "十天干顺序：甲、乙、丙、丁、戊、己、庚、辛、壬、癸。甲为第一。" },
+  { q: "十天干的最后一位是（ ）", options: ["A. 辛", "B. 壬", "C. 癸", "D. 戊"], answer: 2, diff: "easy", subject: "yi", explain: "十天干顺序：甲乙丙丁戊己庚辛壬癸。癸为第十，即最后一位。" },
+  { q: "天干'甲'属阴还是阳（ ）", options: ["A. 阳", "B. 阴", "C. 阴阳各半", "D. 非阴非阳"], answer: 0, diff: "easy", subject: "yi", explain: "十天干分阴阳：甲（阳）、乙（阴）、丙（阳）、丁（阴）、戊（阳）、己（阴）、庚（阳）、辛（阴）、壬（阳）、癸（阴）。单数为阳，双数为阴。" },
+  { q: "天干'乙'属阴还是阳（ ）", options: ["A. 阳", "B. 阴", "C. 阴阳各半", "D. 非阴非阳"], answer: 1, diff: "easy", subject: "yi", explain: "天干中单数为阳（甲丙戊庚壬），双数为阴（乙丁己辛癸）。乙排第二，为阴。" },
+  { q: "天干'戊'对应的五行是（ ）", options: ["A. 金", "B. 木", "C. 土", "D. 水"], answer: 2, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。戊己属土，位居中央。" },
+  { q: "天干'辛'对应的五行是（ ）", options: ["A. 土", "B. 金", "C. 水", "D. 火"], answer: 1, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。庚辛属金。" },
+  { q: "天干'丙'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 金"], answer: 1, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。丙丁属火。" },
+  { q: "天干'壬'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 水"], answer: 3, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。壬癸属水。" },
+  { q: "天干'己'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 金"], answer: 2, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。戊己属土。" },
+  { q: "天干'庚'对应的五行是（ ）", options: ["A. 土", "B. 金", "C. 水", "D. 火"], answer: 1, diff: "easy", subject: "yi", explain: "甲乙木、丙丁火、戊己土、庚辛金、壬癸水。庚辛属金。" },
+
+  // ===== 十二地支（10题）=====
+  { q: "十二地支的前两位是（ ）", options: ["A. 子丑", "B. 子寅", "C. 甲乙", "D. 申酉"], answer: 0, diff: "easy", subject: "yi", explain: "十二地支顺序：子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥。子为第一，丑为第二。" },
+  { q: "十二地支中，'子'对应的生肖是（ ）", options: ["A. 牛", "B. 虎", "C. 鼠", "D. 兔"], answer: 2, diff: "easy", subject: "yi", explain: "子鼠、丑牛、寅虎、卯兔、辰龙、巳蛇、午马、未羊、申猴、酉鸡、戌狗、亥猪。" },
+  { q: "十二地支中，'卯'对应的生肖是（ ）", options: ["A. 龙", "B. 蛇", "C. 兔", "D. 虎"], answer: 2, diff: "easy", subject: "yi", explain: "卯兔。子鼠、丑牛、寅虎、卯兔、辰龙、巳蛇、午马、未羊、申猴、酉鸡、戌狗、亥猪。" },
+  { q: "十二地支中，'巳'对应的生肖是（ ）", options: ["A. 龙", "B. 蛇", "C. 马", "D. 羊"], answer: 1, diff: "easy", subject: "yi", explain: "巳蛇。子鼠、丑牛、寅虎、卯兔、辰龙、巳蛇、午马、未羊、申猴、酉鸡、戌狗、亥猪。" },
+  { q: "十二地支中，'戌'对应的生肖是（ ）", options: ["A. 猴", "B. 鸡", "C. 狗", "D. 猪"], answer: 2, diff: "easy", subject: "yi", explain: "戌狗。子鼠、丑牛、寅虎、卯兔、辰龙、巳蛇、午马、未羊、申猴、酉鸡、戌狗、亥猪。" },
+  { q: "地支'寅'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 金"], answer: 0, diff: "easy", subject: "yi", explain: "寅卯属木（东方），巳午属火（南方），申酉属金（西方），亥子属水（北方），辰戌丑未属土（中央）。" },
+  { q: "地支'午'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 金"], answer: 1, diff: "easy", subject: "yi", explain: "巳午属火（南方）。寅卯木，巳午火，申酉金，亥子水，辰戌丑未土。" },
+  { q: "地支'亥'对应的五行是（ ）", options: ["A. 木", "B. 火", "C. 土", "D. 水"], answer: 3, diff: "easy", subject: "yi", explain: "亥子属水（北方）。寅卯木，巳午火，申酉金，亥子水，辰戌丑未土。" },
+  { q: "十二地支的第三位是（ ）", options: ["A. 丑", "B. 寅", "C. 卯", "D. 辰"], answer: 1, diff: "easy", subject: "yi", explain: "子（1）、丑（2）、寅（3）、卯（4）、辰（5）、巳（6）、午（7）、未（8）、申（9）、酉（10）、戌（11）、亥（12）。" },
+  { q: "十二地支的第十二位是（ ）", options: ["A. 戌", "B. 亥", "C. 子", "D. 丑"], answer: 1, diff: "easy", subject: "yi", explain: "子丑寅卯辰巳午未申酉戌亥——亥为第十二位。" },
+
+  // ===== 基本术语（5题）=====
+  { q: "'体用'中的'体'代表（ ）", options: ["A. 所求之事", "B. 求测者本人", "C. 变化趋势", "D. 外部环境"], answer: 1, diff: "easy", subject: "yi", explain: "梅花易数中，体卦代表求测者本人（主体），用卦代表所求之事或外部环境。" },
+  { q: "'体用'中的'用'代表（ ）", options: ["A. 求测者本人", "B. 所求之事或外部环境", "C. 变化趋势", "D. 卦象本身"], answer: 1, diff: "easy", subject: "yi", explain: "梅花易数中，用卦代表所求之事或外部环境。体用生克关系是断卦核心。" },
+  { q: "梅花易数中，'动爻'是指（ ）", options: ["A. 最旺的爻", "B. 发生阴阳变化的爻", "C. 最弱的爻", "D. 在中间的爻"], answer: 1, diff: "easy", subject: "yi", explain: "动爻是指卦中由阳变阴或由阴变阳的爻，代表事情变化的契机。" },
+  { q: "六爻预测中，'世爻'代表（ ）", options: ["A. 占卜者本人", "B. 所问之事", "C. 对方", "D. 结果"], answer: 0, diff: "easy", subject: "yi", explain: "六爻中世爻代表占卜者本人或问事主体，应爻代表对方或所问之事的对象。" },
+  { q: "六爻预测中，'应爻'代表（ ）", options: ["A. 占卜者本人", "B. 所问之事的对象或对方", "C. 事情的结果", "D. 卦中最旺的爻"], answer: 1, diff: "easy", subject: "yi", explain: "应爻代表对方或所问之事的对象。世应相对，世为己应为彼。" },
+];

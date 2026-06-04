@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions } from '../data/questions.js'
+import { SPECIALIZATIONS, getSpecialization, getUnlockedSkills, getNextSkill } from '../data/specialization.js'
 import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import {
@@ -86,8 +87,60 @@ export const useGameStore = defineStore('game', () => {
 
   // 玩家专精选择
   const playerSpecialization = ref(null)
+
+  // ===== 专精技能系统 =====
+  const specializationSkills = ref([])    // 已解锁的专精技能列表 [{ skill, unlockedAt }]
+  const newSkillUnlock = ref(null)        // 刚解锁的技能（用于提示）[{ skill, unlockedAt }]
+  const skillUnlockQueue = ref([])        // 升级时可能一次解锁多个技能，排队展示
+
+  // 应用专精初始属性加成
   function setSpecialization(spec) {
     playerSpecialization.value = spec
+    const specData = getSpecialization(spec)
+    if (specData) {
+      // 应用初始属性
+      const bonus = specData.initialBonus
+      if (bonus.atk) atk.value += bonus.atk
+      if (bonus.def) def.value += bonus.def
+      if (bonus.hp) { maxHp.value += bonus.hp; hp.value += bonus.hp }
+      // 暴击率/闪避率/经验加成存下来供战斗系统读取
+      // 这些由战斗系统在合适的时机读取 playerSpecialization 查表
+    }
+    // 检查当前等级是否有已解锁技能
+    checkSkillUnlocks()
+  }
+
+  // 检查并解锁可用技能
+  function checkSkillUnlocks() {
+    const spec = playerSpecialization.value
+    if (!spec) return
+    const unlocked = getUnlockedSkills(spec, level.value)
+    const alreadyUnlocked = new Set(specializationSkills.value.map(s => s.skill.effect))
+    const newlyUnlocked = unlocked.filter(s => !alreadyUnlocked.has(s.effect))
+
+    for (const skill of newlyUnlocked) {
+      specializationSkills.value.push({
+        skill,
+        unlockedAt: level.value
+      })
+      skillUnlockQueue.value.push({ skill, unlockedAt: level.value })
+      battleLog.value.push(`🔓 专精技能解锁：${skill.icon} ${skill.name}（Lv.${skill.level}）`)
+    }
+  }
+
+  // 消耗新技能解锁提示
+  function consumeSkillUnlock() {
+    if (skillUnlockQueue.value.length > 0) {
+      newSkillUnlock.value = skillUnlockQueue.value.shift()
+      return newSkillUnlock.value
+    }
+    newSkillUnlock.value = null
+    return null
+  }
+
+  // 检查某专精技能是否已解锁
+  function isSkillUnlocked(effectName) {
+    return specializationSkills.value.some(s => s.skill.effect === effectName)
   }
 
   // ===== 状态机（v8.0）=====
@@ -592,6 +645,9 @@ export const useGameStore = defineStore('game', () => {
       battleLog.value.push(`🎊 升级！到达 Lv.${level.value}！`)
       sfxLevelUp()
 
+      // 检查是否有专精技能解锁
+      checkSkillUnlocks()
+
       // 更新称号
       const newTitle = getTitleForLevel(level.value)
       if (newTitle.title !== title.value) {
@@ -1072,6 +1128,7 @@ export const useGameStore = defineStore('game', () => {
             hp.value = maxHp.value
             atk.value += 2
             def.value += 1
+            checkSkillUnlocks()
           }
         }
         saveGame()
@@ -1191,6 +1248,7 @@ export const useGameStore = defineStore('game', () => {
         maxHp.value += milestoneBonus * 5
         hp.value = maxHp.value
       }
+      checkSkillUnlocks()
     }
 
     // 记录图鉴
@@ -1683,6 +1741,8 @@ export const useGameStore = defineStore('game', () => {
       // 开发者模式
       playerSpecialization: playerSpecialization.value,
       devMode: devMode.value,
+      // 专精技能
+      specializationSkills: specializationSkills.value,
       // 题目去重状态
       usedQuestions: exportUsedQuestions ? exportUsedQuestions() : [],
       timestamp: Date.now()
@@ -1762,6 +1822,8 @@ export const useGameStore = defineStore('game', () => {
       weeklyBossTimeLeft.value = saveData.weeklyBossTimeLeft || 0
 
       playerSpecialization.value = saveData.playerSpecialization || null
+      // 专精技能
+      specializationSkills.value = saveData.specializationSkills || []
       // 开发者模式
       devMode.value = saveData.devMode || false
 
@@ -1883,6 +1945,9 @@ export const useGameStore = defineStore('game', () => {
     // 开发者模式
     playerSpecialization, setSpecialization,
     devMode, toggleDevMode,
+    // 专精技能系统
+    specializationSkills, newSkillUnlock, skillUnlockQueue,
+    checkSkillUnlocks, consumeSkillUnlock, isSkillUnlocked,
     gameStarted, activeTab, inBattle, battleState,
     level, exp, maxExp, hp, maxHp, atk, def, gold, floor, title, titleData, titleBio, titleEra, titleField, titleAchievements,
     enemy, question, battleLog,

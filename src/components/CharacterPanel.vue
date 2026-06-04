@@ -69,6 +69,12 @@
       </div>
     </div>
 
+    <!-- 专精技能树 -->
+    <div class="skill-section">
+      <div class="section-title">🎯 专精技能（{{ unlockedCount }}/{{ totalSkills }}）</div>
+      <SkillTree />
+    </div>
+
     <!-- 装备选择弹窗 -->
     <div v-if="equipPickerOpen" class="equip-picker-overlay" @click.self="equipPickerOpen = false">
       <div class="equip-picker">
@@ -93,6 +99,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
+import SkillTree from './SkillTree.vue'
+import { getSpecialization } from '../data/specialization.js'
 
 const store = useGameStore()
 const equipPickerOpen = ref(false)
@@ -101,6 +109,12 @@ const pickerType = ref('')
 const specLabel = computed(() => {
   const map = { chem: '化学专精', bio: '生物专精', yi: '易学专精', biochem: '生化专精', all: '全部专精' }
   return map[store.playerSpecialization] || ''
+})
+
+const unlockedCount = computed(() => store.specializationSkills?.length || 0)
+const totalSkills = computed(() => {
+  const spec = getSpecialization(store.playerSpecialization)
+  return spec?.skills?.length || 0
 })
 
 const pickerTypeLabel = computed(() => {
@@ -388,5 +402,13 @@ function equip(item) {
 .picker-stat {
   font-size: 12px;
   color: #d4a853;
+}
+
+/* 专精技能区 */
+.skill-section {
+  background: rgba(15, 52, 96, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(46, 204, 113, 0.2);
 }
 </style>

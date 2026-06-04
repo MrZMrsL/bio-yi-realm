@@ -20,7 +20,7 @@ export async function preloadQuestions() {
       { CHEM_HARD }, { CHEM_EXP_MEDIUM }, { CHEM_EXP_HARD },
       { BIO_EASY }, { BIO_MEDIUM }, { BIO_HARD },
       { BIO_EXP_MEDIUM }, { BIO_EXP_HARD },
-      { YI_MEDIUM }
+      { YI_EASY }, { YI_MEDIUM }, { YI_HARD }
     ] = await Promise.all([
       import('./chem_easy.js'),
       import('./chem_medium_1.js'),
@@ -33,7 +33,9 @@ export async function preloadQuestions() {
       import('./bio_hard.js'),
       import('./bio_exp_medium.js'),
       import('./bio_exp_hard.js'),
-      import('./yi_medium.js')
+      import('./yi_easy.js'),
+      import('./yi_medium.js'),
+      import('./yi_hard.js')
     ])
 
     CHEM_QUESTIONS.length = 0
@@ -56,7 +58,11 @@ export async function preloadQuestions() {
     )
 
     YI_QUESTIONS.length = 0
-    YI_QUESTIONS.push(...YI_MEDIUM)
+    YI_QUESTIONS.push(
+      ...YI_EASY,
+      ...YI_MEDIUM,
+      ...YI_HARD
+    )
 
     ALL_QUESTIONS.length = 0
     ALL_QUESTIONS.push(...CHEM_QUESTIONS, ...BIO_QUESTIONS, ...YI_QUESTIONS)
