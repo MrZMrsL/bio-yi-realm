@@ -323,12 +323,19 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // ===== 游戏启动 =====
+  // ===== 题库加载状态 =====
+  const isLoadingQuestions = ref(!isQuestionsLoaded())
+
   function startGame() {
     gameStarted.value = true
     firstVisit.value = false
     activeTab.value = 'dungeon'
-    preloadQuestions()
-    saveGame()
+    isLoadingQuestions.value = true
+    // 等待题库加载完成
+    preloadQuestions().then(() => {
+      isLoadingQuestions.value = false
+      saveGame()
+    })
   }
 
   function setTab(tab) {
@@ -337,6 +344,23 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 战斗系统 =====
   function initBattle() {
+    // 题库还没加载完成，等待
+    if (!isQuestionsLoaded()) {
+      battleLog.value = ['📚 题库加载中，请稍候...']
+      battleState.value = 'idle'
+      inBattle.value = true
+      isLoadingQuestions.value = true
+      preloadQuestions().then(() => {
+        isLoadingQuestions.value = false
+        actuallyInitBattle()
+      })
+      return
+    }
+
+    actuallyInitBattle()
+  }
+
+  function actuallyInitBattle() {
     enterMode(GAME_MODE.BATTLE)
     const e = getEnemyForFloor(floor.value)[0] || getRandomEnemy()
     const q = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
@@ -1447,6 +1471,19 @@ export const useGameStore = defineStore('game', () => {
   // ===== 地牢系统 =====
   // 进入地牢准备
   function enterDungeonPrep() {
+    // 题库还没加载完成，等待
+    if (!isQuestionsLoaded()) {
+      isLoadingQuestions.value = true
+      preloadQuestions().then(() => {
+        isLoadingQuestions.value = false
+        actuallyEnterDungeonPrep()
+      })
+      return
+    }
+    actuallyEnterDungeonPrep()
+  }
+
+  function actuallyEnterDungeonPrep() {
     enterMode(GAME_MODE.DUNGEON_PREP)
     dungeonPhase.value = 'prep'
     currentFloorElement.value = (() => {
@@ -1486,6 +1523,29 @@ export const useGameStore = defineStore('game', () => {
 
   // 进入指定房间战斗
   function enterRoom(roomIndex) {
+    const room = roomGrid.value[roomIndex]
+    if (!room || room.cleared) return
+
+    // 题库还没加载完成，等待
+    if (!isQuestionsLoaded()) {
+      battleLog.value = ['📚 题库加载中，请稍候...']
+      battleState.value = 'idle'
+      inBattle.value = true
+      isLoadingQuestions.value = true
+      preloadQuestions().then(() => {
+        isLoadingQuestions.value = false
+        if (dungeonPhase.value === 'battle') {
+          // 重新触发进入房间
+          actuallyEnterRoom(roomIndex)
+        }
+      })
+      return
+    }
+
+    actuallyEnterRoom(roomIndex)
+  }
+
+  function actuallyEnterRoom(roomIndex) {
     const room = roomGrid.value[roomIndex]
     if (!room || room.cleared) return
 
@@ -1944,6 +2004,7 @@ export const useGameStore = defineStore('game', () => {
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     // 开发者模式
     playerSpecialization, setSpecialization,
+    isLoadingQuestions,
     devMode, toggleDevMode,
     // 专精技能系统
     specializationSkills, newSkillUnlock, skillUnlockQueue,

@@ -1,5 +1,14 @@
 <template>
   <div id="game-container">
+    <!-- 题库加载中遮罩 -->
+    <div v-if="store.isLoadingQuestions" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner">📚</div>
+        <div class="loading-text">知识库加载中...</div>
+        <div class="loading-subtitle">正在载入生化易界全部题库</div>
+      </div>
+    </div>
+
     <!-- 新发现通知 -->
   <div class="discovery-notifications" v-if="store.newDiscoveries.length > 0">
     <div v-for="(notif, idx) in store.newDiscoveries" :key="notif.id" class="discovery-notif">
@@ -2834,6 +2843,37 @@ function resetGame() {
 
 .feedback-hint p {
   margin: 4px 0;
+}
+
+/* loading overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 42, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+.loading-content { text-align: center; }
+.loading-spinner {
+  font-size: 48px;
+  animation: spin-bounce 1.5s ease-in-out infinite;
+  margin-bottom: 16px;
+}
+.loading-text {
+  font-size: 18px;
+  color: #d4a853;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.loading-subtitle { font-size: 13px; color: #888; }
+@keyframes spin-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-12px) rotate(-10deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-6px) rotate(10deg); }
 }
 
 </style>
