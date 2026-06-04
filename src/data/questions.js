@@ -82,6 +82,10 @@ export function isQuestionsLoaded() {
   return loaded
 }
 
+export function isPreloadStarted() {
+  return loadingPromise !== null
+}
+
 // 为每道题添加唯一 id（基于题目文本的哈希，不依赖外部 id）
 function getQuestionId(q) {
   // 用题目文本 + 答案选项拼接后的简单 hash

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions } from '../data/questions.js'
+import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions, isQuestionsLoaded, isPreloadStarted } from '../data/questions.js'
 import { SPECIALIZATIONS, getSpecialization, getUnlockedSkills, getNextSkill } from '../data/specialization.js'
 import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
@@ -354,8 +354,8 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 战斗系统 =====
   function initBattle() {
-    // 题库还没加载完成，等待
-    if (!isQuestionsLoaded()) {
+    // 题库正在加载中（preload已启动但未完成），等待
+    if (!isQuestionsLoaded() && isPreloadStarted()) {
       battleLog.value = ['📚 题库加载中，请稍候...']
       battleState.value = 'idle'
       inBattle.value = true
@@ -1481,8 +1481,8 @@ export const useGameStore = defineStore('game', () => {
   // ===== 地牢系统 =====
   // 进入地牢准备
   function enterDungeonPrep() {
-    // 题库还没加载完成，等待
-    if (!isQuestionsLoaded()) {
+    // 题库正在加载中（preload已启动但未完成），等待
+    if (!isQuestionsLoaded() && isPreloadStarted()) {
       isLoadingQuestions.value = true
       preloadQuestions().then(() => {
         isLoadingQuestions.value = false
@@ -1536,8 +1536,8 @@ export const useGameStore = defineStore('game', () => {
     const room = roomGrid.value[roomIndex]
     if (!room || room.cleared) return
 
-    // 题库还没加载完成，等待
-    if (!isQuestionsLoaded()) {
+    // 题库正在加载中（preload已启动但未完成），等待
+    if (!isQuestionsLoaded() && isPreloadStarted()) {
       battleLog.value = ['📚 题库加载中，请稍候...']
       battleState.value = 'idle'
       inBattle.value = true
