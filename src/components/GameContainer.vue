@@ -1,12 +1,11 @@
 <template>
   <div id="game-container">
-    <!-- 题库加载中遮罩 -->
-    <div v-if="store.isLoadingQuestions" class="loading-overlay">
-      <div class="loading-content">
-        <div class="loading-spinner">📚</div>
-        <div class="loading-text">知识库加载中...</div>
-        <div class="loading-subtitle">正在载入生化易界全部题库</div>
+    <!-- 题库加载进度条（非阻塞，首次进入地牢时短暂显示） -->
+    <div v-if="!store.questionsLoaded && store.gameStarted" class="load-bar">
+      <div class="load-bar-track">
+        <div class="load-bar-fill" :style="{ width: store.loadProgress + '%' }"></div>
       </div>
+      <span class="load-bar-text">题库加载中 {{ store.loadProgress }}%</span>
     </div>
 
     <!-- 新发现通知 -->
@@ -2874,6 +2873,34 @@ function resetGame() {
   25% { transform: translateY(-12px) rotate(-10deg); }
   50% { transform: translateY(0) rotate(0deg); }
   75% { transform: translateY(-6px) rotate(10deg); }
+}
+
+/* 题库加载进度条 */
+.load-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: rgba(212, 168, 83, 0.08);
+  border-bottom: 1px solid rgba(212, 168, 83, 0.15);
+}
+.load-bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.load-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d4a853, #f1c40f);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.load-bar-text {
+  font-size: 11px;
+  color: #d4a853;
+  white-space: nowrap;
 }
 
 </style>

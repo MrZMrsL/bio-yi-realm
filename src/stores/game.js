@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions, isQuestionsLoaded, isPreloadStarted } from '../data/questions.js'
+import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions, ensureQuestionsForFloor, isQuestionsLoaded, isPreloadStarted, getLoadProgress } from '../data/questions.js'
 import { SPECIALIZATIONS, getSpecialization, getUnlockedSkills, getNextSkill } from '../data/specialization.js'
 import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
@@ -334,18 +334,18 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 游戏启动 =====
   // ===== 题库加载状态 =====
-  const isLoadingQuestions = ref(!isQuestionsLoaded())
+  const isLoadingQuestions = ref(false)
+  const questionsLoaded = computed(() => isQuestionsLoaded())
+  const loadProgress = computed(() => getLoadProgress())
 
   function startGame() {
     gameStarted.value = true
     firstVisit.value = false
     activeTab.value = 'dungeon'
-    isLoadingQuestions.value = true
-    // 等待题库加载完成
-    preloadQuestions().then(() => {
-      isLoadingQuestions.value = false
-      saveGame()
-    })
+    isLoadingQuestions.value = false
+    // 后台渐进加载题库，不阻塞游戏启动
+    preloadQuestions()
+    saveGame()
   }
 
   function setTab(tab) {
@@ -354,19 +354,8 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 战斗系统 =====
   function initBattle() {
-    // 题库正在加载中（preload已启动但未完成），等待
-    if (!isQuestionsLoaded() && isPreloadStarted()) {
-      battleLog.value = ['📚 题库加载中，请稍候...']
-      battleState.value = 'idle'
-      inBattle.value = true
-      isLoadingQuestions.value = true
-      preloadQuestions().then(() => {
-        isLoadingQuestions.value = false
-        actuallyInitBattle()
-      })
-      return
-    }
-
+    // 触发后台题库加载（不阻塞）
+    ensureQuestionsForFloor(floor.value)
     actuallyInitBattle()
   }
 
@@ -1481,15 +1470,8 @@ export const useGameStore = defineStore('game', () => {
   // ===== 地牢系统 =====
   // 进入地牢准备
   function enterDungeonPrep() {
-    // 题库正在加载中（preload已启动但未完成），等待
-    if (!isQuestionsLoaded() && isPreloadStarted()) {
-      isLoadingQuestions.value = true
-      preloadQuestions().then(() => {
-        isLoadingQuestions.value = false
-        actuallyEnterDungeonPrep()
-      })
-      return
-    }
+    // 后台启动题库加载（不阻塞）
+    ensureQuestionsForFloor(floor.value)
     actuallyEnterDungeonPrep()
   }
 
@@ -1532,25 +1514,13 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // 进入指定房间战斗
+  // 进入指定房间战斗
   function enterRoom(roomIndex) {
     const room = roomGrid.value[roomIndex]
     if (!room || room.cleared) return
 
-    // 题库正在加载中（preload已启动但未完成），等待
-    if (!isQuestionsLoaded() && isPreloadStarted()) {
-      battleLog.value = ['📚 题库加载中，请稍候...']
-      battleState.value = 'idle'
-      inBattle.value = true
-      isLoadingQuestions.value = true
-      preloadQuestions().then(() => {
-        isLoadingQuestions.value = false
-        if (dungeonPhase.value === 'battle') {
-          // 重新触发进入房间
-          actuallyEnterRoom(roomIndex)
-        }
-      })
-      return
-    }
+    // 触发后台题库加载（不阻塞进入房间）
+    ensureQuestionsForFloor(floor.value)
 
     actuallyEnterRoom(roomIndex)
   }
@@ -2012,7 +1982,7 @@ export const useGameStore = defineStore('game', () => {
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     // 开发者模式
     playerSpecialization, setSpecialization,
-    isLoadingQuestions,
+    isLoadingQuestions, questionsLoaded, loadProgress,
     devMode, toggleDevMode,
     // 专精技能系统
     specializationSkills, newSkillUnlock, skillUnlockQueue,
