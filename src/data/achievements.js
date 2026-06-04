@@ -102,6 +102,80 @@ export const ACHIEVEMENTS = [
     reward: { exp: 500 }
   },
 
+  // ===== 新增战斗成就 =====
+  {
+    id: 'floor_10',
+    title: '十层通关',
+    desc: '到达第 10 层',
+    icon: '🏗️',
+    category: 'combat',
+    rarity: 'normal',
+    condition: (stats) => stats.maxFloor >= 10,
+    progress: (stats) => Math.min(10, stats.maxFloor),
+    maxProgress: 10,
+    reward: { exp: 30 }
+  },
+  {
+    id: 'floor_30',
+    title: '踏平深渊',
+    desc: '到达第 30 层',
+    icon: '🏔️',
+    category: 'combat',
+    rarity: 'rare',
+    condition: (stats) => stats.maxFloor >= 30,
+    progress: (stats) => Math.min(30, stats.maxFloor),
+    maxProgress: 30,
+    reward: { exp: 80 }
+  },
+  {
+    id: 'first_win',
+    title: '首战告捷',
+    desc: '取得首次战斗胜利',
+    icon: '🥇',
+    category: 'combat',
+    rarity: 'normal',
+    condition: (stats) => stats.totalWins >= 1,
+    progress: (stats) => Math.min(1, stats.totalWins),
+    maxProgress: 1,
+    reward: { exp: 10 }
+  },
+  {
+    id: 'win_50',
+    title: '常胜将军',
+    desc: '累计 50 场战斗胜利',
+    icon: '🏅',
+    category: 'combat',
+    rarity: 'rare',
+    condition: (stats) => stats.totalWins >= 50,
+    progress: (stats) => Math.min(50, stats.totalWins),
+    maxProgress: 50,
+    reward: { exp: 60 }
+  },
+  {
+    id: 'win_200',
+    title: '战神降临',
+    desc: '累计 200 场战斗胜利',
+    icon: '⚔️',
+    category: 'combat',
+    rarity: 'epic',
+    condition: (stats) => stats.totalWins >= 200,
+    progress: (stats) => Math.min(200, stats.totalWins),
+    maxProgress: 200,
+    reward: { exp: 200 }
+  },
+  {
+    id: 'all_clear_50',
+    title: '清场专业户',
+    desc: '累计 50 层清空所有房间',
+    icon: '🧹',
+    category: 'combat',
+    rarity: 'legendary',
+    condition: (allClearCount) => allClearCount >= 50,
+    progress: (allClearCount) => Math.min(50, allClearCount),
+    maxProgress: 50,
+    reward: { exp: 500 }
+  },
+
   // === 知识成就 ===
   {
     id: 'first_correct',
@@ -150,6 +224,30 @@ export const ACHIEVEMENTS = [
     progress: (stats) => Math.min(50, stats.totalWrong),
     maxProgress: 50,
     reward: { exp: 20 }
+  },
+  {
+    id: 'accuracy_master',
+    title: '精准打击',
+    desc: '累计答对率 ≥ 80%（答对 ≥ 100 题时）',
+    icon: '🎯',
+    category: 'knowledge',
+    rarity: 'epic',
+    condition: (stats) => stats.totalCorrect >= 100 && stats.totalCorrect / (stats.totalCorrect + stats.totalWrong) >= 0.8,
+    progress: (stats) => Math.min(100, stats.totalCorrect),
+    maxProgress: 100,
+    reward: { exp: 200 }
+  },
+  {
+    id: 'chem_master',
+    title: '化学生物',
+    desc: '答对 200 道化学题',
+    icon: '🧪',
+    category: 'knowledge',
+    rarity: 'epic',
+    condition: (allStats) => false, // 暂不追踪，占位
+    progress: () => 0,
+    maxProgress: 200,
+    reward: { exp: 150 }
   },
 
   // === 收集成就 ===
@@ -249,6 +347,57 @@ export const ACHIEVEMENTS = [
     maxProgress: 20,
     reward: { exp: 150 }
   },
+  {
+    id: 'fishing_500',
+    title: '江河霸主',
+    desc: '累计钓到 500 条鱼',
+    icon: '🐋',
+    category: 'collection',
+    rarity: 'legendary',
+    condition: (stats) => stats.totalFishes >= 500,
+    progress: (stats) => Math.min(500, stats.totalFishes),
+    maxProgress: 500,
+    reward: { exp: 300 }
+  },
+  {
+    id: 'monster_all',
+    title: '万物图鉴',
+    desc: '解锁全部怪物图鉴',
+    icon: '📖',
+    category: 'collection',
+    rarity: 'legendary',
+    condition: (cyclopedia) => {
+      const monsters = cyclopedia.monsters || []
+      return monsters.length >= 38
+    },
+    progress: (cyclopedia) => Math.min(38, (cyclopedia.monsters || []).length),
+    maxProgress: 38,
+    reward: { exp: 500 }
+  },
+  {
+    id: 'forge_10',
+    title: '资深铁匠',
+    desc: '累计锻造 10 次',
+    icon: '🔨',
+    category: 'collection',
+    rarity: 'normal',
+    condition: (stats) => stats.totalForges >= 10,
+    progress: (stats) => Math.min(10, stats.totalForges),
+    maxProgress: 10,
+    reward: { exp: 30 }
+  },
+  {
+    id: 'pet_5',
+    title: '动物园主',
+    desc: '收养 5 只不同的怪物',
+    icon: '🏠',
+    category: 'collection',
+    rarity: 'rare',
+    condition: (farm) => farm.length >= 5,
+    progress: (farm) => Math.min(5, farm.length),
+    maxProgress: 5,
+    reward: { exp: 50 }
+  },
 
   // === 限定成就（限时Boss专属）===
   {
@@ -314,6 +463,18 @@ export const ACHIEVEMENTS = [
 
   // === 等级成就 ===
   {
+    id: 'level_5',
+    title: '小试牛刀',
+    desc: '达到 5 级',
+    icon: '🌱',
+    category: 'level',
+    rarity: 'normal',
+    condition: (level) => level >= 5,
+    progress: (level) => Math.min(5, level),
+    maxProgress: 5,
+    reward: { exp: 15 }
+  },
+  {
     id: 'level_10',
     title: '崭露头角',
     desc: '达到 10 级',
@@ -326,6 +487,18 @@ export const ACHIEVEMENTS = [
     reward: { exp: 30 }
   },
   {
+    id: 'level_25',
+    title: '小有名气',
+    desc: '达到 25 级',
+    icon: '🌟',
+    category: 'level',
+    rarity: 'rare',
+    condition: (level) => level >= 25,
+    progress: (level) => Math.min(25, level),
+    maxProgress: 25,
+    reward: { exp: 80 }
+  },
+  {
     id: 'level_50',
     title: '名震一方',
     desc: '达到 50 级',
@@ -336,6 +509,18 @@ export const ACHIEVEMENTS = [
     progress: (level) => Math.min(50, level),
     maxProgress: 50,
     reward: { exp: 200 }
+  },
+  {
+    id: 'level_75',
+    title: '隐世高手',
+    desc: '达到 75 级',
+    icon: '🔥',
+    category: 'level',
+    rarity: 'epic',
+    condition: (level) => level >= 75,
+    progress: (level) => Math.min(75, level),
+    maxProgress: 75,
+    reward: { exp: 350 }
   },
   {
     id: 'level_100',

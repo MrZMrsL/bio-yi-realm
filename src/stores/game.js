@@ -239,7 +239,17 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 错题本 =====
   const wrongQuestions = ref([])
-  const wrongStats = ref({})
+  const wrongStats = computed(() => {
+    const total = wrongQuestions.value.length
+    const mastered = wrongQuestions.value.filter(wq => wq.mastered).length
+    const pending = total - mastered
+    const bySubject = {
+      chem: wrongQuestions.value.filter(wq => wq.question?.subject === 'chem').length,
+      bio: wrongQuestions.value.filter(wq => wq.question?.subject === 'bio').length,
+      yi: wrongQuestions.value.filter(wq => wq.question?.subject === 'yi').length
+    }
+    return { total, mastered, pending, bySubject }
+  })
   const reviewMode = ref(false)
   const reviewCurrent = ref(null)
   const reviewIndex = ref(0)
@@ -1770,7 +1780,6 @@ export const useGameStore = defineStore('game', () => {
       dailyFishCount: dailyFishCount.value,
       fishLimitUnlocked: fishLimitUnlocked.value,
       wrongQuestions: wrongQuestions.value,
-      wrongStats: wrongStats.value,
       reviewMode: reviewMode.value,
       reviewCurrent: reviewCurrent.value,
       reviewIndex: reviewIndex.value,
@@ -1965,7 +1974,6 @@ export const useGameStore = defineStore('game', () => {
     currentFloorElement.value = 'water'
     firstVisit.value = true
     wrongQuestions.value = []
-    wrongStats.value = {}
     reviewMode.value = false
     reviewCurrent.value = null
     reviewIndex.value = 0
