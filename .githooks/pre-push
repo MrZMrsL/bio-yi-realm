@@ -1,0 +1,62 @@
+#!/bin/sh
+# 生化易界 - Pre-push Hook
+# 红线原则：不质检不push。质检未通过，禁止推送至 origin/master。
+#
+# 安装方式：
+#   git config core.hooksPath .githooks
+
+echo ""
+echo "🧪 ═══════════════════════════════════════"
+echo "🧪  生化易界 推送前质检"
+echo "🧪 ═══════════════════════════════════════"
+echo ""
+
+REMOTE="$1"
+URL="$2"
+
+# 只对 master/main 分支做严格检查
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ "$BRANCH" != "master" ] && [ "$BRANCH" != "main" ]; then
+  echo "✅ 非主分支推送，跳过严格质检"
+  exit 0
+fi
+
+echo "🔍 正在检查是否有未提交的更改..."
+if ! git diff --quiet HEAD; then
+  echo "❌ 有未提交的更改！请先 commit 再推送。"
+  exit 1
+fi
+
+echo ""
+echo "🔨 Step 1/2: 运行构建检查..."
+
+# 运行构建
+npm run build 2>&1
+BUILD_EXIT=$?
+
+if [ $BUILD_EXIT -ne 0 ]; then
+  echo ""
+  echo "❌ 构建失败！请修复构建错误后再推送。"
+  echo "   运行 npm run build 查看详细错误。"
+  exit 1
+fi
+echo "✅ 构建通过（零错误）"
+
+echo ""
+echo "🧪 Step 2/2: 运行单元测试..."
+
+npm run test:run 2>&1
+TEST_EXIT=$?
+
+if [ $TEST_EXIT -ne 0 ]; then
+  echo ""
+  echo "❌ 测试未全部通过！请修复后再推送。"
+  exit 1
+fi
+echo "✅ 全部测试通过"
+
+echo ""
+echo "🎉 ═══════════════════════════════════════"
+echo "🎉  质检全部通过，可以推送！"
+echo "🎉 ═══════════════════════════════════════"
+echo ""

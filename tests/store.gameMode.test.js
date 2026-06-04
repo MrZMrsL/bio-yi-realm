@@ -9,6 +9,20 @@ vi.stubGlobal('localStorage', {
   removeItem: vi.fn()
 })
 
+// Mock AudioContext for test environment
+vi.stubGlobal('window', {
+  ...globalThis.window,
+  AudioContext: vi.fn().mockImplementation(() => ({
+    createOscillator: vi.fn(() => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { setValueAtTime: vi.fn(), value: 440 } })),
+    createGain: vi.fn(() => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), value: 1 } })),
+    destination: {},
+    currentTime: 0,
+    state: 'running',
+    resume: vi.fn()
+  })),
+  webkitAudioContext: undefined
+})
+
 describe('状态机核心规则', () => {
   let store
 

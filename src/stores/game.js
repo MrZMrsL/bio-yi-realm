@@ -344,7 +344,7 @@ export const useGameStore = defineStore('game', () => {
   function resetCombo() {
     consecutiveCorrect.value = 0
     comboCount.value = 0
-    comboActive.value = false
+    // 注意：不重置 comboActive，让 triggerCriticalEffect 的 setTimeout 控制特效时长
   }
 
   function triggerCriticalEffect() {
@@ -1434,6 +1434,7 @@ export const useGameStore = defineStore('game', () => {
     dungeonPhase.value = 'battle'
 
     const preview = room.enemyPreview
+    const el = DUNGEON_ELEMENTS[preview.element] || DUNGEON_ELEMENTS.water
     // 生成实际的敌人实例
     enemy.value = {
       name: preview.name,
@@ -1441,11 +1442,11 @@ export const useGameStore = defineStore('game', () => {
       hp: preview.hp,
       maxHp: preview.hp,
       atk: preview.atk,
-      def: preview.def,
+      def: preview.def || 0,
       subject: preview.subject,
       element: preview.element,
-      subjectLabel: preview.subjectLabel,
-      elementLabel: preview.elementLabel
+      subjectLabel: preview.subject === 'chem' ? '化学' : preview.subject === 'bio' ? '生物' : '易学',
+      elementLabel: el.name
     }
 
     // 获取题目
@@ -1633,10 +1634,6 @@ export const useGameStore = defineStore('game', () => {
       titleEra: titleEra.value,
       titleField: titleField.value,
       titleAchievements: titleAchievements.value,
-      statPoints: statPoints.value,
-      atkPoints: atkPoints.value,
-      defPoints: defPoints.value,
-      hpPoints: hpPoints.value,
       equipment: equipment.value,
       consumables: consumables.value,
       equipped: equipped.value,

@@ -525,11 +525,6 @@ function revive() {
   100% { opacity: 0; }
 }
 
-@keyframes critical-zoom {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
 .battle-container {
   padding: 20px;
   background: #2a2a2a;

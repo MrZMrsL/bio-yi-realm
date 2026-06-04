@@ -831,9 +831,9 @@ function getDiscoveryCount(type, id) {
 }
 
 function getEncProgress(type) {
-  const progress = store.getCyclopediaProgress(type)
-  return `${progress.found}/${progress.total}`
-}
+    const progress = store.getCyclopediaProgress(type)
+    return `${progress.discovered}/${progress.total}`
+  }
 
 const panelTitle = computed(() => {
   const titles = {
