@@ -241,15 +241,16 @@ const fishLimitCheck = computed(() => store.canFishToday())
 const fishRemaining = computed(() => Math.max(0, 5 - store.dailyFishCount))
 
 const fishCollectionPercent = computed(() => {
-  const totalCaught = Object.values(store.fishCollection).reduce((a, b) => a + b, 0)
-  return totalCaught
+  const discovered = store.cyclopedia?.fishes?.length || 0
+  return TOTAL_FISH_COUNT > 0 ? Math.floor((discovered / TOTAL_FISH_COUNT) * 100) : 0
 })
 
 function collectionCount(rarity) {
+  const discovered = store.cyclopedia?.fishes || []
   let count = 0
-  for (const [fishName, fishCount] of Object.entries(store.fishCollection)) {
+  for (const fishName of discovered) {
     const fishData = ALL_FISH.find(f => f.name === fishName)
-    if (fishData && fishData.rarity === rarity) count += fishCount
+    if (fishData && fishData.rarity === rarity) count++
   }
   return count
 }
