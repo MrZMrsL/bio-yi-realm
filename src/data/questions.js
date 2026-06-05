@@ -180,7 +180,7 @@ export function getQuestions(subject, difficulty, count = 5) {
 }
 
 export function getAllQuestions() {
-  return [...ALL_QUESTIONS, ...CHEM_QUESTIONS, ...BIO_QUESTIONS, ...YI_QUESTIONS]
+  return [...ALL_QUESTIONS]
 }
 
 export function getQuestionsForFloor(floor, count = 5, spec = 'all') {

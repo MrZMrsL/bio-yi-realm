@@ -36,7 +36,6 @@ import {
 } from '../utils/sfx.js'
 import { getTitleForLevel } from '../utils/dungeon.js'
 import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/encyclopedia.js'
-import { getAllQuestions } from '../data/questions.js'
 import { getAllFishes as getAllFishesFromData, getBookSubject } from '../data/fishing.js'
 import { getAllBooks as getAllBooksFromData } from '../data/fishing.js'
 import { TITLE_TABLE } from '../data/title.js'
