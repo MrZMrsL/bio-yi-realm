@@ -38,6 +38,20 @@ body {
   }
 }
 
+/* ===== 全局 UI 缓和 ===== */
+/* 所有游戏按钮弹性缓动（排除音频设置等控制按钮） */
+#app button:not(.audio-toggle) {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease,
+              background 0.2s ease,
+              opacity 0.2s ease;
+}
+
+/* 全局 emoji / 图标阴影，统一跨平台渲染效果 */
+.emoji-icon {
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
 /* ===== 音频设置 ===== */
 .audio-settings {
   padding: 20px 16px;

@@ -1,13 +1,17 @@
 <template>
-  <div class="battle-container" :class="{ 'screen-shake': store.comboActive }">
+  <div class="battle-container" ref="battleContainerRef" 
+    :class="{ 
+      'screen-shake': store.comboActive,
+      'boss-warning': isBossWarning
+    }">
     <div class="battle-header">
       <span class="floor-badge">
         <span v-if="store.gameMode === 'weekly_boss'">🔥 限时Boss</span>
         <span v-else>第 {{ store.floor }} 层</span>
       </span>
       <div class="enemy-info">
-        <span class="enemy-name">{{ store.enemy?.name }}</span>
-        <span class="enemy-subject">[{{ store.enemy?.subjectLabel }}]</span>
+        <span class="enemy-name" :style="{ color: store.currentSubjectTheme?.light }">{{ store.enemy?.name }}</span>
+        <span class="enemy-subject" :style="{ color: store.currentSubjectTheme?.primary }">[{{ store.enemy?.subjectLabel }}]</span>
         <span class="enemy-element" :style="{ background: enemyElementColor }"
           v-if="store.enemy?.elementLabel">
           {{ store.enemy?.elementLabel }}
@@ -26,26 +30,17 @@
       <span v-else class="combo-text">x1</span>
     </div>
     
-    <!-- 暴击特效覆盖层 -->
+    <!-- 暴击特效覆盖层（Canvas 粒子驱动） -->
     <div v-if="store.comboActive" class="critical-overlay">
-      <div class="critical-particles">
-        <div class="particle" style="--tx: -40; --ty: -60;"></div>
-        <div class="particle" style="--tx: 50; --ty: -40;"></div>
-        <div class="particle" style="--tx: -30; --ty: 50;"></div>
-        <div class="particle" style="--tx: 60; --ty: 30;"></div>
-        <div class="particle" style="--tx: 20; --ty: -70;"></div>
-        <div class="particle" style="--tx: -50; --ty: 20;"></div>
-        <div class="particle" style="--tx: 35; --ty: -50;"></div>
-        <div class="particle" style="--tx: -25; --ty: 60;"></div>
-      </div>
       <div class="critical-overlay-text">⚡ 知识三连击！伤害×3！</div>
     </div>
     
-    <div class="battlefield">
+    <div class="battlefield" ref="battlefieldRef">
       <div class="player-side">
-        <div class="player-avatar">🧙‍♂️</div>
+        <div class="player-avatar emoji-icon">🧙‍♂️</div>
         <div class="health-bar">
-          <div class="hp-fill" :style="{ width: store.hpPercent + '%' }"></div>
+          <div class="hp-ghost" :style="{ width: playerGhostHpPercent + '%' }"></div>
+          <div class="hp-fill" :class="hpColorClass" :style="{ width: store.hpPercent + '%' }"></div>
         </div>
         <span class="hp-text">{{ store.hp }} / {{ store.maxHp }}</span>
         <div class="stats">
@@ -58,12 +53,19 @@
         </div>
       </div>
       
-      <div class="vs">VS</div>
+      <div class="vs" :style="{ color: store.currentSubjectTheme?.primary }">VS</div>
       
       <div class="enemy-side">
-        <div class="enemy-avatar">{{ store.enemy?.icon || store.enemy?.name?.charAt(0) || '?' }}</div>
+        <div class="enemy-avatar emoji-icon"
+          :style="{ borderColor: store.currentSubjectTheme?.primary }"
+        >{{ store.enemy?.icon || store.enemy?.name?.charAt(0) || '?' }}</div>
         <div class="health-bar enemy-hp">
-          <div class="hp-fill" :style="{ width: (store.enemy?.hp / store.enemy?.maxHp * 100) + '%' }"></div>
+          <div class="hp-ghost" :style="{ width: enemyGhostHpPercent + '%', background: store.currentSubjectTheme?.glow }"></div>
+          <div class="hp-fill enemy-hp-fill" :class="enemyHpColorClass" 
+            :style="{ 
+              width: (store.enemy?.hp / store.enemy?.maxHp * 100) + '%',
+              background: enemyHpGradient
+            }"></div>
         </div>
         <span class="hp-text">{{ store.enemy?.hp }} / {{ store.enemy?.maxHp }}</span>
       </div>
@@ -248,13 +250,52 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useGameStore } from '../stores/game.js'
 import { DUNGEON_ELEMENTS } from '../data/farm.js'
 import { sfxClick } from '../utils/audio.js'
+import { useParticleSystem } from '../composables/useParticleSystem.js'
+import { showFloatingDamage, showHealNumber } from '../composables/useFloatingDamage.js'
 
 const store = useGameStore()
 const showPotionPanel = ref(false)
+
+// ===== 粒子系统 =====
+const ps = useParticleSystem()
+const battleContainerRef = ref(null)
+const battlefieldRef = ref(null)
+
+// ===== 幽灵血条追踪 =====
+const playerPrevHp = ref(0)
+const enemyPrevHp = ref(0)
+const playerGhostHpPercent = ref(100)
+const enemyGhostHpPercent = ref(100)
+
+// ===== 血条颜色 =====
+const isBossWarning = computed(() => {
+  return store.gameMode === 'weekly_boss' && store.weeklyBossTimeLeft !== null && store.weeklyBossTimeLeft <= 10
+})
+const hpColorClass = computed(() => {
+  const pct = store.hpPercent
+  if (pct <= 20) return 'hp-danger'
+  if (pct <= 50) return 'hp-warning'
+  return 'hp-healthy'
+})
+
+const enemyHpColorClass = computed(() => {
+  if (!store.enemy) return ''
+  const pct = store.enemy.hp / store.enemy.maxHp * 100
+  if (pct <= 20) return 'hp-danger'
+  if (pct <= 50) return 'hp-warning'
+  return 'hp-healthy'
+})
+
+// 敌人血条颜色渐变 — 健康时使用学科主题色，低血量时由 CSS class 覆盖
+const enemyHpGradient = computed(() => {
+  if (!store.currentSubjectTheme) return 'linear-gradient(90deg, #ff6b6b, #c0392b)'
+  const t = store.currentSubjectTheme
+  return `linear-gradient(90deg, ${t.hp}, ${t.hpDark})`
+})
 
 const enemyElementColor = computed(() => {
   if (!store.enemy?.element) return '#666'
@@ -264,6 +305,130 @@ const enemyElementColor = computed(() => {
 const canCapture = computed(() => {
   if (!store.captureMonsterData) return false
   return store.farm.length < 12
+})
+
+// ===== 幽灵血条 =====
+// 玩家受伤时，幽灵血条保存旧值，2秒内缓慢追赶
+watch(() => store.hp, (newHp, oldHp) => {
+  if (oldHp === undefined || oldHp === null) {
+    playerPrevHp.value = newHp
+    return
+  }
+  if (newHp < oldHp) {
+    // 受伤：幽灵血条停留在旧位置，实际血条跳变
+    const damage = oldHp - newHp
+    playerPrevHp.value = oldHp
+    playerGhostHpPercent.value = (oldHp / store.maxHp) * 100
+    // 幽灵血条在 1.5s 内追赶到新位置
+    setTimeout(() => {
+      playerGhostHpPercent.value = (newHp / store.maxHp) * 100
+    }, 100)
+
+    // 玩家受伤数字（红色）
+    if (battlefieldRef.value && damage > 0) {
+      showFloatingDamage(battlefieldRef.value, damage, {
+        x: 25, y: 45,
+        isCritical: false,
+        color: '#e74c3c'
+      })
+    }
+  } else if (newHp > oldHp) {
+    // 回血：同时刷新
+    const heal = newHp - oldHp
+    playerPrevHp.value = newHp
+    playerGhostHpPercent.value = (newHp / store.maxHp) * 100
+    if (battlefieldRef.value && heal > 0) {
+      showHealNumber(battlefieldRef.value, heal, {
+        x: 25, y: 45
+      })
+    }
+  }
+})
+
+// 敌人受伤追踪 + 伤害数字显示
+watch(() => store.enemy?.hp, (newHp, oldHp) => {
+  if (newHp === undefined || oldHp === undefined || oldHp === null) return
+  if (newHp < oldHp) {
+    const damage = oldHp - newHp
+    enemyPrevHp.value = oldHp
+    enemyGhostHpPercent.value = (oldHp / store.enemy.maxHp) * 100
+    setTimeout(() => {
+      enemyGhostHpPercent.value = (newHp / store.enemy.maxHp) * 100
+    }, 100)
+
+    // 显示伤害数字
+    if (battlefieldRef.value && damage > 0) {
+      const isCrit = store.comboActive
+      const subjectColor = store.enemy?.subjectLabel === '化学' ? '#e74c3c' :
+                           store.enemy?.subjectLabel === '生物' ? '#2ecc71' :
+                           store.enemy?.subjectLabel === '易学' ? '#9b59b6' : '#f1c40f'
+      showFloatingDamage(battlefieldRef.value, damage, {
+        x: 75, y: 35,
+        isCritical: isCrit,
+        label: isCrit ? '暴击！' : '',
+        color: isCrit ? '#f1c40f' : subjectColor
+      })
+    }
+  } else if (newHp > oldHp) {
+    // Boss回血
+    const heal = newHp - oldHp
+    enemyPrevHp.value = newHp
+    enemyGhostHpPercent.value = (newHp / store.enemy.maxHp) * 100
+    if (battlefieldRef.value && heal > 0) {
+      showHealNumber(battlefieldRef.value, heal, {
+        x: 75, y: 35
+      })
+    }
+  }
+})
+
+// ===== 粒子 + 伤害数字触发 =====
+// comboActive → 暴击粒子爆发 + 伤害数字
+watch(() => store.comboActive, (active) => {
+  if (!active || !battlefieldRef.value) return
+
+  const bf = battlefieldRef.value
+  const rect = bf.getBoundingClientRect()
+  const cx = bf.clientWidth / 2
+  const cy = bf.clientHeight / 2
+
+  // 粒子爆发
+  ps.emitBurst(cx, cy, 50, ['#f1c40f', '#e67e22', '#f39c12', '#fff'], {
+    speedMin: 3, speedMax: 10, sizeMin: 3, sizeMax: 9, life: 1.0, gravity: 150
+  })
+
+  // 飘浮粒子环绕
+  nextTick(() => {
+    ps.emitFloat(cx - 60, cy - 40, 8, ['#f1c40f', '#fff'], { life: 0.8 })
+    ps.emitFloat(cx + 60, cy - 40, 8, ['#f1c40f', '#fff'], { life: 0.8 })
+  })
+})
+
+// 限时Boss倒计时 ≤ 10s → 屏幕火花
+watch(() => store.weeklyBossTimeLeft, (t) => {
+  if (t !== undefined && t <= 10 && t > 0 && ps) {
+    ps.emitScreenSparks(['#e74c3c', '#f39c12'], 8)
+  }
+})
+
+// ===== 生命周期 =====
+onMounted(() => {
+  nextTick(() => {
+    if (battleContainerRef.value) {
+      ps.init(battleContainerRef.value)
+      // 初始化幽灵血条
+      playerPrevHp.value = store.hp
+      playerGhostHpPercent.value = store.hpPercent
+      if (store.enemy) {
+        enemyPrevHp.value = store.enemy.hp
+        enemyGhostHpPercent.value = (store.enemy.hp / store.enemy.maxHp) * 100
+      }
+    }
+  })
+})
+
+onUnmounted(() => {
+  ps.destroy()
 })
 
 function startAnswer() {
@@ -431,35 +596,7 @@ function revive() {
   z-index: 1;
 }
 
-/* 暴击粒子效果 */
-.critical-particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 999;
-}
-
-.critical-particles .particle {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #f1c40f;
-  border-radius: 50%;
-  animation: particle-burst 1s ease-out forwards;
-}
-
-.critical-particles .particle:nth-child(1) { top: 40%; left: 45%; animation-delay: 0s; }
-.critical-particles .particle:nth-child(2) { top: 35%; left: 55%; animation-delay: 0.1s; }
-.critical-particles .particle:nth-child(3) { top: 50%; left: 40%; animation-delay: 0.05s; }
-.critical-particles .particle:nth-child(4) { top: 45%; left: 60%; animation-delay: 0.15s; }
-.critical-particles .particle:nth-child(5) { top: 30%; left: 50%; animation-delay: 0.08s; }
-.critical-particles .particle:nth-child(6) { top: 55%; left: 48%; animation-delay: 0.12s; }
-.critical-particles .particle:nth-child(7) { top: 38%; left: 42%; animation-delay: 0.2s; }
-.critical-particles .particle:nth-child(8) { top: 42%; left: 58%; animation-delay: 0.18s; }
+/* 暴击粒子效果（由 Canvas 驱动，保留覆盖层视觉样式） */
 
 @keyframes combo-pop {
   0% { transform: scale(0.5); opacity: 0; }
@@ -507,16 +644,7 @@ function revive() {
   50% { transform: scale(1.08); }
 }
 
-@keyframes particle-burst {
-  0% { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { 
-    transform: translate(
-      calc(var(--tx, 0) * 1px), 
-      calc(var(--ty, 0) * 1px)
-    ) scale(0);
-    opacity: 0;
-  }
-}
+/* @keyframes particle-burst removed — handled by Canvas useParticleSystem */
 
 @keyframes fade-in-out {
   0% { opacity: 0; }
@@ -528,8 +656,70 @@ function revive() {
 .battle-container {
   padding: 20px;
   background: #2a2a2a;
-  border-radius: 8px;
+  border-radius: 12px;
   color: #fff;
+}
+
+/* PC端：玻璃质感 */
+@media (min-width: 768px) {
+  .battle-container {
+    background: rgba(42, 42, 42, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .battle-log {
+    background: rgba(26, 26, 26, 0.7) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .quiz-panel {
+    background: rgba(26, 26, 26, 0.75) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .result {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+/* ===== 限时Boss预警 ===== */
+.boss-warning {
+  box-shadow: inset 0 0 0 0 rgba(231, 76, 60, 0);
+  animation: boss-warning-glow 1s ease-in-out infinite;
+}
+
+@keyframes boss-warning-glow {
+  0%   { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0.1), 0 0 0px rgba(231, 76, 60, 0); }
+  50%  { box-shadow: inset 0 0 30px rgba(231, 76, 60, 0.15), 0 0 15px rgba(231, 76, 60, 0.08); }
+  100% { box-shadow: inset 0 0 0px rgba(231, 76, 60, 0.1), 0 0 0px rgba(231, 76, 60, 0); }
+}
+
+.battle-container.boss-warning {
+  border-color: rgba(231, 76, 60, 0.2);
+  transition: border-color 0.3s ease;
+}
+
+/* 倒计时 ≤5s 加速闪烁 */
+.boss-warning .timer-bar-fill.danger {
+  animation: pulse-danger 0.3s ease-in-out infinite !important;
+}
+
+.boss-warning .timer-bar-label {
+  animation: timer-label-panic 0.5s ease-in-out infinite;
+  color: #e74c3c;
+  font-size: 16px;
+}
+
+@keyframes timer-label-panic {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
 }
 
 .battle-header {
@@ -608,22 +798,79 @@ function revive() {
   color: #ff6b6b;
 }
 
+.enemy-subject {
+  color: #ffd93d;
+}
+
+.vs {
+  font-size: 2em;
+  font-weight: bold;
+  color: #ff6b6b;
+}
+
 .health-bar {
   width: 150px;
   height: 12px;
   background: #333;
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
+}
+
+.hp-ghost {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  background: rgba(78, 205, 196, 0.2);
+  border-radius: 6px;
+  transition: width 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+}
+
+.enemy-hp .hp-ghost {
+  background: rgba(255, 107, 107, 0.2);
 }
 
 .hp-fill {
+  position: relative;
   height: 100%;
-  background: #4ecdc4;
-  transition: width 0.3s;
+  border-radius: 6px;
+  transition: width 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              background 0.5s ease;
+  z-index: 1;
 }
 
-.enemy-hp .hp-fill {
-  background: #ff6b6b;
+/* HP 颜色渐变 */
+.hp-healthy {
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.hp-warning {
+  background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.hp-danger {
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  animation: hp-danger-pulse 0.8s ease-in-out infinite;
+}
+
+.enemy-hp-fill {
+  /* 基线值由 inline style 提供（学科主题色），此处不设 !important
+     以便 .hp-warning / .hp-danger 在低血量时覆盖 */
+}
+
+.enemy-hp-fill.hp-warning {
+  background: linear-gradient(90deg, #f39c12, #e67e22) !important;
+}
+
+.enemy-hp-fill.hp-danger {
+  background: linear-gradient(90deg, #e74c3c, #c0392b) !important;
+  animation: hp-danger-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes hp-danger-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .hp-text {

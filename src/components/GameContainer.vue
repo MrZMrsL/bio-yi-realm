@@ -473,32 +473,6 @@
             </button>
           </div>
 
-          <!-- 称号面板 -->
-          <div v-if="activeSettingsTab === 'title'" class="settings-content">
-            <div class="title-card">
-              <div class="title-header">
-                <span class="title-badge">Lv.{{ store.level }}</span>
-                <h3 class="title-name">{{ store.title }}</h3>
-                <span class="title-field">{{ store.titleEra }} · {{ store.titleField }}</span>
-              </div>
-              <p class="title-bio">{{ store.titleBio }}</p>
-              <div class="title-achievements">
-                <h4>🏆 成就</h4>
-                <div v-for="(ach, idx) in store.titleAchievements" :key="idx" class="achievement-item">
-                  <span class="achievement-check">✓</span>
-                  <span>{{ ach }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="title-progress">
-              <h4>📈 称号进度</h4>
-              <div v-for="t in allTitles" :key="t.title" class="progress-item" :class="{ current: t.title === store.title }">
-                <span class="progress-level">Lv.{{ t.min }}-{{ t.max }}</span>
-                <span class="progress-name">{{ t.title }}</span>
-                <span class="progress-field">{{ t.field }}</span>
-              </div>
-            </div>
-          </div>
 
           <!-- 图鉴面板 -->
           <div v-if="activeSettingsTab === 'encyclopedia'" class="settings-content">
@@ -808,7 +782,6 @@ function resetLocalStorage() {
   }
 }
 
-const allTitles = TITLE_TABLE
 const allMonsters = getAllMonsters()
 const allMaterials = getAllMaterials()
 const allFishes = getAllFishes()
@@ -816,7 +789,6 @@ const allBooks = getAllBooks()
 const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
-  { key: 'title', label: '称号' },
   { key: 'help', label: '帮助' },
   { key: 'feedback', label: '反馈' },
   { key: 'save', label: '存档' },

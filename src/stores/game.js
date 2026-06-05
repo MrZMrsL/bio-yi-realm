@@ -38,8 +38,9 @@ import { getTitleForLevel } from '../utils/dungeon.js'
 import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/encyclopedia.js'
 import { getAllFishes as getAllFishesFromData, getBookSubject } from '../data/fishing.js'
 import { getAllBooks as getAllBooksFromData } from '../data/fishing.js'
-import { TITLE_TABLE } from '../data/title.js'
+import { TITLE_TABLE, getTitleData, getAllTitles } from '../data/titles.js'
 import { FEEDBACK_TYPES } from '../data/feedback.js'
+import { getSubjectTheme } from '../data/subjectThemes.js'
 import { getWrongQuestions, saveWrongQuestion, loadWrongQuestions, clearWrongQuestions } from '../data/wrong_book.js'
 
 // ===== 状态机定义（v8.0）=====
@@ -177,11 +178,11 @@ export const useGameStore = defineStore('game', () => {
   const gold = ref(0)
   const floor = ref(1)
   const title = ref('菜鸟学徒')
-  const titleData = ref(getTitleForLevel(1))
-  const titleBio = ref('刚踏入知识领域的初学者，对一切都充满好奇。')
-  const titleEra = ref('远古')
-  const titleField = ref('化学')
-  const titleAchievements = ref([])
+  const titleData = ref(getTitleData(1))
+  const titleBio = ref(getTitleData(1)?.bio || '刚踏入知识领域的初学者，对一切都充满好奇。')
+  const titleEra = ref(getTitleData(1)?.era || '远古')
+  const titleField = ref(getTitleData(1)?.field || '化学')
+  const titleAchievements = ref(getTitleData(1)?.achievements || [])
 
   // ===== 属性点系统 =====
   const statPoints = ref(0)
@@ -283,6 +284,10 @@ export const useGameStore = defineStore('game', () => {
   // ===== 计算属性 =====
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
   const hpPercent = computed(() => (hp.value / maxHp.value) * 100)
+  const currentSubjectTheme = computed(() => {
+    const subj = enemy.value?.subject
+    return getSubjectTheme(subj)
+  })
   const monsterBonus = computed(() => {
     if (!activeMonster.value) return { atk: 0, def: 0, hp: 0 }
     return {
@@ -671,8 +676,8 @@ export const useGameStore = defineStore('game', () => {
       checkSkillUnlocks()
 
       // 更新称号
-      const newTitle = getTitleForLevel(level.value)
-      if (newTitle.title !== title.value) {
+      const newTitle = getTitleData(level.value)
+      if (newTitle && newTitle.title !== title.value) {
         title.value = newTitle.title
         titleData.value = newTitle
         titleBio.value = newTitle.bio

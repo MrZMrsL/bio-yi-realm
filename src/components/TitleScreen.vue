@@ -69,6 +69,7 @@ function onContinue() {
   height: 100vh;
   height: 100dvh;
   background: linear-gradient(135deg, #0f0c29 0%, #1a1a2e 30%, #16213e 60%, #0f3460 100%);
+  background-size: 200% 200%;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -77,11 +78,105 @@ function onContinue() {
   overflow-y: auto;
   padding: 20px 16px 40px;
   gap: 12px;
+  animation: title-bg-drift 20s ease-in-out infinite;
+}
+
+@keyframes title-bg-drift {
+  0%   { background-position: 0% 0%; }
+  25%  { background-position: 100% 0%; }
+  50%  { background-position: 100% 100%; }
+  75%  { background-position: 0% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+/* 星空粒子层 — CSS radial-gradient 模拟星星 */
+.title-particles {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.title-particles::before,
+.title-particles::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 200%;
+  height: 200%;
+  background-repeat: repeat;
+  opacity: 0.5;
+}
+
+/* 暗星层 — 小点，慢速旋转 */
+.title-particles::before {
+  width: 100%;
+  height: 100%;
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 25% 45%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 40% 10%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 55% 70%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 15% 80%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 35% 55%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 50% 35%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 65% 85%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 80% 15%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 95% 50%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 5% 65%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 22% 38%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 45% 75%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 60% 12%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 75% 92%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 90% 40%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 12% 50%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 48% 8%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 68% 72%, rgba(255,255,255,0.25) 50%, transparent 50%),
+    radial-gradient(1px 1px at 30% 88%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 78% 22%, rgba(255,255,255,0.3) 50%, transparent 50%),
+    radial-gradient(1px 1px at 42% 62%, rgba(255,255,255,0.2) 50%, transparent 50%),
+    radial-gradient(1px 1px at 88% 78%, rgba(255,255,255,0.25) 50%, transparent 50%);
+  animation: star-drift 60s linear infinite;
+}
+
+/* 明星层 — 大一点，反向闪烁 */
+.title-particles::after {
+  background-image:
+    radial-gradient(2px 2px at 15% 25%, rgba(255,255,255,0.5) 50%, transparent 50%),
+    radial-gradient(2px 2px at 35% 50%, rgba(255,255,255,0.4) 50%, transparent 50%),
+    radial-gradient(2px 2px at 52% 15%, rgba(255,255,255,0.5) 50%, transparent 50%),
+    radial-gradient(2px 2px at 68% 65%, rgba(255,255,255,0.45) 50%, transparent 50%),
+    radial-gradient(2px 2px at 82% 35%, rgba(255,255,255,0.5) 50%, transparent 50%),
+    radial-gradient(2px 2px at 45% 80%, rgba(255,255,255,0.4) 50%, transparent 50%),
+    radial-gradient(2px 2px at 72% 10%, rgba(255,255,255,0.5) 50%, transparent 50%),
+    radial-gradient(2px 2px at 20% 70%, rgba(255,255,255,0.45) 50%, transparent 50%),
+    radial-gradient(2px 2px at 60% 40%, rgba(255,255,255,0.4) 50%, transparent 50%),
+    radial-gradient(2px 2px at 90% 55%, rgba(255,255,255,0.45) 50%, transparent 50%);
+  opacity: 0.6;
+  animation: star-twinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes star-drift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(-5%, -5%); }
+}
+
+@keyframes star-twinkle {
+  0%   { opacity: 0.3; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0.4; }
 }
 
 .title-container {
   text-align: center;
   margin-top: 10vh;
+  position: relative;
+  z-index: 1;
 }
 
 .game-title {
@@ -106,6 +201,8 @@ function onContinue() {
   padding: 16px;
   max-width: 440px;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .title-desc-box p {
@@ -125,6 +222,8 @@ function onContinue() {
   gap: 8px;
   max-width: 440px;
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .feature-row {
@@ -138,6 +237,7 @@ function onContinue() {
 
 .feature-icon {
   font-size: 20px;
+  filter: drop-shadow(0 1px 3px rgba(212,168,83,0.3));
 }
 
 .feature-text {
@@ -160,7 +260,10 @@ function onContinue() {
   border-radius: 30px;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(212,168,83,0.4);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .start-btn:hover {
@@ -183,7 +286,10 @@ function onContinue() {
   border-radius: 30px;
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(74,144,217,0.4);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .continue-btn:hover {

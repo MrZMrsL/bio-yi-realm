@@ -11,6 +11,23 @@
       </div>
     </div>
 
+    <!-- 人物称号 -->
+    <div class="title-section">
+      <div class="title-card">
+        <div class="title-row">
+          <span class="title-era">{{ store.titleEra }}</span>
+          <span class="title-dot">·</span>
+          <span class="title-field-name">{{ store.titleField }}</span>
+          <span class="title-star">⭐</span>
+          <span class="title-name">{{ store.title }}</span>
+        </div>
+        <p class="title-bio">{{ store.titleBio }}</p>
+        <div class="title-achievements" v-if="store.titleAchievements?.length">
+          <div v-for="(ach, idx) in store.titleAchievements" :key="idx" class="title-ach-item">✓ {{ ach }}</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 装备栏 -->
     <div class="equip-section">
       <div class="section-title">⚔️ 装备栏</div>
@@ -410,5 +427,72 @@ function equip(item) {
   border-radius: 16px;
   padding: 16px;
   border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+/* 称号卡片 */
+.title-section {
+  margin-top: 8px;
+}
+
+.title-card {
+  background: linear-gradient(135deg, rgba(212, 168, 83, 0.08), rgba(212, 168, 83, 0.02));
+  border: 1px solid rgba(212, 168, 83, 0.15);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.title-era {
+  font-size: 12px;
+  color: #888;
+  background: rgba(255,255,255,0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.title-field-name {
+  font-size: 12px;
+  color: #d4a853;
+}
+
+.title-dot {
+  color: #555;
+}
+
+.title-star {
+  font-size: 14px;
+}
+
+.title-name {
+  font-size: 18px;
+  font-weight: bold;
+  color: #d4a853;
+  text-shadow: 0 0 8px rgba(212,168,83,0.3);
+}
+
+.title-bio {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.title-achievements {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.title-ach-item {
+  font-size: 11px;
+  color: #7d7d7d;
+  padding-left: 4px;
 }
 </style>

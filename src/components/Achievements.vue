@@ -401,20 +401,21 @@ function categoryCount(cat) {
   background: rgba(241, 196, 15, 0.05);
 }
 
-/* 解锁闪光特效 */
+/* 解锁闪光特效 — 使用 transform 替代 left，避免触发重排 */
 .achievement-shine {
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
   animation: shine 3s ease-in-out infinite;
 }
 
 @keyframes shine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
 }
 
 /* 左侧图标 */
