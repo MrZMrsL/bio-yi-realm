@@ -29,8 +29,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Run unit tests
-        run: npm run test:run
+      - name: Run source-level tests（不依赖构建产物）
+        run: npx vitest run tests/pwa-config.test.js tests/store.gameMode.test.js
 
   build-and-deploy:
     needs: test
@@ -48,6 +48,8 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+      - name: Run build-output PWA 测试
+        run: npx vitest run tests/pwa.test.js
       - name: Upload to GitHub Pages
         uses: actions/upload-pages-artifact@v3
         with:
