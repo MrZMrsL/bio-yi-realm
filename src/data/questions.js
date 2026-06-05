@@ -43,7 +43,7 @@ const loadedDifficulty = { easy: false, medium: false, hard: false }
 const loadedModules = {}
 
 function updateProgress(loadedCount, totalCount) {
-  loadingProgress.value = Math.round((loadedCount / totalCount) * 100)
+  _loadProgress = Math.round((loadedCount / totalCount) * 100)
 }
 
 // 确保指定难度的题目已加载
