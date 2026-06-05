@@ -1,141 +1,81 @@
-// questions.js - 生化易界题库（渐进式按需加载版）
-// 策略：先加载当前楼层需要的难度，后续难度后台渐进加载
+// questions.js - 生化易界题库（单文件静态加载版）
+// 所有题目统一打包，零网络请求等待
+
+// 静态加载全部题目（Vite自动合并为少数chunk，比14个动态import快数倍）
+import { CHEM_EASY } from './chem_easy.js'
+import { CHEM_MEDIUM_1 } from './chem_medium_1.js'
+import { CHEM_MEDIUM_2 } from './chem_medium_2.js'
+import { CHEM_HARD } from './chem_hard.js'
+import { CHEM_EXP_MEDIUM } from './chem_exp_medium.js'
+import { CHEM_EXP_HARD } from './chem_exp_hard.js'
+import { BIO_EASY } from './bio_easy.js'
+import { BIO_MEDIUM } from './bio_medium.js'
+import { BIO_HARD } from './bio_hard.js'
+import { BIO_EXP_MEDIUM } from './bio_exp_medium.js'
+import { BIO_EXP_HARD } from './bio_exp_hard.js'
+import { YI_EASY } from './yi_easy.js'
+import { YI_MEDIUM } from './yi_medium.js'
+import { YI_HARD } from './yi_hard.js'
 
 export const ALL_QUESTIONS = []
 export const CHEM_QUESTIONS = []
 export const BIO_QUESTIONS = []
 export const YI_QUESTIONS = []
 
-let loaded = false
-let loadingPromise = null
-let _loadProgress = 0
+let _loaded = false
+let _loadProgress = 100
 
-export function getLoadProgress() { return _loadProgress }
-
-// 各难度对应的文件列表（用于按需加载）
-const DIFFICULTY_FILES = {
-  easy: [
-    { file: 'chem_easy.js', key: 'CHEM_EASY' },
-    { file: 'bio_easy.js', key: 'BIO_EASY' },
-    { file: 'yi_easy.js', key: 'YI_EASY' }
-  ],
-  medium: [
-    { file: 'chem_medium_1.js', key: 'CHEM_MEDIUM_1' },
-    { file: 'chem_medium_2.js', key: 'CHEM_MEDIUM_2' },
-    { file: 'bio_medium.js', key: 'BIO_MEDIUM' },
-    { file: 'yi_medium.js', key: 'YI_MEDIUM' }
-  ],
-  hard: [
-    { file: 'chem_hard.js', key: 'CHEM_HARD' },
-    { file: 'chem_exp_medium.js', key: 'CHEM_EXP_MEDIUM' },
-    { file: 'chem_exp_hard.js', key: 'CHEM_EXP_HARD' },
-    { file: 'bio_hard.js', key: 'BIO_HARD' },
-    { file: 'bio_exp_medium.js', key: 'BIO_EXP_MEDIUM' },
-    { file: 'bio_exp_hard.js', key: 'BIO_EXP_HARD' },
-    { file: 'yi_hard.js', key: 'YI_HARD' }
-  ]
-}
-
-// 已加载的难度标记
-const loadedDifficulty = { easy: false, medium: false, hard: false }
-
-// 已加载的模块缓存
-const loadedModules = {}
-
-function updateProgress(loadedCount, totalCount) {
-  _loadProgress = Math.round((loadedCount / totalCount) * 100)
-}
-
-// 确保指定难度的题目已加载
-async function ensureDifficulty(difficulty) {
-  if (loadedDifficulty[difficulty]) return
-
-  const files = DIFFICULTY_FILES[difficulty]
-  if (!files) return
-
-  const results = await Promise.all(
-    files.map(f => import('./' + f.file).then(m => {
-      loadedModules[f.key] = m[f.key]
-      updateProgress(Object.keys(loadedModules).length, 14)
-    }))
+// 同步初始化（模块加载时一次性完成）
+;(function init() {
+  CHEM_QUESTIONS.length = 0
+  CHEM_QUESTIONS.push(
+    ...CHEM_EASY, ...CHEM_MEDIUM_1, ...CHEM_MEDIUM_2,
+    ...CHEM_HARD, ...CHEM_EXP_MEDIUM, ...CHEM_EXP_HARD
   )
 
-  // 推入对应的学科数组
-  const modules = loadedModules
-  if (difficulty === 'easy') {
-    CHEM_QUESTIONS.push(...(modules.CHEM_EASY || []))
-    BIO_QUESTIONS.push(...(modules.BIO_EASY || []))
-    YI_QUESTIONS.push(...(modules.YI_EASY || []))
-  } else if (difficulty === 'medium') {
-    CHEM_QUESTIONS.push(...(modules.CHEM_MEDIUM_1 || []), ...(modules.CHEM_MEDIUM_2 || []))
-    BIO_QUESTIONS.push(...(modules.BIO_MEDIUM || []))
-    YI_QUESTIONS.push(...(modules.YI_MEDIUM || []))
-  } else if (difficulty === 'hard') {
-    CHEM_QUESTIONS.push(...(modules.CHEM_HARD || []), ...(modules.CHEM_EXP_MEDIUM || []), ...(modules.CHEM_EXP_HARD || []))
-    BIO_QUESTIONS.push(...(modules.BIO_HARD || []), ...(modules.BIO_EXP_MEDIUM || []), ...(modules.BIO_EXP_HARD || []))
-    YI_QUESTIONS.push(...(modules.YI_HARD || []))
-  }
+  BIO_QUESTIONS.length = 0
+  BIO_QUESTIONS.push(
+    ...BIO_EASY, ...BIO_MEDIUM, ...BIO_HARD,
+    ...BIO_EXP_MEDIUM, ...BIO_EXP_HARD
+  )
 
-  // 同步到 ALL_QUESTIONS
+  YI_QUESTIONS.length = 0
+  YI_QUESTIONS.push(...YI_EASY, ...YI_MEDIUM, ...YI_HARD)
+
   ALL_QUESTIONS.length = 0
   ALL_QUESTIONS.push(...CHEM_QUESTIONS, ...BIO_QUESTIONS, ...YI_QUESTIONS)
 
-  // 为新题生成 id
   for (const q of ALL_QUESTIONS) {
-    if (!q.id) q.id = getQuestionId(q)
+    q.id = getQuestionId(q)
   }
 
-  loadedDifficulty[difficulty] = true
-}
+  _loaded = true
+})()
 
-// 全量预加载（后台渐进）
+export function getLoadProgress() { return _loadProgress }
+
+// preloadQuestions 现在是一个空操作（数据已同步就绪）
 export async function preloadQuestions() {
-  if (loaded) return
-  if (loadingPromise) return loadingPromise
-
-  loadingPromise = (async () => {
-    // 第一阶段：加载 easy（最快，游戏可开）
-    await ensureDifficulty('easy')
-    // 第二阶段：加载 medium（后台）
-    await ensureDifficulty('medium')
-    // 第三阶段：加载 hard（后台）
-    await ensureDifficulty('hard')
-
-    loaded = true
-  })()
-
-  // 不 await，让调用方可以 fire-and-forget
-  // 返回 promise 但调用方也可以选择 await
-  return loadingPromise
+  return Promise.resolve()
 }
 
-// 按楼层需要加载对应难度（同步调用时按需触发）
-export async function ensureQuestionsForFloor(floor) {
-  let difficulty = 'easy'
-  if (floor >= 10) difficulty = 'hard'
-  else if (floor >= 5) difficulty = 'medium'
-
-  // 如果该难度未加载，同步等待
-  if (!loadedDifficulty[difficulty]) {
-    await ensureDifficulty(difficulty)
-    // 后台继续加载其余难度
-    preloadQuestions()
-  }
+export function ensureQuestionsForFloor(floor) {
+  return Promise.resolve()
 }
 
 export function isQuestionsLoaded() {
-  return loaded
+  return _loaded
 }
 
 export function isPreloadStarted() {
-  return loadingPromise !== null
+  return true
 }
 
 export function getLoadedDifficulty() {
-  return { ...loadedDifficulty }
+  return { easy: true, medium: true, hard: true }
 }
 
-// 为每道题添加唯一 id（基于题目文本的哈希）
+// 为每道题添加唯一 id
 function getQuestionId(q) {
   const str = (q.q || '') + (q.options ? q.options.join('|') : '') + (q.answer ?? '')
   let h = 0
@@ -148,10 +88,7 @@ function getQuestionId(q) {
 
 // 已用题目记录
 const usedQuestions = {
-  easy: new Set(),
-  medium: new Set(),
-  hard: new Set(),
-  all: new Set()
+  easy: new Set(), medium: new Set(), hard: new Set(), all: new Set()
 }
 
 let lastResetFloor = 0
@@ -198,8 +135,7 @@ export function importUsedQuestions(data) {
 // 按难度和学科筛选题目
 export function getQuestions(subject, difficulty, count = 5) {
   if (ALL_QUESTIONS.length === 0) {
-    // 题库还没加载，尝试按需加载当前难度
-    ensureDifficulty(difficulty)
+    console.warn('[questions] 题库未初始化')
     return []
   }
 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions, preloadQuestions, ensureQuestionsForFloor, isQuestionsLoaded, isPreloadStarted, getLoadProgress } from '../data/questions.js'
+import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions } from '../data/questions.js'
 import { SPECIALIZATIONS, getSpecialization, getUnlockedSkills, getNextSkill } from '../data/specialization.js'
 import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
@@ -335,16 +335,14 @@ export const useGameStore = defineStore('game', () => {
   // ===== 游戏启动 =====
   // ===== 题库加载状态 =====
   const isLoadingQuestions = ref(false)
-  const questionsLoaded = computed(() => isQuestionsLoaded())
-  const loadProgress = computed(() => getLoadProgress())
+  const questionsLoaded = computed(() => true)
+  const loadProgress = computed(() => 100)
 
   function startGame() {
     gameStarted.value = true
     firstVisit.value = false
     activeTab.value = 'dungeon'
-    isLoadingQuestions.value = false
-    // 后台渐进加载题库，不阻塞游戏启动
-    preloadQuestions()
+    // 题库已随模块加载同步就绪
     saveGame()
   }
 
@@ -354,8 +352,6 @@ export const useGameStore = defineStore('game', () => {
 
   // ===== 战斗系统 =====
   function initBattle() {
-    // 触发后台题库加载（不阻塞）
-    ensureQuestionsForFloor(floor.value)
     actuallyInitBattle()
   }
 
@@ -1470,8 +1466,6 @@ export const useGameStore = defineStore('game', () => {
   // ===== 地牢系统 =====
   // 进入地牢准备
   function enterDungeonPrep() {
-    // 后台启动题库加载（不阻塞）
-    ensureQuestionsForFloor(floor.value)
     actuallyEnterDungeonPrep()
   }
 
@@ -1518,10 +1512,6 @@ export const useGameStore = defineStore('game', () => {
   function enterRoom(roomIndex) {
     const room = roomGrid.value[roomIndex]
     if (!room || room.cleared) return
-
-    // 触发后台题库加载（不阻塞进入房间）
-    ensureQuestionsForFloor(floor.value)
-
     actuallyEnterRoom(roomIndex)
   }
 
