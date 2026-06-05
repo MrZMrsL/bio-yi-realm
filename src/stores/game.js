@@ -1855,7 +1855,10 @@ export const useGameStore = defineStore('game', () => {
       currentFloorElement.value = saveData.currentFloorElement || 'water'
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
       cyclopedia.value = saveData.cyclopedia || {}
-      stats.value = saveData.stats || { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
+      const defaultStats = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
+      stats.value = { ...defaultStats, ...Object.fromEntries(
+        Object.entries(saveData.stats || {}).map(([k, v]) => [k, typeof v === 'number' && !Number.isNaN(v) ? v : 0])
+      )}
       unlockedAchievements.value = typeof saveData.unlockedAchievements === 'object' && !Array.isArray(saveData.unlockedAchievements) ? saveData.unlockedAchievements : (Array.isArray(saveData.unlockedAchievements) ? Object.fromEntries(saveData.unlockedAchievements.map(id => [id, Date.now()])) : {})
       // 加载战斗状态（v8.0 兼容旧存档）
       inBattle.value = saveData.inBattle || false
