@@ -144,10 +144,14 @@
     </div>
 
     <!-- 研读成功 -->
-    <div v-if="fishingState === 'bookStudySuccess'" class="quiz-result success">
+    <div v-if="fishingState === 'bookStudySuccess' && caughtBook" class="quiz-result success">
       <div class="result-icon">🎉</div>
-      <div class="result-title">研读成功！</div>
-      <div class="result-text">获得 25 经验值！</div>
+      <div class="result-title">研读《{{ caughtBook.name }}》成功！</div>
+      <div class="knowledge-box">
+        <div class="knowledge-caption">📖 知识点</div>
+        <div class="knowledge-text">{{ caughtBook.desc }}</div>
+      </div>
+      <div class="result-text">获得 25 经验值，古籍已收藏至自习室</div>
       <button @click="continueFishing" class="btn-next">继续钓鱼</button>
     </div>
 
@@ -366,9 +370,11 @@ function collectBook() {
 
 function startBookStudy() {
   sfxClick()
-  store.startBookStudy()
+  if (!caughtBook.value) return
+  const ok = store.startBookStudy(caughtBook.value)
+  if (!ok) { collectBook(); return }
   fishingState.value = 'bookStudyQuiz'
-  store.enterMode('fishing_book_quiz')  // 状态机同步
+  store.enterMode('fishing_book_quiz')
   quizResult.value = null
 }
 

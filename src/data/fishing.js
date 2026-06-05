@@ -2202,6 +2202,27 @@ export const FISHING_BOOKS = [
   { name: "《古生物学》", icon: "📖", rarity: "normal", desc: "追溯地球生命演化之历史。" },
   { name: "《生物信息学》", icon: "📖", rarity: "normal", desc: "以计算机技术分析生物数据之科学。" },
   { name: "《蛋白质组学》", icon: "📖", rarity: "normal", desc: "大规模研究蛋白质之科学。" },
+  // ===== 新增古籍（20本）=====
+  { name: "《无机化学》", icon: "📖", rarity: "normal", desc: "研究无机化合物之组成、结构与反应。", subject: "chem" },
+  { name: "《分析化学》", icon: "📖", rarity: "normal", desc: "研究物质化学组成与结构测定方法之科学。", subject: "chem" },
+  { name: "《热力学》", icon: "📖", rarity: "normal", desc: "研究能量转化与传递规律之科学。", subject: "chem" },
+  { name: "《电化学》", icon: "📖", rarity: "normal", desc: "研究化学能与电能相互转化之学科。", subject: "chem" },
+  { name: "《量子化学》", icon: "📖", rarity: "rare", desc: "以量子力学原理研究化学问题之学科。", subject: "chem" },
+  { name: "《催化原理》", icon: "📖", rarity: "normal", desc: "研究催化剂加速化学反应之机理。", subject: "chem" },
+  { name: "《高分子化学》", icon: "📖", rarity: "normal", desc: "研究高分子化合物合成与性质之科学。", subject: "chem" },
+  { name: "《药物化学》", icon: "📖", rarity: "rare", desc: "研究药物分子设计、合成与作用机制之学科。", subject: "chem" },
+  { name: "《环境化学》", icon: "📖", rarity: "normal", desc: "研究化学物质在环境中之迁移转化与效应。", subject: "chem" },
+  { name: "《进化生物学》", icon: "📖", rarity: "rare", desc: "研究物种起源与演化机制之科学。", subject: "bio" },
+  { name: "《发育生物学》", icon: "📖", rarity: "normal", desc: "研究生物从受精卵到成体之发育过程。", subject: "bio" },
+  { name: "《植物学》", icon: "📖", rarity: "normal", desc: "研究植物形态、分类、生理与生态之科学。", subject: "bio" },
+  { name: "《动物学》", icon: "📖", rarity: "normal", desc: "研究动物分类、形态、行为与进化之科学。", subject: "bio" },
+  { name: "《生理学》", icon: "📖", rarity: "normal", desc: "研究生物体功能活动规律之科学。", subject: "bio" },
+  { name: "《病理学》", icon: "📖", rarity: "rare", desc: "研究疾病发生发展机制之科学。", subject: "bio" },
+  { name: "《药理学》", icon: "📖", rarity: "rare", desc: "研究药物与生物体相互作用之科学。", subject: "bio" },
+  { name: "《病毒学》", icon: "📖", rarity: "normal", desc: "研究病毒结构与复制机制之科学。", subject: "bio" },
+  { name: "《六爻预测学》", icon: "📖", rarity: "epic", desc: "以纳甲六爻之法占断吉凶休咎。", subject: "yi" },
+  { name: "《河图洛书》", icon: "📖", rarity: "epic", desc: "河出图洛出书，圣人则之，为易学数理之源。", subject: "yi" },
+  { name: "《皇极经世》", icon: "📖", rarity: "epic", desc: "邵雍以易理推演天地万物之数理模型。", subject: "yi" },
 ]
 
 // 随机抽取一本古籍（按钓鱼等级）
@@ -2214,6 +2235,23 @@ export function drawBook(fishingLevel = 1) {
   })
   if (pool.length === 0) return null
   return pool[Math.floor(Math.random() * pool.length)]
+}
+
+// 推断古籍的学科归属（兼容无subject字段的老书）
+export function getBookSubject(book) {
+  if (book.subject) return book.subject
+  const name = book.name || ''
+  // 化学关键词
+  const chemKeys = ['化学', '元素', '分子', '原子', '试剂', '热力学', '电化', '催化', '高分子', '药物', '环境', '量子', '无机', '分析', '有机', '物理化']
+  // 生物关键词
+  const bioKeys = ['生物', '基因', '细胞', '遗传', '免疫', '生态', '进化', '发育', '植物', '动物', '生理', '病理', '药理', '病毒', '微生物', '神经', '干细胞', '蛋白', '古生']
+  // 易学关键词
+  const yiKeys = ['易', '卦', '爻', '阴阳', '五行', '河图', '洛书', '梅花', '六爻', '皇极', '参同', '抱朴']
+
+  if (chemKeys.some(k => name.includes(k))) return 'chem'
+  if (bioKeys.some(k => name.includes(k))) return 'bio'
+  if (yiKeys.some(k => name.includes(k))) return 'yi'
+  return 'all'
 }
 
 // 稀有度配置（概率权重）

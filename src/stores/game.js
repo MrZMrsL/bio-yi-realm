@@ -37,7 +37,7 @@ import {
 import { getTitleForLevel } from '../utils/dungeon.js'
 import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/encyclopedia.js'
 import { getAllQuestions } from '../data/questions.js'
-import { getAllFishes as getAllFishesFromData } from '../data/fishing.js'
+import { getAllFishes as getAllFishesFromData, getBookSubject } from '../data/fishing.js'
 import { getAllBooks as getAllBooksFromData } from '../data/fishing.js'
 import { TITLE_TABLE } from '../data/title.js'
 import { FEEDBACK_TYPES } from '../data/feedback.js'
@@ -234,8 +234,12 @@ export const useGameStore = defineStore('game', () => {
   const fishCollection = ref({})
   const bookStudyQuestion = ref(null)
   const bookStudyMode = ref(false)
+  const bookStudyCurrent = ref(null)  // 当前研读的古籍对象
   const dailyFishCount = ref(0)
   const fishLimitUnlocked = ref(false)
+
+  // ===== 知识点收藏 =====
+  const collectedKnowledge = ref([])  // [{ book, learnedAt }]
 
   // ===== 错题本 =====
   const wrongQuestions = ref([])
@@ -1646,10 +1650,15 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // 开始研读
-  function startBookStudy() {
-    const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1, playerSpecialization.value)[0]
+  // 开始研读（传入钓到的古籍）
+  function startBookStudy(book) {
+    if (!book) return false
+    // 根据古籍的学科出题
+    const bookSubject = getBookSubject(book)
+    const subject = bookSubject === 'all' ? playerSpecialization.value : bookSubject
+    const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1, subject)[0]
     if (!q) return false
+    bookStudyCurrent.value = book
     bookStudyQuestion.value = q
     bookStudyMode.value = true
     return true
@@ -1658,28 +1667,31 @@ export const useGameStore = defineStore('game', () => {
   // 提交研读答案
   function submitBookStudyAnswer(index) {
     if (!bookStudyQuestion.value) return { correct: false, error: 'no_question' }
-    // 开发者模式：自动答对
     const correct = devMode.value ? true : (index === bookStudyQuestion.value.answer)
     bookStudyMode.value = false
     if (correct) {
-      // 答对：加经验，古籍收入收藏
+      // 答对：古籍收入收藏
+      const book = bookStudyCurrent.value
+      if (book && !collectedKnowledge.value.some(k => k.name === book.name)) {
+        collectedKnowledge.value.push({ ...book, learnedAt: Date.now() })
+      }
       const expGain = 25
       exp.value += expGain
-      // 检查升级
       while (exp.value >= maxExp.value) {
         exp.value -= maxExp.value
         level.value++
-        // maxExp 是 computed(level)，level++ 后自动重算，无需手动赋值
         hp.value = maxHp.value
         atk.value += 2
         def.value += 1
       }
+      addToCyclopedia('books', book?.name || '古籍')
       bookStudyQuestion.value = null
+      bookStudyCurrent.value = null
       saveGame()
-      return { correct: true, expGain }
+      return { correct: true, expGain, book }
     } else {
-      // 答错：古籍跑了，但没有任何限制，下次钓鱼还能再遇到
       bookStudyQuestion.value = null
+      bookStudyCurrent.value = null
       saveGame()
       return { correct: false }
     }
@@ -1688,6 +1700,7 @@ export const useGameStore = defineStore('game', () => {
   // 取消研读
   function cancelBookStudy() {
     bookStudyQuestion.value = null
+    bookStudyCurrent.value = null
     bookStudyMode.value = false
   }
 
@@ -1737,6 +1750,8 @@ export const useGameStore = defineStore('game', () => {
       fishCollection: fishCollection.value,
       bookStudyQuestion: bookStudyQuestion.value,
       bookStudyMode: bookStudyMode.value,
+      bookStudyCurrent: bookStudyCurrent.value,
+      collectedKnowledge: collectedKnowledge.value,
       dailyFishCount: dailyFishCount.value,
       fishLimitUnlocked: fishLimitUnlocked.value,
       wrongQuestions: wrongQuestions.value,
@@ -1825,6 +1840,8 @@ export const useGameStore = defineStore('game', () => {
       fishCollection.value = saveData.fishCollection || {}
       bookStudyQuestion.value = saveData.bookStudyQuestion || null
       bookStudyMode.value = saveData.bookStudyMode || false
+      bookStudyCurrent.value = saveData.bookStudyCurrent || null
+      collectedKnowledge.value = saveData.collectedKnowledge || []
       dailyFishCount.value = saveData.dailyFishCount || 0
       fishLimitUnlocked.value = saveData.fishLimitUnlocked || false
 
@@ -1922,6 +1939,8 @@ export const useGameStore = defineStore('game', () => {
     fishCollection.value = {}
     bookStudyQuestion.value = null
     bookStudyMode.value = false
+    bookStudyCurrent.value = null
+    collectedKnowledge.value = []
     dailyFishCount.value = 0
     fishLimitUnlocked.value = false
     dungeonPhase.value = 'none'
@@ -1987,7 +2006,7 @@ export const useGameStore = defineStore('game', () => {
     cyclopedia, newDiscoveries, stats,
     unlockedAchievements, newAchievementUnlocks,
     fishingLevel, recentCatches, fishCollection,
-    bookStudyQuestion, bookStudyMode,
+    bookStudyQuestion, bookStudyMode, bookStudyCurrent, collectedKnowledge,
     dailyFishCount, fishLimitUnlocked,
     wrongQuestions, wrongStats, reviewMode, reviewCurrent, reviewIndex, reviewPool, reviewResults,
     dungeonPhase, roomGrid, bossRoomIndex, currentRoomIndex, allClearCount, clearedRoomsThisFloor, hasSkippedRoom,

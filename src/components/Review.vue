@@ -1,6 +1,46 @@
 <template>
   <div class="review-container">
+    <!-- 标签页切换 -->
+    <div class="tab-bar">
+      <button class="tab-btn" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
+        📝 错题本 ({{ store.wrongStats.pending }})
+      </button>
+      <button class="tab-btn" :class="{ active: activeTab === 'knowledge' }" @click="activeTab = 'knowledge'">
+        📖 收藏知识 ({{ store.collectedKnowledge.length }})
+      </button>
+    </div>
+
+    <!-- 收藏知识页 -->
+    <div v-if="activeTab === 'knowledge'" class="knowledge-home">
+      <div class="knowledge-header">
+        <div class="stats-overview">
+          <div class="stat-card">
+            <div class="stat-num">{{ store.collectedKnowledge.length }}</div>
+            <div class="stat-label">已收藏</div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="store.collectedKnowledge.length === 0" class="empty-hint">
+        <div class="empty-icon">🎣</div>
+        <p>还没有收藏知识点</p>
+        <p class="empty-sub">钓鱼钓到古籍后，成功研读即可收藏</p>
+      </div>
+
+      <div v-else class="knowledge-list">
+        <div v-for="(k, i) in sortedKnowledge" :key="i" class="knowledge-card">
+          <div class="knowledge-icon">{{ k.icon || '📖' }}</div>
+          <div class="knowledge-body">
+            <div class="knowledge-name">{{ k.name }}</div>
+            <div class="knowledge-desc">{{ k.desc }}</div>
+            <div class="knowledge-time">收藏于 {{ formatDate(k.learnedAt) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 复习模式：答题界面 -->
+    <div v-if="activeTab === 'review'">
     <div v-if="store.reviewMode && store.reviewCurrent" class="review-quiz">
       <div class="review-progress">
         <span>第 {{ store.reviewIndex + 1 }} 题 / 共 {{ store.reviewPool.length }} 题</span>
@@ -198,6 +238,7 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -209,6 +250,17 @@ const store = useGameStore()
 const answered = ref(false)
 const selectedAnswer = ref(-1)
 const isCorrect = ref(false)
+const activeTab = ref('review')
+
+const sortedKnowledge = computed(() => {
+  return [...store.collectedKnowledge].sort((a, b) => (b.learnedAt || 0) - (a.learnedAt || 0))
+})
+
+function formatDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
 
 const subjectLabel = computed(() => {
   const s = store.reviewCurrent?.subject
@@ -780,5 +832,104 @@ function clearResults() {
 
 .btn-back:hover {
   background: #555;
+}/* 标签页切换 */
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  color: #999;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: rgba(212,168,83,0.12);
+  border-color: rgba(212,168,83,0.4);
+  color: #d4a853;
+}
+
+/* 收藏知识页 */
+.knowledge-home {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+.knowledge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.knowledge-card {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+.knowledge-card:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(212,168,83,0.2);
+}
+.knowledge-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212,168,83,0.1);
+  border-radius: 10px;
+}
+.knowledge-body {
+  flex: 1;
+  min-width: 0;
+}
+.knowledge-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #d4a853;
+  margin-bottom: 4px;
+}
+.knowledge-desc {
+  font-size: 12px;
+  color: #bbb;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.knowledge-time {
+  font-size: 11px;
+  color: #666;
+}
+
+/* 研读知识点弹窗 */
+.knowledge-box {
+  background: rgba(212,168,83,0.08);
+  border: 1px solid rgba(212,168,83,0.2);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+  text-align: left;
+}
+.knowledge-caption {
+  font-size: 11px;
+  color: #d4a853;
+  font-weight: bold;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.knowledge-text {
+  font-size: 13px;
+  color: #ddd;
+  line-height: 1.6;
 }
 </style>
