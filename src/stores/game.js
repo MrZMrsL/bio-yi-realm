@@ -1703,6 +1703,100 @@ export const useGameStore = defineStore('game', () => {
     bookStudyMode.value = false
   }
 
+  // ===== 古籍测验系统（自习室）=====
+  const bookQuizActive = ref(false)
+  const bookQuizQuestions = ref([])
+  const bookQuizIndex = ref(0)
+  const bookQuizCorrectCount = ref(0)
+  const bookQuizTotalCount = ref(0)
+  const bookQuizDone = ref(false)
+  const bookQuizResults = ref([]) // [{ correct, question }]
+  const bookQuizBookName = ref('')
+  const bookQuizRewardExp = ref(0)
+
+  const bookQuizCurrentQuestion = computed(() => {
+    if (bookQuizIndex.value < bookQuizQuestions.value.length) {
+      return bookQuizQuestions.value[bookQuizIndex.value]
+    }
+    return null
+  })
+
+  function startBookQuiz(bookName, count = 3) {
+    // 1. 获取古籍学科
+    const subject = getBookSubject({ name: bookName })
+    // 2. 从该学科的 ALL_QUESTIONS 中随机抽取 count 道
+    const pool = ALL_QUESTIONS.filter(q => {
+      if (subject === 'all') return true
+      return q.subject === subject
+    })
+    // 打乱顺序取前 count 道
+    const shuffled = [...pool].sort(() => Math.random() - 0.5)
+    const questions = shuffled.slice(0, count)
+
+    bookQuizQuestions.value = questions
+    bookQuizIndex.value = 0
+    bookQuizCorrectCount.value = 0
+    bookQuizTotalCount.value = questions.length
+    bookQuizActive.value = true
+    bookQuizDone.value = false
+    bookQuizResults.value = []
+    bookQuizBookName.value = bookName
+    bookQuizRewardExp.value = 0
+  }
+
+  function submitBookQuizAnswer(index) {
+    const q = bookQuizQuestions.value[bookQuizIndex.value]
+    if (!q) return { done: true }
+
+    const correct = index === q.answer
+    if (correct) {
+      bookQuizCorrectCount.value++
+      sfxCorrect()
+    } else {
+      sfxWrong()
+    }
+
+    bookQuizResults.value.push({ correct, question: q })
+    bookQuizIndex.value++
+
+    if (bookQuizIndex.value >= bookQuizQuestions.value.length) {
+      // 完成测验，计算奖励
+      const pct = bookQuizCorrectCount.value / bookQuizTotalCount.value
+      let expGain = 0
+      if (pct >= 0.67) expGain = 50   // 答对2题以上
+      else if (pct >= 0.33) expGain = 25  // 答对1题
+      else expGain = 10  // 参与奖
+
+      if (expGain > 0) {
+        bookQuizRewardExp.value = expGain
+        exp.value += expGain
+        // 检查升级
+        while (exp.value >= maxExp.value) {
+          exp.value -= maxExp.value
+          level.value++
+          hp.value = maxHp.value
+          atk.value += 2
+          def.value += 1
+        }
+      }
+
+      bookQuizActive.value = false
+      bookQuizDone.value = true
+      saveGame()
+      return { done: true, correctCount: bookQuizCorrectCount.value, totalCount: bookQuizTotalCount.value, expGain }
+    }
+
+    return { done: false, current: bookQuizQuestions.value[bookQuizIndex.value] }
+  }
+
+  function exitBookQuiz() {
+    bookQuizActive.value = false
+    bookQuizDone.value = false
+    bookQuizQuestions.value = []
+    bookQuizResults.value = []
+    bookQuizRewardExp.value = 0
+  }
+
   // 钓鱼次数检查 — 每5次需要答题一次（周期性，非永久解锁）
   function canFishToday() {
     if (dailyFishCount.value < 5) return { allowed: true, reason: null }
@@ -2038,6 +2132,10 @@ export const useGameStore = defineStore('game', () => {
     // 属性点分配
     allocateStat, resetStats,
     // 限时Boss
-    enterWeeklyBoss, weeklyBossAnswerAttack, winWeeklyBoss, exitWeeklyBoss, startWeeklyBossTimer
+    enterWeeklyBoss, weeklyBossAnswerAttack, winWeeklyBoss, exitWeeklyBoss, startWeeklyBossTimer,
+    // 古籍测验
+    bookQuizActive, bookQuizQuestions, bookQuizIndex, bookQuizCorrectCount, bookQuizTotalCount,
+    bookQuizDone, bookQuizResults, bookQuizBookName, bookQuizRewardExp, bookQuizCurrentQuestion,
+    startBookQuiz, submitBookQuizAnswer, exitBookQuiz
   }
 })

@@ -48,6 +48,80 @@
             <div v-if="getPoints(k.name).length === 0" class="points-empty">
               暂无详细知识点内容
             </div>
+            <!-- 古籍测验按钮 -->
+            <div v-if="!store.bookQuizActive && !store.bookQuizDone"
+                 style="margin-top: 12px; text-align: center;">
+              <button class="quiz-start-btn" @click="startBookQuiz(k.name)">
+                📝 古籍测验
+              </button>
+              <div style="font-size: 11px; color: #666; margin-top: 6px;">
+                从该古籍学科题库中抽取3道题，答对获得经验奖励
+              </div>
+            </div>
+
+            <!-- 古籍测验进行中 -->
+            <div v-if="store.bookQuizActive" class="book-quiz-panel">
+              <div class="book-quiz-header">
+                📚 《{{ store.bookQuizBookName }}》测验
+                <span style="font-size: 12px; color: #888;">
+                  第 {{ store.bookQuizIndex + 1 }}/{{ store.bookQuizTotalCount }} 题
+                </span>
+              </div>
+              <div class="progress-bar" style="margin-bottom: 12px;">
+                <div class="progress-fill"
+                     :style="{ width: ((store.bookQuizIndex / store.bookQuizTotalCount) * 100) + '%' }"></div>
+              </div>
+
+              <div v-if="store.bookQuizCurrentQuestion" class="book-quiz-question">
+                <div class="question-text" style="font-size: 14px; font-weight: bold; margin-bottom: 12px;">
+                  {{ store.bookQuizCurrentQuestion.q }}
+                </div>
+                <div class="options" style="display: flex; flex-direction: column; gap: 8px;">
+                  <button v-for="(opt, oi) in store.bookQuizCurrentQuestion.options" :key="oi"
+                    @click="submitBookQuizAnswer(oi)"
+                    class="option-btn"
+                    :disabled="quizAnswered"
+                    :class="{
+                      correct: quizAnswered && oi === store.bookQuizCurrentQuestion.answer,
+                      wrong: quizAnswered && oi === quizSelected && oi !== store.bookQuizCurrentQuestion.answer
+                    }"
+                  >
+                    {{ opt }}
+                  </button>
+                </div>
+                <div v-if="quizFeedback" class="quiz-feedback"
+                     :class="{ correct: quizLastCorrect }"
+                     style="margin-top: 10px; text-align: center; font-weight: bold; font-size: 14px;">
+                  {{ quizFeedback }}
+                </div>
+                <button v-if="quizAnswered && !isQuizDone" @click="nextBookQuiz()"
+                        class="quiz-next-btn">
+                  下一题
+                </button>
+              </div>
+            </div>
+
+            <!-- 古籍测验结果 -->
+            <div v-if="store.bookQuizDone" class="book-quiz-result">
+              <div style="font-size: 24px; margin-bottom: 8px;">
+                {{ store.bookQuizCorrectCount >= 2 ? '🎉' : store.bookQuizCorrectCount >= 1 ? '👍' : '💪' }}
+              </div>
+              <div style="font-weight: bold; font-size: 16px; margin-bottom: 8px;">
+                测验完成！
+              </div>
+              <div style="color: #ddd; margin-bottom: 6px;">
+                答对 {{ store.bookQuizCorrectCount }}/{{ store.bookQuizTotalCount }} 题
+              </div>
+              <div v-if="store.bookQuizRewardExp > 0" style="color: #f1c40f; margin-bottom: 12px;">
+                ✨ 获得 {{ store.bookQuizRewardExp }} 经验！
+              </div>
+              <div v-else style="color: #888; margin-bottom: 12px; font-size: 12px;">
+                下次加油！
+              </div>
+              <button @click="exitBookQuiz()" class="quiz-start-btn">
+                关闭
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -363,6 +437,60 @@ function nextQuestion() {
 
 function clearResults() {
   store.exitReview()
+}
+
+// 古籍测验
+const quizAnswered = ref(false)
+const quizSelected = ref(-1)
+const quizFeedback = ref('')
+const quizLastCorrect = ref(false)
+const isQuizDone = ref(false)
+
+function startBookQuiz(bookName) {
+  quizAnswered.value = false
+  quizSelected.value = -1
+  quizFeedback.value = ''
+  quizLastCorrect.value = false
+  isQuizDone.value = false
+  store.startBookQuiz(bookName, 3)
+}
+
+function submitBookQuizAnswer(index) {
+  if (quizAnswered.value) return
+  quizAnswered.value = true
+  quizSelected.value = index
+
+  const q = store.bookQuizQuestions.value[store.bookQuizIndex.value]
+  const correct = index === q.answer
+  quizLastCorrect.value = correct
+
+  if (correct) {
+    quizFeedback.value = '✅ 回答正确！'
+  } else {
+    quizFeedback.value = `❌ 正确答案：${q.options[q.answer]}`
+  }
+
+  store.submitBookQuizAnswer(index)
+}
+
+function nextBookQuiz() {
+  quizAnswered.value = false
+  quizSelected.value = -1
+  quizFeedback.value = ''
+  quizLastCorrect.value = false
+
+  if (store.bookQuizDone) {
+    isQuizDone.value = true
+  }
+}
+
+function exitBookQuiz() {
+  store.exitBookQuiz()
+  quizAnswered.value = false
+  quizSelected.value = -1
+  quizFeedback.value = ''
+  quizLastCorrect.value = false
+  isQuizDone.value = false
 }
 </script>
 
@@ -1011,5 +1139,91 @@ function clearResults() {
   font-size: 13px;
   color: #ddd;
   line-height: 1.6;
+}
+
+/* 古籍测验 */
+.book-quiz-panel {
+  background: rgba(52, 152, 219, 0.08);
+  border: 1px solid rgba(52, 152, 219, 0.2);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 8px 0;
+}
+.book-quiz-header {
+  font-size: 13px;
+  font-weight: bold;
+  color: #3498db;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.book-quiz-question .option-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #444;
+  color: #ddd;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.book-quiz-question .option-btn:hover:not(:disabled) {
+  background: #555;
+  border-color: #666;
+}
+.book-quiz-question .option-btn.correct {
+  background: rgba(46, 204, 113, 0.2);
+  border-color: #2ecc71;
+  color: #2ecc71;
+}
+.book-quiz-question .option-btn.wrong {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+.book-quiz-question .option-btn:disabled {
+  cursor: default;
+}
+.quiz-feedback {
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.quiz-feedback.correct { color: #2ecc71; }
+.quiz-feedback:not(.correct) { color: #e74c3c; }
+.quiz-next-btn {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #3498db;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.quiz-start-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.quiz-start-btn:hover {
+  background: rgba(52, 152, 219, 0.3);
+}
+.book-quiz-result {
+  background: rgba(46, 204, 113, 0.08);
+  border: 1px solid rgba(46, 204, 113, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  margin: 8px 0;
 }
 </style>
