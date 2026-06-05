@@ -209,10 +209,15 @@ export const useGameStore = defineStore('game', () => {
   // ===== 农场与宠物 =====
   const farm = ref([])
   const activeMonster = ref(null)
+  // 捕捉相关数据
   const captureMonsterData = ref(null)
   const captureQuestions = ref([])
   const captureIndex = ref(0)
   const captureCorrectCount = ref(0)
+  const captureRarity = ref('common')  // 当前捕捉怪物的稀有度
+  const captureTotalNeeded = ref(2)    // 需要答对几题
+  const captureMaxWrong = ref(0)       // 允许答错几题
+  const captureNeedsBoss = ref(false)  // 是否需要额外Boss战
 
   // ===== 连击系统 =====
   const comboCount = ref(0)
@@ -405,10 +410,11 @@ export const useGameStore = defineStore('game', () => {
       multiplier = 1.0
     }
 
-    // 伤害保底：即使防御极高，至少造成 atk 的 40% 伤害（3点起）
-    let baseDmg = Math.floor((enemy.value.atk - totalDef.value) * multiplier)
-    const minDmg = Math.max(3, Math.floor(enemy.value.atk * 0.4 * multiplier))
-    const damage = Math.max(minDmg, baseDmg)
+    // 敌人伤害：防御只减少一半伤害，总有保底
+    const damage = Math.max(
+      Math.floor(enemy.value.atk * 0.3),
+      Math.floor(enemy.value.atk * multiplier - totalDef.value * 0.5)
+    )
     hp.value -= damage
     sfxHit()
     battleLog.value.push(`${enemy.value.name} 对你造成 ${damage} 点伤害！`)
@@ -533,31 +539,60 @@ export const useGameStore = defineStore('game', () => {
       comboCount.value = consecutiveCorrect.value
       sfxCorrect()
 
+      // 当前题目学科
+      const subject = question.value?.subject || 'all'
+
       // 计算元素克制
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
-      let multiplier = 1.5 * (elementEffect?.multiplier || 1.0)
+      const multiplier = 1.0 * (elementEffect?.multiplier || 1.0)
 
-      // 连击加成：每连击一次增加0.5倍伤害
-      const comboMultiplier = 1 + consecutiveCorrect.value * 0.5
+      // 学科连击加成差异化
+      let comboBonusPerStack = 0.5  // 默认
+      let healOnHit = 0
+
+      if (subject === 'chem') {
+        // 化学：玻璃大炮，伤害递增更快
+        comboBonusPerStack = 0.7
+      } else if (subject === 'bio') {
+        // 生物：持久战，每次答对回血
+        comboBonusPerStack = 0.5
+        healOnHit = Math.floor(maxHp.value * 0.02 * consecutiveCorrect.value)
+      } else if (subject === 'yi') {
+        // 易学：稳定，连击加成略低但不易断
+        comboBonusPerStack = 0.4
+      }
+
+      const comboMultiplier = 1 + consecutiveCorrect.value * comboBonusPerStack
       multiplier *= comboMultiplier
 
-      const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
+      const damage = Math.max(
+        Math.floor(totalAtk.value * 0.3),
+        Math.floor(totalAtk.value * multiplier - enemy.value.def * 0.5)
+      )
       enemy.value.hp -= damage
+
+      // 生物学科回血
+      if (healOnHit > 0) {
+        hp.value = Math.min(maxHp.value, hp.value + healOnHit)
+      }
 
       let logMsg = ''
       if (consecutiveCorrect.value >= 3) {
-        // 三连暴击：先更新 maxCombo 统计，再重置连击
+        // 三连暴击
         if (consecutiveCorrect.value > stats.value.maxCombo) {
           stats.value.maxCombo = consecutiveCorrect.value
         }
         logMsg = `⚡ 知识连击x${consecutiveCorrect.value}！造成 ${damage} 点伤害！`
+        if (healOnHit > 0) logMsg += ` 回复 ${healOnHit} 生命！`
         triggerCriticalEffect()
         sfxCritical()
         resetCombo()
       } else if (consecutiveCorrect.value === 2) {
         logMsg = `🔥 连击x2！造成 ${damage} 点伤害！`
+        if (healOnHit > 0) logMsg += ` 回复 ${healOnHit} 生命！`
       } else {
         logMsg = `🧠 知识攻击命中！造成 ${damage} 点伤害！`
+        if (healOnHit > 0) logMsg += ` 回复 ${healOnHit} 生命！`
       }
 
       if (elementEffect?.desc) logMsg += ` ${elementEffect.desc}`
@@ -579,11 +614,21 @@ export const useGameStore = defineStore('game', () => {
         if (newQ) question.value = newQ
       }
     } else {
-      // 答错重置连击，记录错题
-      resetCombo()
+      // 答错处理
+      const subject = question.value?.subject || 'all'
       sfxWrong()
-      battleLog.value.push('回答错误！受到反噬！')
+      battleLog.value.push('回答错误！')
       recordWrongQuestion(question.value, -1)
+
+      if (subject === 'yi' && consecutiveCorrect.value > 1) {
+        // 易学专精：答错不断连，只减半
+        consecutiveCorrect.value = Math.floor(consecutiveCorrect.value / 2)
+        comboCount.value = consecutiveCorrect.value
+        battleLog.value.push(`☯️ 易学护体！连击降至 ${consecutiveCorrect.value} 连`)
+      } else {
+        // 其他学科：答错重置连击
+        resetCombo()
+      }
       enemyAttack()
     }
   }
@@ -624,9 +669,24 @@ export const useGameStore = defineStore('game', () => {
 
   // 胜利
   function winBattle() {
-    battleState.value = 'won'
     const e = enemy.value
     if (!e) return
+
+    // 传说Boss战胜利：添加到农场
+    if (e.isCaptureBoss && e.captureMonster) {
+      farm.value.push(e.captureMonster)
+      battleLog.value.push(`🏆 击败传说守护者！${e.captureMonster.name} 正式成为你的伙伴！`)
+      battleState.value = 'captureSuccess'
+      sfxCaptureSuccess()
+      inBattle.value = false
+      // 标记房间完成
+      if (dungeonPhase.value === 'battle') {
+        finishRoom(true)
+      }
+      return
+    }
+
+    battleState.value = 'won'
 
     const expGain = Math.floor(e.hp * 0.5 + e.atk * 2)
     const goldGain = Math.floor(e.atk * 1.5)
@@ -644,6 +704,13 @@ export const useGameStore = defineStore('game', () => {
 
     // 捕捉数据（如果是可捕捉的怪物）
     if (e.captureable) {
+      const rarity = e.rarity || 'common'
+      // 根据稀有度设置捕捉参数
+      let qCount = 2, needCorrect = 2, maxWrong = 0, needsBoss = false
+      if (rarity === 'rare')      { qCount = 3; needCorrect = 2; maxWrong = 1 }
+      else if (rarity === 'epic') { qCount = 3; needCorrect = 3; maxWrong = 0 }
+      else if (rarity === 'legendary') { qCount = 3; needCorrect = 3; maxWrong = 0; needsBoss = true }
+
       captureMonsterData.value = {
         name: e.name,
         icon: e.icon,
@@ -651,10 +718,15 @@ export const useGameStore = defineStore('game', () => {
         baseHp: e.hp,
         baseAtk: e.atk,
         baseDef: e.def,
-        captureFloor: floor.value
+        captureFloor: floor.value,
+        rarity: rarity
       }
-      // 生成3道捕捉题目
-      const qs = getQuestionsForFloor(floor.value, 3, playerSpecialization.value)
+      captureRarity.value = rarity
+      captureTotalNeeded.value = needCorrect
+      captureMaxWrong.value = maxWrong
+      captureNeedsBoss.value = needsBoss
+      // 生成捕捉题目
+      const qs = getQuestionsForFloor(floor.value, qCount, playerSpecialization.value)
       captureQuestions.value = qs
       captureIndex.value = 0
       captureCorrectCount.value = 0
@@ -769,7 +841,6 @@ export const useGameStore = defineStore('game', () => {
     if (captureIndex.value >= captureQuestions.value.length) return
 
     const q = captureQuestions.value[captureIndex.value]
-    // 开发者模式：自动答对
     const correct = devMode.value ? true : (index === q.answer)
 
     if (!correct) {
@@ -783,17 +854,14 @@ export const useGameStore = defineStore('game', () => {
       captureCorrectCount.value++
     }
 
-    // 计算当前题之后的剩余题数
-    const remaining = captureQuestions.value.length - captureIndex.value - 1
+    // 计算已答错次数
+    const wrongCount = captureIndex.value - captureCorrectCount.value + (correct ? 0 : 1)
 
-    // 提前终止：如果剩余题数 + 已答对 < 3，不可能成功
-    if (captureCorrectCount.value + remaining < 3) {
+    // 超限即失败
+    if (wrongCount > captureMaxWrong.value) {
       battleState.value = 'captureFail'
       sfxCaptureFail()
-      captureMonsterData.value = null
-      captureQuestions.value = []
-      captureIndex.value = 0
-      captureCorrectCount.value = 0
+      clearCaptureData()
       if (dungeonPhase.value === 'battle') {
         const room = roomGrid.value[currentRoomIndex.value]
         if (room) { room.cleared = true; clearedRoomsThisFloor.value++ }
@@ -812,7 +880,7 @@ export const useGameStore = defineStore('game', () => {
 
     // 全部答完
     if (captureIndex.value >= captureQuestions.value.length) {
-      if (captureCorrectCount.value >= 3) {
+      if (captureCorrectCount.value >= captureTotalNeeded.value) {
         const monster = createFarmMonster(
           captureMonsterData.value.name,
           captureMonsterData.value.icon,
@@ -822,6 +890,13 @@ export const useGameStore = defineStore('game', () => {
           captureMonsterData.value.baseDef,
           captureMonsterData.value.captureFloor
         )
+        // 传说级：需要额外Boss战
+        if (captureNeedsBoss.value) {
+          battleLog.value.push(`⭐ 传说级怪物 ${monster.name} 认可你的实力，但还要最后一战！`)
+          battleState.value = 'legendaryBossFight'
+          initLegendaryCaptureBoss(monster)
+          return
+        }
         farm.value.push(monster)
         battleLog.value.push(`收养成功！${monster.name} 成为你的伙伴！`)
         battleState.value = 'captureSuccess'
@@ -830,10 +905,7 @@ export const useGameStore = defineStore('game', () => {
         battleState.value = 'captureFail'
         sfxCaptureFail()
       }
-      captureMonsterData.value = null
-      captureQuestions.value = []
-      captureIndex.value = 0
-      captureCorrectCount.value = 0
+      clearCaptureData()
       if (dungeonPhase.value === 'battle') {
         finishRoom(true)
       } else {
@@ -842,12 +914,35 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // 跳过捕捉
-  function skipCapture() {
+  function clearCaptureData() {
     captureMonsterData.value = null
     captureQuestions.value = []
     captureIndex.value = 0
     captureCorrectCount.value = 0
+  }
+
+  function initLegendaryCaptureBoss(monster) {
+    const boss = {
+      ...monster,
+      name: `传说·${monster.name}`,
+      hp: Math.floor(monster.maxHp * 1.5),
+      maxHp: Math.floor(monster.maxHp * 1.5),
+      atk: Math.floor((monster.atk || 10) * 1.5),
+      def: Math.floor((monster.def || 5) * 1.5),
+      isCaptureBoss: true,
+      captureMonster: monster
+    }
+    enemy.value = boss
+    inBattle.value = true
+    battleLog.value = [`传说中的 ${boss.name} 出现了！击败它才能真正收服！`]
+    battleState.value = 'idle'
+    const q = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
+    if (q) question.value = q
+  }
+
+  // 跳过捕捉
+  function skipCapture() {
+    clearCaptureData()
     battleState.value = 'idle'
     if (dungeonPhase.value === 'battle') {
       finishRoom(true)
@@ -1362,11 +1457,14 @@ export const useGameStore = defineStore('game', () => {
       sfxCorrect()
 
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
-      let multiplier = 1.5 * (elementEffect?.multiplier || 1.0)
+      let multiplier = 1.0 * (elementEffect?.multiplier || 1.0)
       const comboMultiplier = 1 + consecutiveCorrect.value * 0.5
       multiplier *= comboMultiplier
 
-      const damage = Math.max(1, Math.floor((totalAtk.value - enemy.value.def) * multiplier))
+      const damage = Math.max(
+        Math.floor(totalAtk.value * 0.3),
+        Math.floor(totalAtk.value * multiplier - enemy.value.def * 0.5)
+      )
       enemy.value.hp -= damage
 
       let logMsg = ''

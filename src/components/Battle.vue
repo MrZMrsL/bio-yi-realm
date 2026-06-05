@@ -177,9 +177,12 @@
       <div v-if="canCapture" class="capture-offer">
         <div class="capture-info">
           <span class="capture-icon">{{ store.captureMonsterData?.icon }}</span>
-          <div class="capture-name">{{ store.captureMonsterData?.name }}</div>
-          <div class="capture-hint">发现可收养的怪物！</div>
-          <div class="capture-hint-small">答对3道题目即可收养</div>
+          <div class="capture-name">
+            <span :class="'rarity-badge ' + (store.captureRarity || 'common')">{{ rarityLabel }}</span>
+            {{ store.captureMonsterData?.name }}
+          </div>
+          <div class="capture-hint">发现{{ rarityLabel }}怪物！</div>
+          <div class="capture-hint-small">{{ captureHintText }}</div>
         </div>
         <div class="capture-actions">
           <button @click="store.startCapture" class="btn-capture">🐾 尝试收养</button>
@@ -193,15 +196,18 @@
     
     <!-- 捕捉答题 -->
     <div v-if="store.battleState === 'captureQuiz'" class="quiz-panel capture-quiz">
-      <div class="capture-title">🐾 收养考验（{{ store.captureIndex + 1 }} / 3）</div>
+      <div class="capture-title">
+        🐾 收养考验（{{ store.captureIndex + 1 }} / {{ store.captureQuestions.length }}）
+        <span :class="'rarity-badge ' + store.captureRarity">{{ rarityLabel }}</span>
+      </div>
       <div class="capture-progress">
         <div
-          v-for="i in 3"
+          v-for="i in store.captureQuestions.length"
           :key="i"
           class="progress-dot"
           :class="{
             correct: i <= store.captureCorrectCount,
-            current: i === store.captureIndex + 1 && store.captureIndex < 3,
+            current: i === store.captureIndex + 1 && store.captureIndex < store.captureQuestions.length,
             wrong: i <= store.captureIndex && i > store.captureCorrectCount
           }"
         ></div>
@@ -305,6 +311,20 @@ const enemyElementColor = computed(() => {
 const canCapture = computed(() => {
   if (!store.captureMonsterData) return false
   return store.farm.length < 12
+})
+
+const rarityLabel = computed(() => {
+  const map = { common: '普通', rare: '稀有', epic: '史诗', legendary: '传说' }
+  return map[store.captureRarity] || '普通'
+})
+
+const captureHintText = computed(() => {
+  const r = store.captureRarity
+  if (r === 'common') return '答对2题即可收养'
+  if (r === 'rare') return '答对3题可收养（可错1题）'
+  if (r === 'epic') return '3题全部答对才能收养'
+  if (r === 'legendary') return '3题全对并通过传说Boss试炼！'
+  return '答对题目即可收养'
 })
 
 // ===== 幽灵血条 =====
@@ -1195,6 +1215,24 @@ function revive() {
 .capture-hint-small {
   color: #888;
   font-size: 0.85em;
+}
+
+/* 稀有度标签 */
+.rarity-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 6px;
+}
+.rarity-badge.common    { background: rgba(136,136,136,0.2); color: #aaa; }
+.rarity-badge.rare      { background: rgba(52,152,219,0.25); color: #5dade2; }
+.rarity-badge.epic      { background: rgba(155,89,182,0.25); color: #af7ac5; }
+.rarity-badge.legendary { 
+  background: linear-gradient(135deg, rgba(241,196,15,0.3), rgba(212,168,83,0.3));
+  color: #f1c40f;
+  text-shadow: 0 0 6px rgba(241,196,15,0.3);
 }
 
 .capture-actions {
