@@ -28,12 +28,24 @@
       </div>
 
       <div v-else class="knowledge-list">
-        <div v-for="(k, i) in sortedKnowledge" :key="i" class="knowledge-card">
+        <div v-for="(k, i) in sortedKnowledge" :key="i" class="knowledge-card" @click="toggleExpand(i)">
           <div class="knowledge-icon">{{ k.icon || '📖' }}</div>
           <div class="knowledge-body">
             <div class="knowledge-name">{{ k.name }}</div>
             <div class="knowledge-desc">{{ k.desc }}</div>
             <div class="knowledge-time">收藏于 {{ formatDate(k.learnedAt) }}</div>
+          </div>
+          <div class="knowledge-expand-icon">{{ expandedIndex === i ? '▲' : '▼' }}</div>
+        </div>
+        <!-- 展开的知识点 -->
+        <div v-if="expandedIndex === i" class="knowledge-points">
+          <div class="points-title">📌 知识要点</div>
+          <div v-for="(pt, pi) in getPoints(k.name)" :key="pi" class="point-item">
+            <span class="point-num">{{ pi + 1 }}.</span>
+            <span class="point-text">{{ pt }}</span>
+          </div>
+          <div v-if="getPoints(k.name).length === 0" class="points-empty">
+            暂无详细知识点内容
           </div>
         </div>
       </div>
@@ -245,16 +257,26 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useGameStore } from '../stores/game.js'
+import { getBookKnowledgePoints } from '../data/fishing.js'
 
 const store = useGameStore()
 const answered = ref(false)
 const selectedAnswer = ref(-1)
 const isCorrect = ref(false)
 const activeTab = ref('review')
+const expandedIndex = ref(-1)
 
 const sortedKnowledge = computed(() => {
   return [...store.collectedKnowledge].sort((a, b) => (b.learnedAt || 0) - (a.learnedAt || 0))
 })
+
+function getPoints(bookName) {
+  return getBookKnowledgePoints(bookName)
+}
+
+function toggleExpand(i) {
+  expandedIndex.value = expandedIndex.value === i ? -1 : i
+}
 
 function formatDate(ts) {
   if (!ts) return ''
@@ -908,6 +930,57 @@ function clearResults() {
 .knowledge-time {
   font-size: 11px;
   color: #666;
+}
+
+.knowledge-expand-icon {
+  font-size: 11px;
+  color: #888;
+  flex-shrink: 0;
+  align-self: center;
+  padding: 4px;
+}
+
+.knowledge-points {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-top: -6px;
+  margin-bottom: 4px;
+}
+.points-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #d4a853;
+  margin-bottom: 10px;
+}
+.point-item {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.point-item:last-child {
+  border-bottom: none;
+}
+.point-num {
+  flex-shrink: 0;
+  color: #d4a853;
+  font-weight: bold;
+  width: 20px;
+  text-align: right;
+}
+.point-text {
+  color: #ccc;
+  flex: 1;
+}
+.points-empty {
+  text-align: center;
+  padding: 16px;
+  color: #666;
+  font-size: 13px;
 }
 
 /* 研读知识点弹窗 */
