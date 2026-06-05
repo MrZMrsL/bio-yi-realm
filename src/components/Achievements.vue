@@ -166,12 +166,15 @@ function formatUnlockTime(timestamp) {
 
 function progressPctFor(ach) {
   const progress = getAchievementProgress(ach, gameState.value)
-  return Math.min(100, Math.floor((progress / ach.maxProgress) * 100))
+  if (typeof progress !== 'number' || Number.isNaN(progress)) return 0
+  const pct = Math.floor((progress / ach.maxProgress) * 100)
+  return Math.min(100, Math.max(0, pct))
 }
 
 function progressText(ach) {
   const progress = getAchievementProgress(ach, gameState.value)
-  return `${Math.min(progress, ach.maxProgress)} / ${ach.maxProgress}`
+  const safeProgress = typeof progress === 'number' && !Number.isNaN(progress) ? progress : 0
+  return `${Math.min(safeProgress, ach.maxProgress)} / ${ach.maxProgress}`
 }
 
 const filteredAchievements = computed(() => {
@@ -185,6 +188,7 @@ const unlockedCount = computed(() => {
 
 const totalCount = computed(() => ACHIEVEMENTS.length)
 const progressPct = computed(() => {
+  if (totalCount.value === 0) return 0
   return Math.floor((unlockedCount.value / totalCount.value) * 100)
 })
 

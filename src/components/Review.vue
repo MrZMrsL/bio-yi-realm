@@ -28,24 +28,26 @@
       </div>
 
       <div v-else class="knowledge-list">
-        <div v-for="(k, i) in sortedKnowledge" :key="i" class="knowledge-card" @click="toggleExpand(i)">
-          <div class="knowledge-icon">{{ k.icon || '📖' }}</div>
-          <div class="knowledge-body">
-            <div class="knowledge-name">{{ k.name }}</div>
-            <div class="knowledge-desc">{{ k.desc }}</div>
-            <div class="knowledge-time">收藏于 {{ formatDate(k.learnedAt) }}</div>
+        <div v-for="(k, i) in sortedKnowledge" :key="i" class="knowledge-card-wrapper">
+          <div class="knowledge-card" @click="toggleExpand(i)">
+            <div class="knowledge-icon">{{ k.icon || '📖' }}</div>
+            <div class="knowledge-body">
+              <div class="knowledge-name">{{ k.name }}</div>
+              <div class="knowledge-desc">{{ k.desc }}</div>
+              <div class="knowledge-time">收藏于 {{ formatDate(k.learnedAt) }}</div>
+            </div>
+            <div class="knowledge-expand-icon">{{ expandedIndex === i ? '▲' : '▼' }}</div>
           </div>
-          <div class="knowledge-expand-icon">{{ expandedIndex === i ? '▲' : '▼' }}</div>
-        </div>
-        <!-- 展开的知识点 -->
-        <div v-if="expandedIndex === i" class="knowledge-points">
-          <div class="points-title">📌 知识要点</div>
-          <div v-for="(pt, pi) in getPoints(k.name)" :key="pi" class="point-item">
-            <span class="point-num">{{ pi + 1 }}.</span>
-            <span class="point-text">{{ pt }}</span>
-          </div>
-          <div v-if="getPoints(k.name).length === 0" class="points-empty">
-            暂无详细知识点内容
+          <!-- 展开的知识点 -->
+          <div v-if="expandedIndex === i" class="knowledge-points">
+            <div class="points-title">📌 知识要点</div>
+            <div v-for="(pt, pi) in getPoints(k.name)" :key="pi" class="point-item">
+              <span class="point-num">{{ pi + 1 }}.</span>
+              <span class="point-text">{{ pt }}</span>
+            </div>
+            <div v-if="getPoints(k.name).length === 0" class="points-empty">
+              暂无详细知识点内容
+            </div>
           </div>
         </div>
       </div>
@@ -885,7 +887,12 @@ function clearResults() {
 .knowledge-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
+}
+.knowledge-card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .knowledge-card {
   display: flex;

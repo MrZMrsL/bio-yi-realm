@@ -362,6 +362,10 @@ function reelIn() {
 
 function collectBook() {
   sfxClick()
+  // 直接收下：将古籍加入收藏列表（自习室可见）
+  if (caughtBook.value && !store.collectedKnowledge.some(k => k.name === caughtBook.value.name)) {
+    store.collectedKnowledge.push({ ...caughtBook.value, learnedAt: Date.now() })
+  }
   caughtBook.value = null
   fishingState.value = 'idle'
   store.enterMode('idle')  // 状态机同步
