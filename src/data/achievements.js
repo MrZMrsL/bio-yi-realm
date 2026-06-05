@@ -567,6 +567,7 @@ export function checkAchievementUnlocked(achievement, state) {
   switch (achievement.category) {
     case 'combat':
       if (achievement.id === 'all_clear') return achievement.condition(allClearCount || 0)
+      if (achievement.id === 'all_clear_50') return achievement.condition(allClearCount || 0)
       return achievement.condition(stats || {})
     case 'knowledge':
       return achievement.condition(stats || {})
@@ -597,6 +598,7 @@ export function getAchievementProgress(achievement, state) {
   switch (achievement.category) {
     case 'combat':
       if (achievement.id === 'all_clear') return achievement.progress(allClearCount || 0)
+      if (achievement.id === 'all_clear_50') return achievement.progress(allClearCount || 0)
       return achievement.progress(stats || {})
     case 'knowledge':
       return achievement.progress(stats || {})
