@@ -11,7 +11,9 @@ import {
   checkElementCounter,
   ELEMENT_SUBJECT_MAP,
   FARM_MAX_CAPACITY,
-  DUNGEON_ELEMENTS
+  DUNGEON_ELEMENTS,
+  fusePets,
+  FUSE_RULES
 } from '../data/farm.js'
 import { FORGE_RECIPES, canForge } from '../data/forge.js'
 import { SHOP_ITEMS } from '../data/shop.js'
@@ -888,7 +890,8 @@ export const useGameStore = defineStore('game', () => {
           captureMonsterData.value.baseHp,
           captureMonsterData.value.baseAtk,
           captureMonsterData.value.baseDef,
-          captureMonsterData.value.captureFloor
+          captureMonsterData.value.captureFloor,
+          captureMonsterData.value.rarity
         )
         // 传说级：需要额外Boss战
         if (captureNeedsBoss.value) {
@@ -1026,6 +1029,36 @@ export const useGameStore = defineStore('game', () => {
     }
     saveGame()
     return true
+  }
+
+  // 宠物融合进化
+  function executeFusion(idx1, idx2) {
+    if (idx1 === idx2) return { error: '不能选择同一只怪物' }
+    const pet1 = farm.value[idx1]
+    const pet2 = farm.value[idx2]
+    if (!pet1 || !pet2) return { error: '怪物不存在' }
+
+    const result = fusePets(pet1, pet2)
+    if (result.error) return result
+    if (!result) return { error: '融合失败' }
+
+    // 扣除金币
+    const rule = FUSE_RULES[pet1.rarity]
+    if (gold.value < rule.cost) return { error: `金币不足，需要 ${rule.cost} 金币` }
+    gold.value -= rule.cost
+
+    // 移除两只原宠物（从大到小删避免索引偏移）
+    const i1 = Math.min(idx1, idx2)
+    const i2 = Math.max(idx1, idx2)
+    farm.value.splice(i2, 1)
+    farm.value.splice(i1, 1)
+
+    // 添加融合后的宠物
+    farm.value.push(result)
+
+    battleLog.value.push(`🔀 融合成功！${pet1.name} + ${pet2.name} → ${result.name}！（消耗 ${rule.cost} 金币）`)
+    saveGame()
+    return { success: true, result }
   }
 
   // 添加物品到背包
@@ -2239,6 +2272,8 @@ export const useGameStore = defineStore('game', () => {
     // 古籍测验
     bookQuizActive, bookQuizQuestions, bookQuizIndex, bookQuizCorrectCount, bookQuizTotalCount,
     bookQuizDone, bookQuizResults, bookQuizBookName, bookQuizRewardExp, bookQuizCurrentQuestion,
-    startBookQuiz, submitBookQuizAnswer, exitBookQuiz
+    startBookQuiz, submitBookQuizAnswer, exitBookQuiz,
+    // 宠物融合
+    executeFusion
   }
 })

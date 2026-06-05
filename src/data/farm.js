@@ -68,12 +68,13 @@ export function generateMonsterAbility(element, captureFloor) {
 }
 
 // 创建农场怪物对象
-export function createFarmMonster(name, icon, element, baseHp, baseAtk, baseDef, captureFloor) {
+export function createFarmMonster(name, icon, element, baseHp, baseAtk, baseDef, captureFloor, rarity = 'common') {
   const ability = generateMonsterAbility(element, captureFloor)
   return {
     name,
     icon: icon || '👾',
     element,
+    rarity,
     level: 1,
     exp: 0,
     maxExp: 50,
@@ -83,6 +84,72 @@ export function createFarmMonster(name, icon, element, baseHp, baseAtk, baseDef,
     captureFloor,
     ability,
     capturedAt: Date.now()
+  }
+}
+
+// ===== 宠物融合进化系统 =====
+
+// 融合规则
+export const FUSE_RULES = {
+  common:    { targetRarity: 'rare',      cost: 500,  statMult: 1.5, iconUpgrade: '⭐' },
+  rare:      { targetRarity: 'epic',      cost: 2000, statMult: 2.0, iconUpgrade: '🌟' },
+  epic:      { targetRarity: 'legendary', cost: 5000, statMult: 3.0, iconUpgrade: '💫', grantSkill: true }
+}
+
+// 进化称号前缀
+export const EVOLUTION_PREFIX = {
+  common:    '精英',
+  rare:      '史诗',
+  epic:      '传说'
+}
+
+// 融合进化宠物
+export function fusePets(pet1, pet2) {
+  if (!pet1 || !pet2) return null
+  if (pet1.element !== pet2.element) return { error: '元素不同，无法融合' }
+  if (pet1.rarity !== pet2.rarity) return { error: '稀有度不同，无法融合' }
+  const rarity = pet1.rarity
+  const rule = FUSE_RULES[rarity]
+  if (!rule) return { error: '传说级无法再融合' }
+
+  const targetFloor = Math.max(pet1.captureFloor || 1, pet2.captureFloor || 1)
+  const newAbility = generateMonsterAbility(pet1.element, targetFloor)
+
+  // 融合后的属性取两只中较高者乘以倍率
+  const newHp = Math.floor(Math.max(pet1.baseHp || 50, pet2.baseHp || 50) * rule.statMult)
+  const newAtk = Math.floor(Math.max(pet1.baseAtk || 10, pet2.baseAtk || 10) * rule.statMult)
+  const newDef = Math.floor(Math.max(pet1.baseDef || 3, pet2.baseDef || 3) * rule.statMult)
+
+  // 如果传说级，给予特殊被动
+  let passiveSkill = null
+  if (rule.grantSkill) {
+    passiveSkill = {
+      name: `${pet1.element}之魂`,
+      desc: `${pet1.element === 'fire' ? '火焰' : pet1.element === 'water' ? '流水' : 
+              pet1.element === 'acid' ? '酸蚀' : pet1.element === 'electric' ? '雷电' :
+              pet1.element === 'ice' ? '冰霜' : '疾风'}之力觉醒，全属性额外+20%`
+    }
+  }
+
+  const prefix = EVOLUTION_PREFIX[rarity] || ''
+  const newName = `${prefix}·${pet1.name}`
+
+  return {
+    name: newName,
+    icon: pet1.icon,
+    element: pet1.element,
+    rarity: rule.targetRarity,
+    level: 1,
+    exp: 0,
+    maxExp: 100,
+    baseHp: newHp,
+    baseAtk: newAtk,
+    baseDef: newDef,
+    captureFloor: targetFloor,
+    ability: newAbility,
+    passiveSkill,
+    fusedAt: Date.now(),
+    parents: [pet1.name, pet2.name]
   }
 }
 
