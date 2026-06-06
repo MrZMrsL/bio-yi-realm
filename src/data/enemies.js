@@ -16,8 +16,13 @@ const RAW_ENEMIES = [
   ...EXTRA_ENEMIES.yi
 ]
 
-// 给所有敌人分配元素属性
-export const ENEMIES = assignElementToEnemies(RAW_ENEMIES)
+// 给所有敌人分配元素属性，同时添加基础属性字段（用于楼层过滤）
+export const ENEMIES = assignElementToEnemies(RAW_ENEMIES).map(e => ({
+  ...e,
+  baseHp: e.hp,
+  baseAtk: e.atk,
+  baseDef: e.def || 0
+}))
 
 // 按学科筛选敌人
 export function getEnemiesBySubject(subject) {
@@ -58,23 +63,24 @@ export function calculateEnemyStats(baseEnemy, floor) {
 export function getEnemyForFloor(floor, element) {
   let pool = ENEMIES;
 
-  // 1-5层：基础敌人池
+  // 1-5层：基础敌人池（baseHp 为原始未缩放血量）
   if (floor <= 5) {
-    pool = ENEMIES.filter(e => e.baseHp <= 55 || e.hp <= 55);
+    pool = ENEMIES.filter(e => e.baseHp <= 55);
   }
   // 6-15层：中等敌人池
   else if (floor <= 15) {
-    pool = ENEMIES.filter(e => (e.hp > 30 && e.hp <= 80) || e.baseHp > 30);
+    pool = ENEMIES.filter(e => e.baseHp > 30 && e.baseHp <= 80);
   }
   // 16-30层：高级敌人
   else if (floor <= 30) {
-    pool = ENEMIES.filter(e => e.hp > 60 || e.baseHp > 60);
+    pool = ENEMIES.filter(e => e.baseHp > 60);
   }
   // 30层以上：全部敌人（属性已平滑缩放）
   else {
     pool = ENEMIES;
   }
 
+  // 防御性 fallback：如果过滤后 pool 为空，返回全部敌人
   if (pool.length === 0) pool = ENEMIES;
 
   // 如果指定了元素，按元素对应的学科过滤

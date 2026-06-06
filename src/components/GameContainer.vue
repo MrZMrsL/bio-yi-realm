@@ -1,13 +1,5 @@
 <template>
   <div id="game-container">
-    <!-- 题库加载进度条（非阻塞，首次进入地牢时短暂显示） -->
-    <div v-if="!store.questionsLoaded && store.gameStarted" class="load-bar">
-      <div class="load-bar-track">
-        <div class="load-bar-fill" :style="{ width: store.loadProgress + '%' }"></div>
-      </div>
-      <span class="load-bar-text">题库加载中 {{ store.loadProgress }}%</span>
-    </div>
-
     <!-- 新发现通知 -->
   <div class="discovery-notifications" v-if="store.newDiscoveries.length > 0">
     <div v-for="(notif, idx) in store.newDiscoveries" :key="notif.id" class="discovery-notif">

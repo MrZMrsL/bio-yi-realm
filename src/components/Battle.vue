@@ -224,7 +224,23 @@
         </button>
       </div>
     </div>
-    
+
+    <!-- 传说Boss战过渡 -->
+    <div v-if="store.battleState === 'legendaryBossFight'" class="result legendary-boss">
+      <div class="result-title">⭐ 传说试炼</div>
+      <div class="legendary-boss-intro">
+        <div class="legendary-icon">{{ store.enemy?.icon }}</div>
+        <div class="legendary-name">{{ store.enemy?.name }}</div>
+        <div class="legendary-desc">传说级怪物的最终试炼！击败守护者才能真正收服它。</div>
+        <div class="legendary-stats">
+          <span>❤️ {{ store.enemy?.hp }} / {{ store.enemy?.maxHp }}</span>
+          <span>⚔️ {{ store.enemy?.atk }}</span>
+          <span>🛡️ {{ store.enemy?.def }}</span>
+        </div>
+      </div>
+      <button @click="startLegendaryBoss" class="btn-legendary">🔥 接受挑战</button>
+    </div>
+
     <!-- 捕捉成功 -->
     <div v-if="store.battleState === 'captureSuccess'" class="result capture-result success">
       <div class="result-title">🎉 收养成功！</div>
@@ -531,6 +547,11 @@ function revive() {
   store.floor = 1
   store.hp = store.maxHp
   store.exitBattle()
+}
+
+function startLegendaryBoss() {
+  sfxClick()
+  store.battleState = 'idle'
 }
 </script>
 
@@ -1381,5 +1402,76 @@ function revive() {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ===== 传说Boss过渡 ===== */
+.legendary-boss {
+  background: linear-gradient(135deg, rgba(155, 89, 182, 0.2), rgba(241, 196, 15, 0.15));
+  border: 2px solid rgba(241, 196, 15, 0.3);
+  animation: legendary-glow 2s ease-in-out infinite;
+}
+
+@keyframes legendary-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(241, 196, 15, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(241, 196, 15, 0.5); }
+}
+
+.legendary-boss-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.legendary-icon {
+  font-size: 4em;
+  animation: legendary-bounce 1.5s ease-in-out infinite;
+}
+
+@keyframes legendary-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.legendary-name {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: #f1c40f;
+  text-shadow: 0 0 10px rgba(241, 196, 15, 0.4);
+}
+
+.legendary-desc {
+  font-size: 0.9em;
+  color: #c0c0c0;
+  text-align: center;
+  max-width: 300px;
+}
+
+.legendary-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 0.9em;
+  color: #e0e0e0;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+
+.btn-legendary {
+  background: linear-gradient(135deg, #9b59b6, #f1c40f);
+  color: #1a1a2e;
+  font-size: 1.1em;
+  font-weight: bold;
+  padding: 14px 36px;
+  border: none;
+  border-radius: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
+  transition: transform 0.2s;
+}
+
+.btn-legendary:hover {
+  transform: scale(1.05);
 }
 </style>

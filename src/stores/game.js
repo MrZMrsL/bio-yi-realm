@@ -348,10 +348,10 @@ export const useGameStore = defineStore('game', () => {
   }
 
   // ===== 游戏启动 =====
-  // ===== 题库加载状态 =====
-  const isLoadingQuestions = ref(false)
-  const questionsLoaded = computed(() => true)
-  const loadProgress = computed(() => 100)
+  // ===== 题库加载状态（已废弃：题库现为同步静态加载，以下状态始终为固定值） =====
+  const isLoadingQuestions = ref(false)  // 始终 false，题库在模块加载时已就绪
+  const questionsLoaded = computed(() => true)  // 始终 true
+  const loadProgress = computed(() => 100)  // 始终 100%
 
   function startGame() {
     gameStarted.value = true
@@ -546,7 +546,7 @@ export const useGameStore = defineStore('game', () => {
 
       // 计算元素克制
       const elementEffect = checkElementCounter(activeMonster.value?.element, enemy.value.element)
-      const multiplier = 1.0 * (elementEffect?.multiplier || 1.0)
+      let multiplier = 1.0 * (elementEffect?.multiplier || 1.0)
 
       // 学科连击加成差异化
       let comboBonusPerStack = 0.5  // 默认
@@ -641,8 +641,12 @@ export const useGameStore = defineStore('game', () => {
     if (idx === -1) return false
 
     const item = consumables.value[idx]
-    if (item.type === 'heal') {
-      const heal = Math.floor(maxHp.value * item.ratio)
+    // 修复：支持 'potion' 和 'heal' 两种类型（items.js 定义的是 'potion'）
+    if (item.type === 'potion' || item.type === 'heal') {
+      // 修复：支持 value（固定值）和 ratio（百分比）两种恢复方式
+      const heal = item.value
+        ? item.value
+        : Math.floor(maxHp.value * (item.ratio || 0.3))
       hp.value = Math.min(maxHp.value, hp.value + heal)
       battleLog.value.push(`使用 ${item.name}，恢复 ${heal} 点生命！`)
     } else if (item.type === 'buff') {
@@ -938,7 +942,7 @@ export const useGameStore = defineStore('game', () => {
     enemy.value = boss
     inBattle.value = true
     battleLog.value = [`传说中的 ${boss.name} 出现了！击败它才能真正收服！`]
-    battleState.value = 'idle'
+    // 保持 battleState 为 legendaryBossFight，由 UI 展示过渡后玩家手动进入战斗
     const q = getQuestionsForFloor(floor.value, 1, playerSpecialization.value)[0]
     if (q) question.value = q
   }
