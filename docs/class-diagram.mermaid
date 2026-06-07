@@ -1,0 +1,121 @@
+classDiagram
+    direction TB
+
+    class HeroTitle {
+        +String id
+        +String name
+        +String description
+        +String rarity
+        +UnlockCondition unlock
+        +TitleBonus[] bonuses
+        +String icon
+    }
+
+    class UnlockCondition {
+        +String type
+        +Number value
+        check(state): boolean
+    }
+
+    class TitleBonus {
+        +String type
+        +String target
+        +Number value
+        apply(base): Number
+    }
+
+    class BattleCredential {
+        +Number v
+        +Number f
+        +String s
+        +Number l
+        +Number h
+        +Number a
+        +Number d
+        +String p
+        +String[] sk
+        +Number c
+        +Number w
+        +Number m
+        toJSON(): Object
+    }
+
+    class CredentialCodec {
+        +encode(cred): String
+        +decode(code): BattleCredential
+    }
+
+    class GhostOpponent {
+        +BattleCredential profile
+        +Number accuracy
+        +Number avgDelay
+        simulateAnswer(): Promise~boolean~
+        calcDamage(playerCorrect, combo): Number
+    }
+
+    class PvpPlayerState {
+        +String name
+        +Number hp
+        +Number maxHp
+        +Number atk
+        +Number def
+        +Number combo
+        +Number consecutive
+        +Boolean isHuman
+        answer(correct)
+        takeDamage(dmg)
+    }
+
+    class LeaderboardEntry {
+        +String name
+        +Number score
+        +Number timestamp
+        +String weekKey
+    }
+
+    class FirebaseClient {
+        +App app
+        +Database db
+        +submit(entry, category): Promise
+        +query(category, type, limit): Promise~LeaderboardEntry[]~
+        getWeekKey(): String
+    }
+
+    class useTitles {
+        +Ref unlocked
+        +Ref active
+        +Computed effectiveBonuses
+        +checkUnlocks(state)
+        +equip(titleId)
+        +getTotalBonus(type, base)
+    }
+
+    class useGhostBattle {
+        +Ref phase
+        +Ref opponent
+        +Ref reward
+        +start(credential)
+        +playerAnswer(correct)
+        +calcReward(): Reward
+    }
+
+    class useLocalPvp {
+        +Ref phase
+        +Ref p1
+        +Ref p2
+        +Ref currentTurn
+        +start(config)
+        +submitAnswer(playerIdx, correct)
+        +calcComboMultiplier(consecutive): Number
+    }
+
+    HeroTitle --> UnlockCondition
+    HeroTitle --> TitleBonus
+    BattleCredential ..> CredentialCodec : encoded by
+    GhostOpponent --> BattleCredential
+    useTitles --> HeroTitle
+    useGhostBattle --> GhostOpponent
+    useGhostBattle --> CredentialCodec
+    useLocalPvp --> PvpPlayerState
+    FirebaseClient --> LeaderboardEntry
+    useLeaderboard --> FirebaseClient

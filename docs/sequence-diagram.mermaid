@@ -1,0 +1,141 @@
+%% 序列图 1：凭证生成 → 分享 → 解码 → 对战
+sequenceDiagram
+    autonumber
+    actor P1 as 玩家A
+    participant GC as GameContainer
+    participant GT as useTitles / gameStore
+    participant CC as CredentialCodec
+    participant GB as GhostBattle.vue
+    actor P2 as 玩家B
+
+    P1->>GT: 点击"生成战斗凭证"
+    GT->>GT: 提取当前状态（层数/称号/专精/等级/属性/宠物/技能/统计）
+    GT->>CC: encode({v:1, f:15, s:"chem", ...})
+    CC->>CC: JSON.stringify → pako.deflate → Base64URL
+    CC-->>GT: "x1aB9..." (短编码)
+    GT-->>P1: 展示编码 + 复制按钮
+
+    P2->>GB: 进入"挑战幽灵"
+    P2->>GB: 粘贴凭证编码
+    GB->>CC: decode("x1aB9...")
+    CC->>CC: Base64URL → pako.inflate → JSON.parse
+    CC-->>GB: BattleCredential
+    GB->>GB: 校验版本号 v
+    GB->>useGhostBattle: start(credential)
+    useGhostBattle->>GhostOpponent: new(profile)
+    useGhostBattle-->>GB: 进入对战
+
+    loop 答题回合
+        P2->>GB: 选择答案
+        GB->>useGhostBattle: playerAnswer(correct)
+        useGhostBattle->>GhostOpponent: simulateAnswer()
+        GhostOpponent-->>useGhostBattle: 答对/答错（延迟 800~2000ms）
+        useGhostBattle->>useGhostBattle: 计算双方伤害
+        useGhostBattle-->>GB: 更新 HP / 日志
+    end
+
+    useGhostBattle->>useGhostBattle: calcReward()
+    useGhostBattle-->>GB: 显示金币+经验奖励
+    GB->>GT: updateStats / addExp
+
+%% 序列图 2：本地双人对战流程
+sequenceDiagram
+    autonumber
+    actor P1 as 玩家1
+    participant LP as LocalPvp.vue
+    participant UL as useLocalPvp
+    participant PS as PvpPlayerState
+
+    P1->>LP: 选择"本地双人对战"
+    LP->>UL: start({mode:'preset', presetIdx:1, floor:10})
+    UL->>UL: 加载预设角色 或 导入存档
+    UL->>PS: initP1(saveData)
+    UL->>PS: initP2(presetOrSave)
+    UL-->>LP: 显示对战界面（P1 先攻）
+
+    loop 回合制
+        P1->>LP: 答题（P1回合）
+        LP->>UL: submitAnswer(0, correct)
+        UL->>PS: p1.answer(correct)
+        alt P1 答对
+            UL->>UL: comboMultiplier = 1 + consecutive * 0.25
+            UL->>PS: p2.takeDamage(dmg)
+        else P1 答错
+            UL->>PS: p1.takeDamage(counterDmg)
+        end
+        UL-->>LP: 刷新状态
+
+        alt P2 是人类
+            actor P2 as 玩家2
+            P2->>LP: 答题（P2回合）
+        else P2 是AI（单人练习模式扩展）
+            LP->>UL: autoAnswer(1)
+        end
+        LP->>UL: submitAnswer(1, correct)
+    end
+
+    UL->>UL: 判定胜负
+    UL-->>LP: 显示结算
+
+%% 序列图 3：称号解锁与增益生效
+sequenceDiagram
+    autonumber
+    participant Battle as 战斗结束
+    participant Store as gameStore
+    participant UT as useTitles
+    participant HT as hero_titles.js
+
+    Battle->>Store: winBattle() / updateStats()
+    Store->>UT: checkUnlocks(currentState)
+    UT->>HT: 遍历所有称号
+    loop 每个称号
+        HT->>UT: 评估 unlock 条件
+        alt 条件满足且未解锁
+            UT->>Store: unlockedTitles.push(id)
+            UT->>Store: newUnlockNotify = id
+        end
+    end
+    UT-->>Store: 返回新解锁列表
+
+    Store->>UT: getTotalBonus('atk', baseAtk)
+    UT->>UT: 筛选 activeTitle 的 bonuses
+    UT->>UT: 叠加计算（绝对值 → 百分比 → 连击倍率）
+    UT-->>Store: finalAtk
+    Store->>Store: totalAtk = base + bonus
+
+%% 序列图 4：排行榜提交与查询
+sequenceDiagram
+    autonumber
+    participant GC as GameContainer
+    participant UL as useLeaderboard
+    participant LB as leaderboard.js
+    participant FB as FirebaseClient
+    participant RTDB as Firebase RTDB
+
+    GC->>UL: 打开排行榜
+    UL->>LB: query('maxFloor', 'global', 50)
+    LB->>FB: getLeaderboardRef('maxFloor/global')
+    FB->>RTDB: orderByValue().limitToLast(50).once('value')
+    RTDB-->>FB: 数据快照
+    FB-->>LB: 条目数组
+    LB-->>UL: LeaderboardEntry[]
+    UL-->>GC: 渲染榜单
+
+    GC->>UL: 切换周榜
+    UL->>LB: query('maxFloor', 'weekly', 50)
+    LB->>LB: weekKey = getISOWeek()
+    LB->>FB: 查询 .../weekly/{weekKey}/maxFloor
+    FB->>RTDB: 同上
+    RTDB-->>FB: 数据
+    FB-->>LB-->>UL-->>GC: 周榜数据
+
+    note over GC,RTDB: 战斗/捕捉后自动提交
+    Store->>LB: submitIfHighScore('maxFloor', playerName, floor)
+    LB->>FB: 读取当前玩家最高分
+    FB->>RTDB: 事务读取
+    RTDB-->>FB: 旧分数
+    alt 新分数 > 旧分数
+        FB->>RTDB: 写入新分数
+        RTDB-->>FB: 成功
+    end
+    FB-->>LB: 结果

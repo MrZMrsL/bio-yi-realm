@@ -8,6 +8,24 @@
     </div>
   </div>
 
+  <!-- 称号展示弹窗（v9.0 - PVP系统） -->
+  <TitleDisplay
+    :level="store.titleDisplayLevel"
+    :visible="store.showTitleDisplay"
+    @close="store.closeTitleDisplay()"
+  />
+
+  <!-- PVP对战模式（v9.0） -->
+  <div v-if="store.gameMode === 'pvp'" class="panel-overlay">
+    <div class="panel-header">
+      <button class="btn-back" @click="store.exitPvp()">← 返回</button>
+      <span class="panel-title">⚔️ PVP对战</span>
+    </div>
+    <div class="panel-content">
+      <PvpBattle @exit="store.exitPvp()" />
+    </div>
+  </div>
+
   <!-- 新手引导弹窗 -->
   <div v-if="showTutorialModal" class="tutorial-overlay">
     <div class="tutorial-modal">
@@ -58,7 +76,7 @@
     </div>
 
     <!-- 主界面 - 区域网格 -->
-    <div id="main-content" v-if="!activePanel">
+    <div id="main-content" v-if="!activePanel && store.gameMode !== 'pvp'">
       <div class="dashboard-header">
         <h2>🏰 生化易界</h2>
         <p class="dashboard-subtitle">以知识为刃，斩破混沌迷雾</p>
@@ -112,6 +130,13 @@
           <div class="area-icon">📚</div>
           <div class="area-name">自习室</div>
           <div class="area-desc">错题回顾 · 知识巩固</div>
+        </div>
+
+        <!-- PVP对战 -->
+        <div class="area-card pvp-card" @click="openPvp">
+          <div class="area-icon">⚔️</div>
+          <div class="area-name">对战</div>
+          <div class="area-desc">PVP知识对决</div>
         </div>
 
         <!-- 商店 -->
@@ -466,6 +491,38 @@
           </div>
 
 
+          <!-- 排行榜面板（v9.0） -->
+          <div v-if="activeSettingsTab === 'leaderboard'" class="settings-content">
+            <Leaderboard />
+          </div>
+
+          <!-- 称号面板 -->
+          <div v-if="activeSettingsTab === 'title'" class="settings-content">
+            <div class="title-card">
+              <div class="title-header">
+                <span class="title-badge">{{ store.titleEra }}</span>
+                <div class="title-name">{{ store.title }}</div>
+                <div class="title-field">{{ store.titleField }}</div>
+              </div>
+              <div class="title-bio">{{ store.titleBio }}</div>
+              <div class="title-achievements" v-if="store.titleAchievements && store.titleAchievements.length > 0">
+                <h4>🏅 主要成就</h4>
+                <div v-for="(ach, idx) in store.titleAchievements" :key="idx" class="achievement-item">
+                  <span class="achievement-check">✦</span>
+                  <span>{{ ach }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="title-progress">
+              <h4>📋 称号进度</h4>
+              <div v-for="t in TITLE_TABLE" :key="t.title" class="progress-item" :class="{ current: store.level >= t.min && store.level <= t.max }">
+                <span class="progress-level">Lv.{{ t.min }}-{{ t.max }}</span>
+                <span class="progress-name">{{ t.title }}</span>
+                <span class="progress-field">{{ t.field }}</span>
+              </div>
+            </div>
+          </div>
+
           <!-- 图鉴面板 -->
           <div v-if="activeSettingsTab === 'encyclopedia'" class="settings-content">
             <div class="encyclopedia-tabs">
@@ -694,6 +751,9 @@ import { useGameStore } from '../stores/game.js'
 import { TITLE_TABLE } from '../data/titles.js'
 import { ENCYCLOPEDIA_DATA, getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/cyclopedia.js'
 import Battle from './Battle.vue'
+import PvpBattle from './PvpBattle.vue'
+import TitleDisplay from './TitleDisplay.vue'
+import Leaderboard from './Leaderboard.vue'
 
 // 异步组件通用 loading 提示
 const AsyncLoading = {
@@ -781,6 +841,8 @@ const allBooks = getAllBooks()
 const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
+  { key: 'title', label: '称号' },
+  { key: 'leaderboard', label: '排行榜' },
   { key: 'help', label: '帮助' },
   { key: 'feedback', label: '反馈' },
   { key: 'save', label: '存档' },
@@ -963,6 +1025,16 @@ function openWeeklyBoss() {
   }
   // 进入限时Boss战斗
   activePanel.value = 'dungeon'
+}
+
+function openPvp() {
+  sfxClick()
+  // 战斗中不允许切换
+  if (store.inBattle) {
+    alert('当前正在战斗中，请先完成或退出战斗！')
+    return
+  }
+  store.enterPvp()
 }
 
 function onEnterRoom(index) {
@@ -1454,6 +1526,7 @@ function resetGame() {
 .farm-card { border-top: 3px solid #2ecc71; }
 .fishing-card { border-top: 3px solid #1abc9c; }
 .study-card { border-top: 3px solid #9b59b6; }
+.pvp-card { border-top: 3px solid #e74c3c; }
 .shop-card { border-top: 3px solid #f1c40f; }
 .settings-card { border-top: 3px solid #95a5a6; }
 

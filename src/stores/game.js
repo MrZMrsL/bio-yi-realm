@@ -41,17 +41,22 @@ import { getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../d
 import { getAllFishes as getAllFishesFromData, getBookSubject } from '../data/fishing.js'
 import { getAllBooks as getAllBooksFromData } from '../data/fishing.js'
 import { TITLE_TABLE, getTitleData, getAllTitles } from '../data/titles.js'
+import { getLeaderboard, addRecord as addPvpRecord, getMyRank } from '../composables/useLeaderboard.js'
 import { FEEDBACK_TYPES } from '../data/feedback.js'
 import { getSubjectTheme } from '../data/subjectThemes.js'
 import { getWrongQuestions, saveWrongQuestion, loadWrongQuestions, clearWrongQuestions } from '../data/wrong_book.js'
 
-// ===== 状态机定义（v8.0）=====
+// ===== 状态机定义（v9.0 - PVP系统）=====
 export const GAME_MODE = {
   IDLE: 'idle',           // 主界面
   DUNGEON_PREP: 'dungeon_prep',   // 地牢准备
   DUNGEON_ROOMS: 'dungeon_rooms', // 地牢选房间
   BATTLE: 'battle',       // 普通战斗
   WEEKLY_BOSS: 'weekly_boss',     // 限时Boss
+  PVP: 'pvp',             // PVP对战
+  PVP_RESULT: 'pvp_result',       // PVP结果
+  TITLE_DISPLAY: 'title_display', // 称号展示面板
+  LEADERBOARD: 'leaderboard',     // 排行榜面板
   FISHING: 'fishing',     // 钓鱼面板
   FISHING_QUIZ: 'fishing_quiz', // 钓鱼答题（解锁限制）
   FISHING_BOOK: 'fishing_book',   // 钓到古籍
@@ -71,8 +76,8 @@ export const GAME_MODE = {
 }
 
 // 互斥组定义
-const COMBAT_MODES = [GAME_MODE.BATTLE, GAME_MODE.WEEKLY_BOSS, GAME_MODE.CAPTURE_QUIZ]
-const PANEL_MODES = [GAME_MODE.SHOP, GAME_MODE.FARM, GAME_MODE.INVENTORY, GAME_MODE.STUDY, GAME_MODE.ENCYCLOPEDIA, GAME_MODE.SETTINGS, GAME_MODE.FISHING]
+const COMBAT_MODES = [GAME_MODE.BATTLE, GAME_MODE.WEEKLY_BOSS, GAME_MODE.CAPTURE_QUIZ, GAME_MODE.PVP]
+const PANEL_MODES = [GAME_MODE.SHOP, GAME_MODE.FARM, GAME_MODE.INVENTORY, GAME_MODE.STUDY, GAME_MODE.ENCYCLOPEDIA, GAME_MODE.SETTINGS, GAME_MODE.FISHING, GAME_MODE.LEADERBOARD]
 
 export const useGameStore = defineStore('game', () => {
   // ===== 游戏状态 =====
@@ -287,6 +292,12 @@ export const useGameStore = defineStore('game', () => {
   const weeklyBossSkillUsed = ref([])
   const weeklyBossDefeated = ref([])
   const weeklyBossTimer = ref(null)
+
+  // ===== PVP对战系统（v9.0）=====
+  const pvpOpponent = ref(null)       // 当前PVP对手数据
+  const pvpResult = ref(null)         // PVP结果 { won, playerScore, opponentScore, expGain, goldGain }
+  const showTitleDisplay = ref(false) // 是否显示称号升级弹窗
+  const titleDisplayLevel = ref(1)    // 弹窗对应的等级
 
   // ===== 计算属性 =====
   const expPercent = computed(() => (exp.value / maxExp.value) * 100)
@@ -1606,6 +1617,74 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
+  // ===== PVP对战系统（v9.0）=====
+
+  /** 进入PVP对战模式 */
+  function enterPvp() {
+    enterMode(GAME_MODE.PVP)
+    battleLog.value = ['⚔️ PVP对战模式开启！准备寻找对手...']
+    // 恢复满血进入PVP
+    hp.value = maxHp.value
+    saveGame()
+  }
+
+  /** 退出PVP对战 */
+  function exitPvp() {
+    // 清除PVP状态
+    pvpOpponent.value = null
+    pvpResult.value = null
+    enterMode(GAME_MODE.IDLE)
+    // 恢复满血
+    hp.value = maxHp.value
+    saveGame()
+  }
+
+  /** 记录PVP结果 */
+  function recordPvpResult(result) {
+    pvpResult.value = result
+    addPvpRecord({
+      title: title.value,
+      level: level.value,
+      won: result.won
+    })
+    // 检查升级（已在PvpBattle组件中处理，此处做兜底）
+    while (exp.value >= maxExp.value) {
+      exp.value -= maxExp.value
+      level.value++
+      maxHp.value = Math.floor(maxHp.value * 1.2)
+      hp.value = maxHp.value
+      atk.value += 2
+      def.value += 1
+      statPoints.value++
+      checkSkillUnlocks()
+      // 更新称号
+      const newTitle = getTitleData(level.value)
+      if (newTitle && newTitle.title !== title.value) {
+        title.value = newTitle.title
+        titleData.value = newTitle
+        titleBio.value = newTitle.bio
+        titleEra.value = newTitle.era
+        titleField.value = newTitle.field
+        titleAchievements.value = newTitle.achievements || []
+        // 触发称号展示弹窗
+        showTitleDisplay.value = true
+        titleDisplayLevel.value = level.value
+      }
+    }
+    saveGame()
+  }
+
+  /** 打开称号展示面板 */
+  function openTitleDisplay(lv) {
+    titleDisplayLevel.value = lv || level.value
+    showTitleDisplay.value = true
+  }
+
+  /** 关闭称号展示面板 */
+  function closeTitleDisplay() {
+    showTitleDisplay.value = false
+  }
+
   // ===== 地牢系统 =====
   // 进入地牢准备
   function enterDungeonPrep() {
@@ -2012,6 +2091,9 @@ export const useGameStore = defineStore('game', () => {
       // 限时Boss
       weeklyBossDefeated: weeklyBossDefeated.value,
       inBattle: inBattle.value,
+      // PVP对战系统（v9.0）
+      showTitleDisplay: showTitleDisplay.value,
+      titleDisplayLevel: titleDisplayLevel.value,
       battleState: battleState.value,
       // 状态机（v8.0）
       gameMode: gameMode.value,
@@ -2102,6 +2184,10 @@ export const useGameStore = defineStore('game', () => {
       weeklyBossData.value = saveData.weeklyBossData || null
       weeklyBossTurn.value = saveData.weeklyBossTurn || 0
       weeklyBossTimeLeft.value = saveData.weeklyBossTimeLeft || 0
+
+      // 加载PVP对战系统（v9.0）
+      showTitleDisplay.value = saveData.showTitleDisplay || false
+      titleDisplayLevel.value = saveData.titleDisplayLevel || 1
 
       playerSpecialization.value = saveData.playerSpecialization || null
       // 专精技能
@@ -2219,11 +2305,16 @@ export const useGameStore = defineStore('game', () => {
     }
     devMode.value = false
     gameMode.value = GAME_MODE.IDLE
+    // PVP系统（v9.0）
+    pvpOpponent.value = null
+    pvpResult.value = null
+    showTitleDisplay.value = false
+    titleDisplayLevel.value = 1
     saveGame()
   }
 
   return {
-    // 状态机（v8.0）
+    // 状态机（v9.0 - PVP系统）
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     // 开发者模式
     playerSpecialization, setSpecialization,
@@ -2252,6 +2343,9 @@ export const useGameStore = defineStore('game', () => {
     statPoints, atkPoints, defPoints, hpPoints, activeBuffs,
     // 限时Boss
     inWeeklyBoss, weeklyBossData, weeklyBossTurn, weeklyBossTimeLeft, weeklyBossSkillUsed, weeklyBossDefeated,
+    // PVP对战系统（v9.0）
+    pvpOpponent, pvpResult, showTitleDisplay, titleDisplayLevel,
+    enterPvp, exitPvp, recordPvpResult, openTitleDisplay, closeTitleDisplay,
     startGame, setTab,
     initBattle, enemyAttack, answerAttack, usePotion, winBattle, flee, exitBattle,
     startCapture, submitCaptureAnswer, skipCapture,
