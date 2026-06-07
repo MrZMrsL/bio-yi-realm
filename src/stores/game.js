@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ALL_QUESTIONS, getQuestionsForFloor, exportUsedQuestions, importUsedQuestions } from '../data/questions.js'
 import { SPECIALIZATIONS, getSpecialization, getUnlockedSkills, getNextSkill } from '../data/specialization.js'
-import { ENEMIES, getEnemyForFloor, getBossForFloor } from '../data/enemies.js'
+import { ENEMIES, getEnemyForFloor, getBossForFloor, getRandomEnemy } from '../data/enemies.js'
 import { EQUIPMENT, CONSUMABLES } from '../data/items.js'
 import {
   createFarmMonster,
@@ -67,6 +67,8 @@ export const GAME_MODE = {
   INVENTORY: 'inventory', // 仓库
   STUDY: 'study',         // 自习室
   ENCYCLOPEDIA: 'encyclopedia', // 图鉴
+  CHARACTER: 'character', // 角色/称号
+  ACHIEVEMENTS: 'achievements', // 成就面板
   SETTINGS: 'settings',   // 设置
   CAPTURE_QUIZ: 'capture_quiz', // 捕捉答题
   DROP: 'drop',           // 掉落展示
@@ -2035,7 +2037,6 @@ export const useGameStore = defineStore('game', () => {
       activeTab: activeTab.value,
       level: level.value,
       exp: exp.value,
-      maxExp: maxExp.value,
       hp: hp.value,
       maxHp: maxHp.value,
       atk: atk.value,

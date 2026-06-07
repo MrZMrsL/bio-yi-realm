@@ -227,7 +227,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useGameStore } from '../stores/game.js'
+import { useGameStore, GAME_MODE } from '../stores/game.js'
 import { RARITY_CONFIG, drawFish, drawBook, FISH_RARITY_COUNTS, TOTAL_FISH_COUNT, ALL_FISH } from '../data/fishing.js'
 import { getQuestions } from '../data/questions.js'
 import { sfxClick, sfxSplash, sfxItemGet, sfxCorrect, sfxWrong } from '../utils/audio.js'
@@ -277,7 +277,7 @@ function handleFishAction() {
     if (!check.allowed) {
       // 需要答题解锁
       fishingState.value = 'limitQuiz'
-      store.enterMode('fishing_quiz')  // 状态机同步
+      store.enterMode(GAME_MODE.FISHING_QUIZ)  // 状态机同步
       quizQuestion.value = getQuestions('all', 'medium', 1)[0]
       quizResult.value = null
       return
@@ -290,7 +290,7 @@ function handleFishAction() {
 
 function startFishing() {
   fishingState.value = 'casting'
-  store.enterMode('fishing')  // 状态机同步
+  store.enterMode(GAME_MODE.FISHING)  // 状态机同步
   caughtFish.value = null
 
   // 随机等待时间 1-3 秒
@@ -304,7 +304,7 @@ function startFishing() {
       setTimeout(() => {
         if (fishingState.value === 'bite') {
           fishingState.value = 'idle'
-          store.enterMode('idle')
+          store.enterMode(GAME_MODE.IDLE)
         }
       }, 2000)
     }
@@ -325,7 +325,7 @@ function reelIn() {
     if (book) {
       caughtBook.value = book
       fishingState.value = 'book'
-      store.enterMode('fishing_book')  // 状态机同步
+      store.enterMode(GAME_MODE.FISHING_BOOK)  // 状态机同步
       store.addToCyclopedia('books', book.name)
       sfxItemGet()
       return
@@ -338,7 +338,7 @@ function reelIn() {
   if (!fish) {
     // 没钓到鱼，空杆
     fishingState.value = 'idle'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
     return
   }
 
@@ -346,7 +346,7 @@ function reelIn() {
     // 传说/神话鱼需要答题
     caughtFish.value = fish
     fishingState.value = 'quiz'
-    store.enterMode('fishing_quiz')  // 状态机同步
+    store.enterMode(GAME_MODE.FISHING_QUIZ)  // 状态机同步
     quizQuestion.value = getQuestions('all', 'hard', 1)[0]
     quizResult.value = null
     return
@@ -354,7 +354,7 @@ function reelIn() {
 
   caughtFish.value = fish
   fishingState.value = 'caught'
-  store.enterMode('fishing_caught')  // 状态机同步
+  store.enterMode(GAME_MODE.FISHING_CAUGHT)  // 状态机同步
   store.recordFishCatch(fish)
   sfxItemGet()
   store.saveGame()
@@ -368,7 +368,7 @@ function collectBook() {
   }
   caughtBook.value = null
   fishingState.value = 'idle'
-  store.enterMode('idle')  // 状态机同步
+  store.enterMode(GAME_MODE.IDLE)  // 状态机同步
   store.saveGame()
 }
 
@@ -378,7 +378,7 @@ function startBookStudy() {
   const ok = store.startBookStudy(caughtBook.value)
   if (!ok) { collectBook(); return }
   fishingState.value = 'bookStudyQuiz'
-  store.enterMode('fishing_book_quiz')
+  store.enterMode(GAME_MODE.FISHING_BOOK_QUIZ)
   quizResult.value = null
 }
 
@@ -389,18 +389,18 @@ function submitBookStudyAnswer(index) {
   if (!result || typeof result !== 'object') {
     console.error('submitBookStudyAnswer返回异常:', result)
     fishingState.value = 'idle'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
     caughtBook.value = null
     return
   }
   if (result.correct) {
     sfxCorrect()
     fishingState.value = 'bookStudySuccess'
-    store.enterMode('fishing_caught')
+    store.enterMode(GAME_MODE.FISHING_CAUGHT)
   } else {
     sfxWrong()
     fishingState.value = 'bookStudyFail'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
   }
 }
 
@@ -409,7 +409,7 @@ function cancelBookStudy() {
   store.cancelBookStudy()
   caughtBook.value = null
   fishingState.value = 'idle'
-  store.enterMode('idle')
+  store.enterMode(GAME_MODE.IDLE)
 }
 
 function submitQuizAnswer(index) {
@@ -420,14 +420,14 @@ function submitQuizAnswer(index) {
   if (correct) {
     // 答对，成功钓起
     fishingState.value = 'caught'
-    store.enterMode('fishing_caught')
+    store.enterMode(GAME_MODE.FISHING_CAUGHT)
     store.recordFishCatch(caughtFish.value)
     sfxItemGet()
   } else {
     // 答错，鱼跑了
     caughtFish.value = null
     fishingState.value = 'idle'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
     quizQuestion.value = null
   }
   store.saveGame()
@@ -441,7 +441,7 @@ function submitLimitQuizAnswer(index) {
     sfxCorrect()
     store.unlockFishLimit()
     fishingState.value = 'idle'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
     quizQuestion.value = null
     quizResult.value = null
     // 短暂延迟后自动开始钓鱼，确保状态切换完成
@@ -453,7 +453,7 @@ function submitLimitQuizAnswer(index) {
   } else {
     sfxWrong()
     fishingState.value = 'limitLocked'
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
   }
 }
 
@@ -468,7 +468,7 @@ function eatFish() {
 
   caughtFish.value = null
   fishingState.value = 'idle'
-  store.enterMode('idle')
+  store.enterMode(GAME_MODE.IDLE)
 
   // 自动存档
   store.saveGame()
@@ -495,7 +495,7 @@ function releaseFish() {
 
   caughtFish.value = null
   fishingState.value = 'idle'
-  store.enterMode('idle')
+  store.enterMode(GAME_MODE.IDLE)
 
   // 自动存档
   store.saveGame()
@@ -504,7 +504,7 @@ function releaseFish() {
 function continueFishing() {
   sfxClick()
   fishingState.value = 'idle'
-  store.enterMode('idle')
+  store.enterMode(GAME_MODE.IDLE)
   quizResult.value = null
   quizQuestion.value = null
   caughtFish.value = null

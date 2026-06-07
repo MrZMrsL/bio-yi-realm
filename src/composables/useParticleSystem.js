@@ -19,6 +19,7 @@ export function useParticleSystem() {
   let animFrameId = null
   let isRunning = false
   let isMobile = false
+  let resizeObserver = null
 
   // 粒子最大数量
   const MAX_PARTICLES = 120
@@ -48,6 +49,16 @@ export function useParticleSystem() {
     containerEl.style.position = containerEl.style.position || 'relative'
     containerEl.appendChild(canvas)
     ctx = canvas.getContext('2d')
+    
+    // ResizeObserver: 容器尺寸变化时同步 canvas 尺寸，也解决首次渲染时尺寸为 0 的问题
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => resize())
+      resizeObserver.observe(containerEl)
+    }
+    
+    // 延迟再检查一次尺寸，处理首次挂载时尚未渲染完成的情况
+    requestAnimationFrame(() => resize())
+    
     isRunning = true
     loop()
   }
@@ -166,6 +177,10 @@ export function useParticleSystem() {
     if (animFrameId) {
       cancelAnimationFrame(animFrameId)
       animFrameId = null
+    }
+    if (resizeObserver) {
+      resizeObserver.disconnect()
+      resizeObserver = null
     }
     particles = []
     if (canvas && containerEl) {

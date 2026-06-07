@@ -16,7 +16,7 @@
   />
 
   <!-- PVP对战模式（v9.0） -->
-  <div v-if="store.gameMode === 'pvp'" class="panel-overlay">
+  <div v-if="store.gameMode === GAME_MODE.PVP" class="panel-overlay">
     <div class="panel-header">
       <button class="btn-back" @click="store.exitPvp()">← 返回</button>
       <span class="panel-title">⚔️ PVP对战</span>
@@ -76,7 +76,7 @@
     </div>
 
     <!-- 主界面 - 区域网格 -->
-    <div id="main-content" v-if="!activePanel && store.gameMode !== 'pvp'">
+    <div id="main-content" v-if="!activePanel && store.gameMode !== GAME_MODE.PVP">
       <div class="dashboard-header">
         <h2>🏰 生化易界</h2>
         <p class="dashboard-subtitle">以知识为刃，斩破混沌迷雾</p>
@@ -185,7 +185,7 @@
         <!-- 地牢面板 -->
         <div v-if="activePanel === 'dungeon'" class="panel-dungeon">
           <!-- 地牢入口 -->
-          <div v-if="store.gameMode === 'idle'" class="dungeon-intro">
+          <div v-if="store.gameMode === GAME_MODE.IDLE" class="dungeon-intro">
             <div class="dungeon-title">🏰 第 {{ store.floor }} 层地牢</div>
             <p class="dungeon-desc">黑暗中的密室散发着危险的气息...</p>
             <div class="dungeon-stats-hint">
@@ -197,7 +197,7 @@
           </div>
 
           <!-- 准备界面 -->
-          <div v-if="store.gameMode === 'dungeon_prep'" class="dungeon-prep">
+          <div v-if="store.gameMode === GAME_MODE.DUNGEON_PREP" class="dungeon-prep">
             <div class="prep-header">
               <div class="prep-title">⚔️ 第 {{ store.floor }} 层 - 战前准备</div>
               <div class="floor-element-badge" :style="{ background: floorElementColor }">
@@ -264,7 +264,7 @@
             </div>
 
             <div class="prep-actions">
-              <button class="btn-enter-dungeon" @click="store.enterMode('dungeon_rooms'); store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
+              <button class="btn-enter-dungeon" @click="store.enterMode(GAME_MODE.DUNGEON_ROOMS); store.dungeonPhase = 'rooms'">🏰 进入地牢</button>
             </div>
           </div>
 
@@ -335,7 +335,7 @@
           </div>
 
           <!-- 房间选择 -->
-          <div v-if="store.gameMode === 'dungeon_rooms'" class="dungeon-rooms">
+          <div v-if="store.gameMode === GAME_MODE.DUNGEON_ROOMS" class="dungeon-rooms">
             <div class="rooms-header">
               <div class="rooms-title">🏰 第 {{ store.floor }} 层 - 选择房间</div>
               <div class="rooms-progress">{{ store.clearedRoomsThisFloor }} / 9 已清空</div>
@@ -747,7 +747,7 @@
 
 <script setup>
 import { ref, computed, defineAsyncComponent } from 'vue'
-import { useGameStore } from '../stores/game.js'
+import { useGameStore, GAME_MODE } from '../stores/game.js'
 import { TITLE_TABLE } from '../data/titles.js'
 import { ENCYCLOPEDIA_DATA, getAllMonsters, getAllMaterials, getAllFishes, getAllBooks } from '../data/cyclopedia.js'
 import Battle from './Battle.vue'
@@ -909,15 +909,15 @@ function openPanel(panel) {
   activePanel.value = panel
   // 同步 gameMode 到对应面板模式
   const panelModeMap = {
-    shop: 'shop',
-    farm: 'farm',
-    inventory: 'inventory',
-    character: 'character',
-    fishing: 'fishing',
-    study: 'study',
-    achievements: 'achievements',
-    settings: 'settings',
-    encyclopedia: 'encyclopedia'
+    shop: GAME_MODE.SHOP,
+    farm: GAME_MODE.FARM,
+    inventory: GAME_MODE.INVENTORY,
+    character: GAME_MODE.CHARACTER,
+    fishing: GAME_MODE.FISHING,
+    study: GAME_MODE.STUDY,
+    achievements: GAME_MODE.ACHIEVEMENTS,
+    settings: GAME_MODE.SETTINGS,
+    encyclopedia: GAME_MODE.ENCYCLOPEDIA
   }
   if (panelModeMap[panel]) {
     store.enterMode(panelModeMap[panel])
@@ -934,7 +934,7 @@ function openPanel(panel) {
 function closePanel() {
   sfxClick()
   // 限时Boss战斗中关闭面板，直接退出战斗
-  if (store.gameMode === 'weekly_boss') {
+  if (store.gameMode === GAME_MODE.WEEKLY_BOSS) {
     store.exitWeeklyBoss()
     activePanel.value = null
     return
@@ -950,7 +950,7 @@ function closePanel() {
   }
   // 关闭面板时，如果当前是非战斗面板模式，回到 idle
   if (store.isPanelMode()) {
-    store.enterMode('idle')
+    store.enterMode(GAME_MODE.IDLE)
   }
   activePanel.value = null
 }
