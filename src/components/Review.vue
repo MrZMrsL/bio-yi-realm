@@ -460,7 +460,7 @@ function submitBookQuizAnswer(index) {
   quizAnswered.value = true
   quizSelected.value = index
 
-  const q = store.bookQuizQuestions.value[store.bookQuizIndex.value]
+  const q = store.bookQuizQuestions[store.bookQuizIndex]
   const correct = index === q.answer
   quizLastCorrect.value = correct
 
