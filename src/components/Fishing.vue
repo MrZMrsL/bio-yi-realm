@@ -376,7 +376,12 @@ function startBookStudy() {
   sfxClick()
   if (!caughtBook.value) return
   const ok = store.startBookStudy(caughtBook.value)
-  if (!ok) { collectBook(); return }
+  if (!ok) {
+    // 题库加载失败，直接收下古籍
+    sfxItemGet()
+    collectBook()
+    return
+  }
   fishingState.value = 'bookStudyQuiz'
   store.enterMode(GAME_MODE.FISHING_BOOK_QUIZ)
   quizResult.value = null

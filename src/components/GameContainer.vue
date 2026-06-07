@@ -153,6 +153,13 @@
           <div class="area-desc">称号 · 存档</div>
         </div>
 
+        <!-- 排行榜 -->
+        <div class="area-card leaderboard-card" @click="openLeaderboard">
+          <div class="area-icon">🏆</div>
+          <div class="area-name">排行榜</div>
+          <div class="area-desc">PVP战绩排名</div>
+        </div>
+
         <!-- 限时Boss -->
         <div class="area-card weekly-boss-card" @click="openWeeklyBoss">
           <div class="area-icon">🔥</div>
@@ -476,6 +483,11 @@
           <Shop />
         </div>
 
+        <!-- 排行榜面板 -->
+        <div v-if="activePanel === 'leaderboard'" class="panel-leaderboard">
+          <Leaderboard />
+        </div>
+
         <!-- 设置面板 -->
         <div v-if="activePanel === 'settings'" class="panel-settings">
           <div class="settings-tabs">
@@ -488,12 +500,6 @@
             >
               {{ tab.label }}
             </button>
-          </div>
-
-
-          <!-- 排行榜面板（v9.0） -->
-          <div v-if="activeSettingsTab === 'leaderboard'" class="settings-content">
-            <Leaderboard />
           </div>
 
           <!-- 称号面板 -->
@@ -842,7 +848,6 @@ const totalAchievements = ACHIEVEMENTS.length
 
 const settingsTabs = [
   { key: 'title', label: '称号' },
-  { key: 'leaderboard', label: '排行榜' },
   { key: 'help', label: '帮助' },
   { key: 'feedback', label: '反馈' },
   { key: 'save', label: '存档' },
@@ -917,7 +922,8 @@ function openPanel(panel) {
     study: GAME_MODE.STUDY,
     achievements: GAME_MODE.ACHIEVEMENTS,
     settings: GAME_MODE.SETTINGS,
-    encyclopedia: GAME_MODE.ENCYCLOPEDIA
+    encyclopedia: GAME_MODE.ENCYCLOPEDIA,
+    leaderboard: GAME_MODE.LEADERBOARD
   }
   if (panelModeMap[panel]) {
     store.enterMode(panelModeMap[panel])
@@ -1035,6 +1041,10 @@ function openPvp() {
     return
   }
   store.enterPvp()
+}
+
+function openLeaderboard() {
+  openPanel('leaderboard')
 }
 
 function onEnterRoom(index) {
@@ -1527,6 +1537,7 @@ function resetGame() {
 .fishing-card { border-top: 3px solid #1abc9c; }
 .study-card { border-top: 3px solid #9b59b6; }
 .pvp-card { border-top: 3px solid #e74c3c; }
+.leaderboard-card { border-top: 3px solid #d4a853; }
 .shop-card { border-top: 3px solid #f1c40f; }
 .settings-card { border-top: 3px solid #95a5a6; }
 

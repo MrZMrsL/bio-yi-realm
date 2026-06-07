@@ -440,11 +440,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
 }
 
 .entry-name {
   color: #e0e0e0;
   font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
 }
 
 .me-tag {

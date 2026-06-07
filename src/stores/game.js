@@ -1883,9 +1883,13 @@ export const useGameStore = defineStore('game', () => {
     if (!book) return false
     // 根据古籍的学科出题
     const bookSubject = getBookSubject(book)
-    const subject = bookSubject === 'all' ? playerSpecialization.value : bookSubject
+    const subject = (bookSubject && bookSubject !== 'all') ? bookSubject : (playerSpecialization.value || 'all')
     const q = getQuestionsForFloor(Math.max(1, floor.value - 2), 1, subject)[0]
-    if (!q) return false
+    if (!q) {
+      // 题库加载失败时给一个兜底提示
+      console.warn('[bookStudy] 无法为 ' + subject + ' 加载题目')
+      return false
+    }
     bookStudyCurrent.value = book
     bookStudyQuestion.value = q
     bookStudyMode.value = true

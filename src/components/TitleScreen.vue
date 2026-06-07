@@ -27,9 +27,10 @@
       </div>
     </div>
 
-    <button v-if="hasSave" class="continue-btn" @click="onContinue" :disabled="store.isLoadingQuestions">继续冒险</button>
+    <button v-if="hasSave && !wantsNewGame" class="continue-btn" @click="onContinue" :disabled="store.isLoadingQuestions">继续冒险</button>
 
-    <div class="name-section">
+    <!-- 名字输入：新游戏时强制显示，有存档时点击"重新开始"后显示 -->
+    <div v-if="!hasSave || wantsNewGame" class="name-section">
       <label class="name-label">输入你的游戏名</label>
       <input
         v-model="playerNameInput"
@@ -44,8 +45,11 @@
       <span v-if="nameError" class="name-error-text">名字不能为空</span>
     </div>
 
-    <button class="start-btn" @click="onStart" :disabled="store.isLoadingQuestions">
-      {{ store.isLoadingQuestions ? '📚 加载知识库中...' : (hasSave ? '重新开始' : '开始冒险') }}
+    <button v-if="hasSave && !wantsNewGame" class="start-btn" @click="onNewGameClick" :disabled="store.isLoadingQuestions">
+      {{ store.isLoadingQuestions ? '📚 加载知识库中...' : '重新开始' }}
+    </button>
+    <button v-else class="start-btn" @click="onStart" :disabled="store.isLoadingQuestions">
+      {{ store.isLoadingQuestions ? '📚 加载知识库中...' : '开始冒险' }}
     </button>
     <span class="version-text">v4.0 — 生化易界 · Vue 重构版</span>
   </div>
@@ -60,6 +64,7 @@ const emit = defineEmits(['start', 'continue'])
 
 const playerNameInput = ref('')
 const nameError = ref(false)
+const wantsNewGame = ref(false)
 
 const hasSave = computed(() => store.hasSave())
 
@@ -77,6 +82,11 @@ function onStart() {
   } else {
     emit('start', name)
   }
+}
+
+function onNewGameClick() {
+  // 有存档时点"重新开始"：先显示名字输入框
+  wantsNewGame.value = true
 }
 
 function onContinue() {
