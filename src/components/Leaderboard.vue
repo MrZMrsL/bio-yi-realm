@@ -79,8 +79,8 @@
 
             <!-- 玩家名 -->
             <span class="col-name">
-              <span class="entry-name">{{ entry.name }}</span>
-              <span v-if="entry.name === myName" class="me-tag">我</span>
+              <span class="entry-name">{{ entry.name || '未命名玩家' }}</span>
+              <span v-if="entry.name === myName && myName" class="me-tag">我</span>
             </span>
 
             <!-- 称号 -->

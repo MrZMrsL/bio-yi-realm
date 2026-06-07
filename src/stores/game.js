@@ -1355,9 +1355,10 @@ export const useGameStore = defineStore('game', () => {
     if (dungeonPhase.value === 'battle' || dungeonPhase.value === 'rooms') {
       dungeonPhase.value = 'rooms'
       currentRoomIndex.value = -1
-      enterMode(GAME_MODE.DUNGEON_ROOMS)
+      // 直接赋值绕过状态机COMBAT守卫（与finishRoom一致）
+      gameMode.value = GAME_MODE.DUNGEON_ROOMS
     } else {
-      enterMode(GAME_MODE.IDLE)
+      gameMode.value = GAME_MODE.IDLE
     }
   }
 

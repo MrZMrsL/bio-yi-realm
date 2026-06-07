@@ -28,8 +28,16 @@ export function getLeaderboard() {
  */
 export function addRecord(record) {
   const board = getLeaderboard()
-  // 用玩家名匹配（改名视为新玩家）
-  const existing = board.find(r => r.name === record.name)
+  // 按玩家名匹配
+  let existing = board.find(r => r.name === record.name)
+
+  // 兼容旧数据：如果没有 name 匹配，尝试按 title+level 匹配并补上 name
+  if (!existing) {
+    existing = board.find(r => !r.name && r.title === record.title && r.level === record.level)
+    if (existing) {
+      existing.name = record.name  // 旧记录补上名字
+    }
+  }
 
   if (existing) {
     if (record.won) {
