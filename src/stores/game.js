@@ -1635,7 +1635,8 @@ export const useGameStore = defineStore('game', () => {
     // 清除PVP状态
     pvpOpponent.value = null
     pvpResult.value = null
-    enterMode(GAME_MODE.IDLE)
+    // 直接赋值绕过状态机COMBAT守卫（与exitWeeklyBoss一致）
+    gameMode.value = GAME_MODE.IDLE
     // 恢复满血
     hp.value = maxHp.value
     saveGame()
