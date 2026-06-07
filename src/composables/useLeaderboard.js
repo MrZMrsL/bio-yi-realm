@@ -7,7 +7,7 @@ const STORAGE_KEY = 'bio_yi_realm_pvp_leaderboard'
 
 /**
  * 获取完整排行榜数据
- * @returns {Array<{title: string, level: number, wins: number, losses: number, streak: number, lastPlayed: number}>}
+ * @returns {Array<{name: string, title: string, level: number, floor: number, specialization: string, wins: number, losses: number, streak: number, lastPlayed: number}>}
  */
 export function getLeaderboard() {
   try {
@@ -24,11 +24,12 @@ export function getLeaderboard() {
 
 /**
  * 添加或更新一条PVP战绩
- * @param {{title: string, level: number, won: boolean}} record
+ * @param {{name: string, title: string, level: number, floor: number, specialization: string, won: boolean}} record
  */
 export function addRecord(record) {
   const board = getLeaderboard()
-  const existing = board.find(r => r.title === record.title && r.level === record.level)
+  // 用玩家名匹配（改名视为新玩家）
+  const existing = board.find(r => r.name === record.name)
 
   if (existing) {
     if (record.won) {
@@ -39,10 +40,18 @@ export function addRecord(record) {
       existing.streak = 0
     }
     existing.lastPlayed = Date.now()
+    // 更新最新数据
+    existing.title = record.title
+    existing.level = record.level
+    existing.floor = Math.max(existing.floor || 0, record.floor || 0)
+    existing.specialization = record.specialization || existing.specialization
   } else {
     board.push({
+      name: record.name,
       title: record.title,
       level: record.level,
+      floor: record.floor || 1,
+      specialization: record.specialization || null,
       wins: record.won ? 1 : 0,
       losses: record.won ? 0 : 1,
       streak: record.won ? 1 : 0,
@@ -58,13 +67,12 @@ export function addRecord(record) {
 
 /**
  * 获取指定玩家的排名（1-based）
- * @param {string} title - 称号
- * @param {number} level - 等级
+ * @param {string} name - 玩家名
  * @returns {number} 排名（未上榜返回 -1）
  */
-export function getMyRank(title, level) {
+export function getMyRank(name) {
   const board = getLeaderboard()
-  const idx = board.findIndex(r => r.title === title && r.level === level)
+  const idx = board.findIndex(r => r.name === name)
   return idx >= 0 ? idx + 1 : -1
 }
 

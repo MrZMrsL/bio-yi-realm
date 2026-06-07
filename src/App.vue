@@ -14,7 +14,8 @@ onMounted(() => {
   preloadQuestions()
 })
 
-function handleStart() {
+function handleStart(playerName) {
+  store.playerName = playerName
   store.startGame()
 }
 function handleContinue() {

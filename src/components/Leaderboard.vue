@@ -15,6 +15,7 @@
         <span class="my-rank-label">我的排名</span>
         <span class="my-rank-number">#{{ myRank }}</span>
       </div>
+      <div class="my-rank-name" v-if="myName">{{ myName }}</div>
       <div class="my-rank-stats">
         <span class="my-rank-stat">🏆 {{ myRecord.wins }}胜</span>
         <span class="my-rank-stat">💀 {{ myRecord.losses }}负</span>
@@ -48,6 +49,7 @@
         <!-- 表头 -->
         <div class="leaderboard-thead">
           <span class="col-rank">排名</span>
+          <span class="col-name">玩家</span>
           <span class="col-title">称号</span>
           <span class="col-level">等级</span>
           <span class="col-record">战绩</span>
@@ -55,46 +57,78 @@
         </div>
 
         <!-- 行 -->
-        <div
-          v-for="(entry, idx) in leaderboard"
-          :key="idx"
-          class="leaderboard-row"
-          :class="{
-            'top-1': idx === 0,
-            'top-2': idx === 1,
-            'top-3': idx === 2,
-            'is-me': entry.title === myTitle && entry.level === myLevel
-          }"
-        >
-          <!-- 排名 -->
-          <span class="col-rank">
-            <span v-if="idx === 0" class="rank-medal">🥇</span>
-            <span v-else-if="idx === 1" class="rank-medal">🥈</span>
-            <span v-else-if="idx === 2" class="rank-medal">🥉</span>
-            <span v-else class="rank-number">#{{ idx + 1 }}</span>
-          </span>
+        <template v-for="(entry, idx) in leaderboard" :key="idx">
+          <div
+            class="leaderboard-row"
+            :class="{
+              'top-1': idx === 0,
+              'top-2': idx === 1,
+              'top-3': idx === 2,
+              'is-me': entry.name === myName,
+              'expanded': expandedRow === idx
+            }"
+            @click="toggleExpand(idx)"
+          >
+            <!-- 排名 -->
+            <span class="col-rank">
+              <span v-if="idx === 0" class="rank-medal">🥇</span>
+              <span v-else-if="idx === 1" class="rank-medal">🥈</span>
+              <span v-else-if="idx === 2" class="rank-medal">🥉</span>
+              <span v-else class="rank-number">#{{ idx + 1 }}</span>
+            </span>
 
-          <!-- 称号 -->
-          <span class="col-title">
-            <span class="entry-title-name">{{ entry.title }}</span>
-          </span>
+            <!-- 玩家名 -->
+            <span class="col-name">
+              <span class="entry-name">{{ entry.name }}</span>
+              <span v-if="entry.name === myName" class="me-tag">我</span>
+            </span>
 
-          <!-- 等级 -->
-          <span class="col-level">Lv.{{ entry.level }}</span>
+            <!-- 称号 -->
+            <span class="col-title">
+              <span class="entry-title-name">{{ entry.title }}</span>
+            </span>
 
-          <!-- 战绩 -->
-          <span class="col-record">
-            <span class="record-win">🏆{{ entry.wins }}</span>
-            <span class="record-divider">/</span>
-            <span class="record-total">{{ entry.wins + entry.losses }}</span>
-            <span v-if="entry.streak >= 3" class="streak-badge">🔥×{{ entry.streak }}</span>
-          </span>
+            <!-- 等级 -->
+            <span class="col-level">Lv.{{ entry.level }}</span>
 
-          <!-- 胜率 -->
-          <span class="col-rate" :class="getRateClass(entry)">
-            {{ getWinRate(entry) }}%
-          </span>
-        </div>
+            <!-- 战绩 -->
+            <span class="col-record">
+              <span class="record-win">🏆{{ entry.wins }}</span>
+              <span class="record-divider">/</span>
+              <span class="record-total">{{ entry.wins + entry.losses }}</span>
+              <span v-if="entry.streak >= 3" class="streak-badge">🔥×{{ entry.streak }}</span>
+            </span>
+
+            <!-- 胜率 -->
+            <span class="col-rate" :class="getRateClass(entry)">
+              {{ getWinRate(entry) }}%
+            </span>
+          </div>
+
+          <!-- 展开详情行 -->
+          <div v-if="expandedRow === idx" class="leaderboard-detail">
+            <div class="detail-row">
+              <span class="detail-label">🏰 最高楼层</span>
+              <span class="detail-value">第 {{ entry.floor || 1 }} 层</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">🎖️ 当前称号</span>
+              <span class="detail-value">{{ entry.title }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">📚 专精</span>
+              <span class="detail-value">{{ specLabel(entry.specialization) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">📊 等级</span>
+              <span class="detail-value">Lv.{{ entry.level }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">📅 最近对战</span>
+              <span class="detail-value">{{ formatTime(entry.lastPlayed) }}</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -115,23 +149,42 @@ const leaderboard = ref([])
 const myRank = ref(-1)
 const myRecord = ref({ wins: 0, losses: 0, streak: 0 })
 const totalBattles = ref(0)
+const expandedRow = ref(-1)
 
-const myTitle = computed(() => store.title)
+const myName = computed(() => store.playerName || '')
 const myLevel = computed(() => store.level)
+
+const SPEC_LABELS = {
+  chem: '🧪 化学大师',
+  bio: '🧬 生物大师',
+  yi: '☯️ 易学大师',
+  biochem: '🔬 生化全才',
+  all: '🌟 全能学者'
+}
+
+function specLabel(spec) {
+  return SPEC_LABELS[spec] || '未选择'
+}
 
 function loadLeaderboard() {
   leaderboard.value = getTopN(props.topN)
-  myRank.value = getMyRank(myTitle.value, myLevel.value)
+  myRank.value = myName.value ? getMyRank(myName.value) : -1
   totalBattles.value = getTotalBattles()
 
-  // 找我自己的记录
-  const all = getLeaderboard()
-  const me = all.find(r => r.title === myTitle.value && r.level === myLevel.value)
-  if (me) {
-    myRecord.value = { wins: me.wins, losses: me.losses, streak: me.streak }
-  } else {
-    myRecord.value = { wins: 0, losses: 0, streak: 0 }
+  // 找自己的记录
+  if (myName.value) {
+    const all = getLeaderboard()
+    const me = all.find(r => r.name === myName.value)
+    if (me) {
+      myRecord.value = { wins: me.wins, losses: me.losses, streak: me.streak }
+    } else {
+      myRecord.value = { wins: 0, losses: 0, streak: 0 }
+    }
   }
+}
+
+function toggleExpand(idx) {
+  expandedRow.value = expandedRow.value === idx ? -1 : idx
 }
 
 function getWinRate(entry) {
@@ -145,6 +198,17 @@ function getRateClass(entry) {
   if (rate >= 70) return 'rate-high'
   if (rate >= 40) return 'rate-mid'
   return 'rate-low'
+}
+
+function formatTime(ts) {
+  if (!ts) return '未知'
+  const d = new Date(ts)
+  const now = new Date()
+  const diff = now - d
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 onMounted(() => {
@@ -205,7 +269,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .my-rank-label {
@@ -222,6 +286,13 @@ onMounted(() => {
 .my-rank-number.unranked {
   font-size: 16px;
   color: #666;
+}
+
+.my-rank-name {
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: bold;
+  margin-bottom: 8px;
 }
 
 .my-rank-stats {
@@ -299,9 +370,9 @@ onMounted(() => {
 /* 表头 */
 .leaderboard-thead {
   display: grid;
-  grid-template-columns: 52px 1fr 50px 95px 50px;
+  grid-template-columns: 44px 1fr 1fr 44px 85px 48px;
   gap: 4px;
-  padding: 8px 14px;
+  padding: 8px 10px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 11px;
@@ -312,36 +383,41 @@ onMounted(() => {
 /* 行 */
 .leaderboard-row {
   display: grid;
-  grid-template-columns: 52px 1fr 50px 95px 50px;
+  grid-template-columns: 44px 1fr 1fr 44px 85px 48px;
   gap: 4px;
-  padding: 10px 14px;
+  padding: 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   align-items: center;
   font-size: 13px;
   color: #c0c0c0;
   transition: background 0.2s;
+  cursor: pointer;
 }
 
 .leaderboard-row:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .leaderboard-row.is-me {
   background: rgba(212, 168, 83, 0.08);
-  border-left: 3px solid #d4a853;
+}
+
+.leaderboard-row.expanded {
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: none;
 }
 
 /* 前三名高亮 */
 .leaderboard-row.top-1 {
-  background: linear-gradient(90deg, rgba(241, 196, 15, 0.1), transparent);
+  background: linear-gradient(90deg, rgba(241, 196, 15, 0.12), transparent);
 }
 
 .leaderboard-row.top-2 {
-  background: linear-gradient(90deg, rgba(192, 192, 192, 0.08), transparent);
+  background: linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent);
 }
 
 .leaderboard-row.top-3 {
-  background: linear-gradient(90deg, rgba(205, 127, 50, 0.08), transparent);
+  background: linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent);
 }
 
 .col-rank {
@@ -357,15 +433,37 @@ onMounted(() => {
   color: #888;
 }
 
+.col-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.entry-name {
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.me-tag {
+  font-size: 10px;
+  color: #d4a853;
+  background: rgba(212, 168, 83, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 .col-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
 }
 
 .entry-title-name {
-  color: #e0e0e0;
-  font-weight: bold;
+  color: #888;
 }
 
 .col-level {
@@ -419,5 +517,38 @@ onMounted(() => {
 
 .rate-low {
   color: #e74c3c;
+}
+
+/* 展开详情 */
+.leaderboard-detail {
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: detail-expand 0.25s ease;
+}
+
+@keyframes detail-expand {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 200px; }
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: #888;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #e0e0e0;
+  font-weight: bold;
 }
 </style>

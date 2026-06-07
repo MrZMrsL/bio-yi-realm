@@ -28,6 +28,22 @@
     </div>
 
     <button v-if="hasSave" class="continue-btn" @click="onContinue" :disabled="store.isLoadingQuestions">继续冒险</button>
+
+    <div class="name-section">
+      <label class="name-label">输入你的游戏名</label>
+      <input
+        v-model="playerNameInput"
+        class="name-input"
+        :class="{ 'name-error': nameError }"
+        type="text"
+        placeholder="请取一个响亮的代号..."
+        maxlength="12"
+        @input="nameError = false"
+        @keyup.enter="onStart"
+      />
+      <span v-if="nameError" class="name-error-text">名字不能为空</span>
+    </div>
+
     <button class="start-btn" @click="onStart" :disabled="store.isLoadingQuestions">
       {{ store.isLoadingQuestions ? '📚 加载知识库中...' : (hasSave ? '重新开始' : '开始冒险') }}
     </button>
@@ -36,23 +52,30 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useGameStore } from '../stores/game.js'
 
 const store = useGameStore()
 const emit = defineEmits(['start', 'continue'])
 
+const playerNameInput = ref('')
+const nameError = ref(false)
+
 const hasSave = computed(() => store.hasSave())
 
 function onStart() {
+  const name = playerNameInput.value.trim()
+  if (!name) {
+    nameError.value = true
+    return
+  }
   if (hasSave.value) {
-    // 有存档，确认是否重新开始
     if (confirm('已有存档，重新开始将覆盖原有进度，确认吗？')) {
       store.deleteSave()
-      emit('start')
+      emit('start', name)
     }
   } else {
-    emit('start')
+    emit('start', name)
   }
 }
 
@@ -233,6 +256,57 @@ function onContinue() {
 
 .continue-btn:active {
   transform: translateY(0);
+}
+
+/* 名字输入 */
+.name-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 300px;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.name-label {
+  font-size: 13px;
+  color: #a0a0a0;
+  letter-spacing: 1px;
+}
+
+.name-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 16px;
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(212, 168, 83, 0.3);
+  border-radius: 10px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.name-input::placeholder {
+  color: #666;
+  font-size: 14px;
+}
+
+.name-input:focus {
+  border-color: rgba(212, 168, 83, 0.7);
+  box-shadow: 0 0 12px rgba(212, 168, 83, 0.15);
+}
+
+.name-input.name-error {
+  border-color: #e74c3c;
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.2);
+}
+
+.name-error-text {
+  font-size: 12px;
+  color: #e74c3c;
 }
 
 .version-text {

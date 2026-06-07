@@ -97,6 +97,9 @@ export const useGameStore = defineStore('game', () => {
   // 玩家专精选择
   const playerSpecialization = ref(null)
 
+  // 玩家名（v9.1 — 排行榜标识）
+  const playerName = ref('')
+
   // ===== 专精技能系统 =====
   const specializationSkills = ref([])    // 已解锁的专精技能列表 [{ skill, unlockedAt }]
   const newSkillUnlock = ref(null)        // 刚解锁的技能（用于提示）[{ skill, unlockedAt }]
@@ -1646,8 +1649,11 @@ export const useGameStore = defineStore('game', () => {
   function recordPvpResult(result) {
     pvpResult.value = result
     addPvpRecord({
+      name: playerName.value || title.value,
       title: title.value,
       level: level.value,
+      floor: floor.value,
+      specialization: playerSpecialization.value,
       won: result.won
     })
     // 检查升级（已在PvpBattle组件中处理，此处做兜底）
@@ -2100,6 +2106,7 @@ export const useGameStore = defineStore('game', () => {
       // 状态机（v8.0）
       gameMode: gameMode.value,
       // 开发者模式
+      playerName: playerName.value,
       playerSpecialization: playerSpecialization.value,
       devMode: devMode.value,
       // 专精技能
@@ -2191,6 +2198,7 @@ export const useGameStore = defineStore('game', () => {
       showTitleDisplay.value = saveData.showTitleDisplay || false
       titleDisplayLevel.value = saveData.titleDisplayLevel || 1
 
+      playerName.value = saveData.playerName || ''
       playerSpecialization.value = saveData.playerSpecialization || null
       // 专精技能
       specializationSkills.value = saveData.specializationSkills || []
@@ -2319,6 +2327,7 @@ export const useGameStore = defineStore('game', () => {
     // 状态机（v9.0 - PVP系统）
     gameMode, GAME_MODE, enterMode, isCombatMode, isPanelMode,
     // 开发者模式
+    playerName,
     playerSpecialization, setSpecialization,
     isLoadingQuestions, questionsLoaded, loadProgress,
     devMode, toggleDevMode,
