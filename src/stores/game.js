@@ -617,6 +617,10 @@ export const useGameStore = defineStore('game', () => {
       battleLog.value.push(logMsg)
 
       updateStats('totalCorrect', 1)
+      // 追踪化学题答对数量（用于 chem_master 成就）
+      if (subject === 'chem') {
+        stats.value.chemCorrect = (stats.value.chemCorrect || 0) + 1
+      }
       if (consecutiveCorrect.value > stats.value.maxCombo) {
         stats.value.maxCombo = consecutiveCorrect.value
       }
@@ -701,9 +705,12 @@ export const useGameStore = defineStore('game', () => {
       battleState.value = 'captureSuccess'
       sfxCaptureSuccess()
       inBattle.value = false
-      // 标记房间完成
+      // 标记房间完成 / 非地牢模式回到探索
       if (dungeonPhase.value === 'battle') {
         finishRoom(true)
+      } else {
+        // 非地牢模式（普通探索战斗）：切回 ON 模式，避免 UI 状态不一致
+        enterMode(GAME_MODE.ON)
       }
       return
     }
@@ -1411,12 +1418,17 @@ export const useGameStore = defineStore('game', () => {
       battleLog.value.push(`掉落 ${mat.count} 个 ${mat.name}！`)
     }
 
-    // 检查升级
+    // 检查升级（与 winBattle 保持一致：每次升级都增长属性）
     while (exp.value >= maxExp.value) {
       exp.value -= maxExp.value
       level.value++
+      // 每次升级都增长 maxHp / atk / def（与 winBattle 逻辑一致）
+      maxHp.value = Math.floor(maxHp.value * 1.2)
       hp.value = maxHp.value
+      atk.value += 2
+      def.value += 1
       statPoints.value++
+      // 每10级额外里程碑奖励
       if (level.value % 10 === 0) {
         const milestoneBonus = Math.floor(level.value / 10)
         atk.value += milestoneBonus
@@ -1424,6 +1436,8 @@ export const useGameStore = defineStore('game', () => {
         maxHp.value += milestoneBonus * 5
         hp.value = maxHp.value
       }
+      battleLog.value.push(`🎊 升级！到达 Lv.${level.value}！`)
+      sfxLevelUp()
       checkSkillUnlocks()
     }
 
@@ -1795,7 +1809,7 @@ export const useGameStore = defineStore('game', () => {
     if (allCleared) {
       allClearCount.value++
       if (allClearCount.value >= 10) {
-        battleLog.value.push('🏆 解锁成就：我全都要！（连续10层清空所有房间）')
+        battleLog.value.push('🏆 解锁成就：我全都要！（累计10层清空所有房间）')
       }
     }
 
@@ -2185,11 +2199,11 @@ export const useGameStore = defineStore('game', () => {
       currentFloorElement.value = saveData.currentFloorElement || 'water'
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
       cyclopedia.value = saveData.cyclopedia || {}
-      const defaultStats = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0 }
+      const defaultStats = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0, chemCorrect: 0 }
       stats.value = { ...defaultStats, ...Object.fromEntries(
         Object.entries(saveData.stats || {}).map(([k, v]) => [k, typeof v === 'number' && !Number.isNaN(v) ? v : 0])
       )}
-      unlockedAchievements.value = typeof saveData.unlockedAchievements === 'object' && !Array.isArray(saveData.unlockedAchievements) ? saveData.unlockedAchievements : (Array.isArray(saveData.unlockedAchievements) ? Object.fromEntries(saveData.unlockedAchievements.map(id => [id, Date.now()])) : {})
+      unlockedAchievements.value = saveData.unlockedAchievements != null && typeof saveData.unlockedAchievements === 'object' && !Array.isArray(saveData.unlockedAchievements) ? saveData.unlockedAchievements : (Array.isArray(saveData.unlockedAchievements) ? Object.fromEntries(saveData.unlockedAchievements.map(id => [id, Date.now()])) : {})
       // 加载战斗状态（v8.0 兼容旧存档）
       inBattle.value = saveData.inBattle || false
       battleState.value = saveData.battleState || ''

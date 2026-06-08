@@ -244,8 +244,8 @@ export const ACHIEVEMENTS = [
     icon: '🧪',
     category: 'knowledge',
     rarity: 'epic',
-    condition: (allStats) => false, // 暂不追踪，占位
-    progress: () => 0,
+    condition: (allStats) => (allStats.chemCorrect || 0) >= 200,
+    progress: () => stats.value.chemCorrect || 0,
     maxProgress: 200,
     reward: { exp: 150 }
   },
