@@ -617,9 +617,10 @@ export const useGameStore = defineStore('game', () => {
       battleLog.value.push(logMsg)
 
       updateStats('totalCorrect', 1)
-      // 追踪化学题答对数量（用于 chem_master 成就）
-      if (subject === 'chem') {
-        stats.value.chemCorrect = (stats.value.chemCorrect || 0) + 1
+      // 通用学科答对追踪（普适化：所有学科统一记录，用于对应成就）
+      if (subject) {
+        if (!stats.value.subjectCorrect) stats.value.subjectCorrect = {}
+        stats.value.subjectCorrect[subject] = (stats.value.subjectCorrect[subject] || 0) + 1
       }
       if (consecutiveCorrect.value > stats.value.maxCombo) {
         stats.value.maxCombo = consecutiveCorrect.value
@@ -2199,7 +2200,7 @@ export const useGameStore = defineStore('game', () => {
       currentFloorElement.value = saveData.currentFloorElement || 'water'
       firstVisit.value = saveData.firstVisit !== undefined ? saveData.firstVisit : true
       cyclopedia.value = saveData.cyclopedia || {}
-      const defaultStats = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0, chemCorrect: 0 }
+      const defaultStats = { totalCorrect: 0, totalWrong: 0, maxCombo: 0, maxFloor: 1, totalBattles: 0, totalWins: 0, totalFishes: 0, totalForges: 0, subjectCorrect: {} }
       stats.value = { ...defaultStats, ...Object.fromEntries(
         Object.entries(saveData.stats || {}).map(([k, v]) => [k, typeof v === 'number' && !Number.isNaN(v) ? v : 0])
       )}
