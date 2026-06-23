@@ -1,0 +1,119 @@
+/* 全局重置与样式 */
+
+/* #ifdef H5 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: #1a1a2e;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  color: #e0e0e0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#app {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 768px) {
+  body {
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0f0c29 100%);
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(212, 168, 83, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 50%, rgba(52, 152, 219, 0.08) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+#app button:not(.audio-toggle) {
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.25s ease,
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+*:focus-visible {
+  outline: 2px solid rgba(52, 152, 219, 0.8);
+  outline-offset: 2px;
+}
+/* #endif */
+
+/* #ifndef H5 */
+page {
+  background: #1a1a2e;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  color: #e0e0e0;
+  height: 100%;
+}
+
+#app {
+  height: 100%;
+  width: 100%;
+}
+/* #endif */
+
+/* 全局 emoji / 图标阴影，统一跨平台渲染效果 */
+.emoji-icon {
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.4));
+}
+
+/* ===== 音频设置 ===== */
+.audio-settings {
+  padding: 20px 16px;
+}
+.audio-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.audio-label {
+  font-size: 16px;
+  color: #e0e0e0;
+}
+.audio-toggle {
+  padding: 8px 20px;
+  border-radius: 20px;
+  border: none;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  background: #555;
+  color: #ccc;
+  transition: all 0.2s;
+}
+.audio-toggle.toggle-on {
+  background: #4caf50;
+  color: #fff;
+}
+.audio-hint {
+  font-size: 12px;
+  color: #888;
+  margin: 0;
+}

@@ -1,0 +1,286 @@
+/* 移动端适配全局补丁
+ * 针对小屏幕设备优化主要面板布局，防止溢出和提升可点击区域。
+ */
+
+@media (max-width: 480px) {
+  /* 减小程序全局 padding */
+  #main-content {
+    padding: 12px !important;
+  }
+
+  .panel-achievements,
+  .panel-character,
+  .panel-inventory,
+  .panel-farm,
+  .panel-fishing,
+  .panel-study,
+  .panel-shop,
+  .panel-leaderboard {
+    padding: 12px !important;
+  }
+
+  /* 标题屏幕 */
+  .title-screen {
+    padding: 16px !important;
+  }
+
+  .title-container .game-title {
+    font-size: 26px !important;
+  }
+
+  .title-desc-box {
+    padding: 12px !important;
+  }
+
+  .title-desc-box .desc-paragraph {
+    font-size: 12px !important;
+  }
+
+  .feature-row {
+    padding: 8px 10px !important;
+  }
+
+  .feature-text {
+    font-size: 12px !important;
+  }
+
+  .start-btn,
+  .continue-btn {
+    padding: 12px 32px !important;
+    font-size: 16px !important;
+  }
+
+  /* 主面板卡片 */
+  .area-card {
+    padding: 14px 10px !important;
+  }
+
+  .area-icon {
+    font-size: 28px !important;
+  }
+
+  .area-name {
+    font-size: 13px !important;
+  }
+
+  .area-desc {
+    font-size: 11px !important;
+  }
+
+  /* 战斗面板 */
+  .battle-container {
+    padding: 10px !important;
+  }
+
+  .battle-actions button,
+  .option-btn,
+  .potion-btn,
+  .btn-cancel,
+  .btn-next,
+  .btn-revive,
+  .btn-back,
+  .btn-capture,
+  .btn-skip {
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+  }
+
+  .btn-answer {
+    padding: 14px 18px !important;
+    font-size: 16px !important;
+  }
+
+  .quiz-panel {
+    padding: 14px !important;
+  }
+
+  .question {
+    font-size: 15px !important;
+  }
+
+  .option-btn {
+    word-break: break-word;
+    white-space: normal;
+    line-height: 1.4;
+  }
+
+  .result {
+    padding: 20px 14px !important;
+  }
+
+  .result-title {
+    font-size: 1.3em !important;
+  }
+
+  .drop-card {
+    padding: 12px !important;
+  }
+
+  .drop-icon {
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 28px !important;
+  }
+
+  /* 人物面板 */
+  .character-panel {
+    gap: 12px !important;
+  }
+
+  .character-avatar-section,
+  .equip-section,
+  .stats-section,
+  .skill-section {
+    padding: 12px !important;
+  }
+
+  .stat-row {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .stat-label {
+    width: auto !important;
+    flex-basis: 70px;
+  }
+
+  .stat-value {
+    flex: 1 1 120px;
+  }
+
+  .equip-slots {
+    gap: 8px !important;
+  }
+
+  .equip-slot {
+    padding: 10px 4px !important;
+  }
+
+  .slot-name {
+    font-size: 11px !important;
+  }
+
+  /* 背包/商店 */
+  .inv-tabs,
+  .shop-tabs {
+    flex-wrap: wrap;
+  }
+
+  .inv-tab,
+  .shop-tab {
+    min-width: 60px;
+    padding: 8px 6px !important;
+    font-size: 12px !important;
+  }
+
+  .shop-item-header,
+  .item-name {
+    word-break: break-word;
+  }
+
+  /* 农场 */
+  .farm-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .farm-card {
+    padding: 10px !important;
+  }
+
+  .farm-btn-group {
+    flex-wrap: wrap;
+  }
+
+  .farm-btn {
+    min-width: 60px;
+    padding: 6px 8px !important;
+  }
+
+  /* 排行榜 */
+  .leaderboard-thead,
+  .leaderboard-row {
+    grid-template-columns: 36px 1fr 1fr 40px 72px 40px !important;
+    gap: 2px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    font-size: 11px !important;
+  }
+
+  .col-title,
+  .col-record {
+    font-size: 10px !important;
+  }
+
+  /* 成就 */
+  .achievement-card {
+    padding: 10px !important;
+  }
+
+  .achievement-icon {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .achievement-name {
+    font-size: 14px !important;
+  }
+
+  .achievement-desc {
+    font-size: 11px !important;
+  }
+
+  /* 设置面板 */
+  .settings-tabs {
+    flex-wrap: wrap;
+  }
+
+  .settings-tab-btn {
+    flex: 1 1 60px;
+    padding: 6px 4px !important;
+    font-size: 12px !important;
+  }
+
+  .settings-content {
+    padding: 12px !important;
+  }
+
+  /* 对话框/弹窗 */
+  .dialog-modal-content,
+  .equip-picker {
+    width: 92% !important;
+    max-width: none !important;
+    padding: 16px !important;
+  }
+
+  /* 通用：防止长文本撑破布局 */
+  /* #ifdef H5 */
+  .panel-content * {
+    max-width: 100%;
+  }
+  /* #endif */
+}
+
+@media (max-width: 360px) {
+  .area-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .area-card {
+    padding: 12px 8px !important;
+  }
+
+  .area-icon {
+    font-size: 24px !important;
+  }
+
+  .area-name {
+    font-size: 12px !important;
+  }
+
+  .leaderboard-thead,
+  .leaderboard-row {
+    grid-template-columns: 32px 1fr 1fr 36px 64px 36px !important;
+    font-size: 10px !important;
+  }
+}
