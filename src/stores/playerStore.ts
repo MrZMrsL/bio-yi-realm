@@ -58,6 +58,7 @@ export const usePlayerStore = defineStore('player', () => {
   const atk = ref<number>(10)
   const def = ref<number>(5)
   const gold = ref<number>(0)
+  const spirit = ref<number>(0)
   const floor = ref<number>(1)
   const title = ref<string>('菜鸟学徒')
   const titleData = ref<TitleData | null>(getTitleData(1))
@@ -157,6 +158,16 @@ export const usePlayerStore = defineStore('player', () => {
   function spendGold(amount: number): boolean {
     if (gold.value < amount) return false
     gold.value -= amount
+    return true
+  }
+
+  function addSpirit(amount: number): void {
+    spirit.value += amount
+  }
+
+  function spendSpirit(amount: number): boolean {
+    if (spirit.value < amount) return false
+    spirit.value -= amount
     return true
   }
 
@@ -279,6 +290,7 @@ export const usePlayerStore = defineStore('player', () => {
     atk.value = 10
     def.value = 5
     gold.value = 0
+    spirit.value = 0
     floor.value = 1
     title.value = '菜鸟学徒'
     titleData.value = getTitleData(1)
@@ -306,6 +318,7 @@ export const usePlayerStore = defineStore('player', () => {
       atk: atk.value,
       def: def.value,
       gold: gold.value,
+      spirit: spirit.value,
       floor: floor.value,
       title: title.value,
       titleData: titleData.value,
@@ -332,6 +345,7 @@ export const usePlayerStore = defineStore('player', () => {
     atk.value = (saveData.atk as number) || 10
     def.value = (saveData.def as number) || 5
     gold.value = (saveData.gold as number) || 0
+    spirit.value = (saveData.spirit as number) || 0
     floor.value = (saveData.floor as number) || 1
     title.value = (saveData.title as string) || '菜鸟学徒'
     titleData.value = (saveData.titleData as TitleData) || getTitleForLevel(1)
@@ -357,6 +371,7 @@ export const usePlayerStore = defineStore('player', () => {
     atk,
     def,
     gold,
+    spirit,
     floor,
     title,
     titleData,
@@ -393,6 +408,8 @@ export const usePlayerStore = defineStore('player', () => {
     addExp,
     addGold,
     spendGold,
+    addSpirit,
+    spendSpirit,
     buffAtk,
     buffDef,
     advanceFloor,

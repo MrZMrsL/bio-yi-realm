@@ -20,6 +20,7 @@ import type { usePvpStore } from '../pvpStore.ts'
 import type { useReviewStore } from '../reviewStore.ts'
 import type { useLogStore } from '../logStore.ts'
 import type { useGuideStore } from '../guideStore.ts'
+import type { useCheckInStore } from '../checkInStore.ts'
 import type { GameMode } from './useGameStateMachine.ts'
 
 export const SAVE_VERSION = 1
@@ -36,6 +37,7 @@ type PvpStore = ReturnType<typeof usePvpStore>
 type ReviewStore = ReturnType<typeof useReviewStore>
 type LogStore = ReturnType<typeof useLogStore>
 type GuideStore = ReturnType<typeof useGuideStore>
+type CheckInStore = ReturnType<typeof useCheckInStore>
 
 export interface GameSaveDependencies {
   playerStore: PlayerStore
@@ -50,6 +52,7 @@ export interface GameSaveDependencies {
   reviewStore: ReviewStore
   logStore: LogStore
   guideStore: GuideStore
+  checkInStore: CheckInStore
 }
 
 export interface GameSaveState {
@@ -73,6 +76,7 @@ export function useGameSaveSystem(deps: GameSaveDependencies, state: GameSaveSta
     reviewStore,
     logStore,
     guideStore,
+    checkInStore,
   } = deps
 
   const { gameStarted, activeTab, gameMode, devMode } = state
@@ -91,6 +95,7 @@ export function useGameSaveSystem(deps: GameSaveDependencies, state: GameSaveSta
       ...reviewStore.serialize(),
       ...logStore.serialize(),
       ...guideStore.serialize(),
+      ...checkInStore.serialize(),
       gameStarted: gameStarted.value,
       activeTab: activeTab.value,
       gameMode: gameMode.value,
@@ -130,6 +135,7 @@ export function useGameSaveSystem(deps: GameSaveDependencies, state: GameSaveSta
       reviewStore.deserialize(saveData)
       logStore.deserialize(saveData)
       guideStore.deserialize(saveData)
+      checkInStore.deserialize(saveData)
 
       gameStarted.value = (saveData.gameStarted as boolean) || false
       activeTab.value = (saveData.activeTab as string) || 'dungeon'
@@ -179,6 +185,7 @@ export function useGameSaveSystem(deps: GameSaveDependencies, state: GameSaveSta
     reviewStore.reset()
     logStore.reset()
     guideStore.resetGuide()
+    checkInStore.reset()
 
     // 触发一次保存以清空本地缓存状态
     saveGame()

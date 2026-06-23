@@ -26,6 +26,7 @@ import { usePvpStore } from './pvpStore.ts'
 import { useReviewStore } from './reviewStore.ts'
 import { useLogStore } from './logStore.ts'
 import { useGuideStore } from './guideStore.ts'
+import { useCheckInStore } from './checkInStore.ts'
 
 // 内部 coordinator 模块
 import { GAME_MODE, useGameStateMachine } from './game/useGameStateMachine.ts'
@@ -57,6 +58,7 @@ export const useGameStore = defineStore('game', () => {
   const reviewStore = useReviewStore()
   const logStore = useLogStore()
   const guideStore = useGuideStore()
+  const checkInStore = useCheckInStore()
 
   const playerRefs = storeToRefs(playerStore)
   const equipmentRefs = storeToRefs(equipmentStore)
@@ -69,6 +71,7 @@ export const useGameStore = defineStore('game', () => {
   const pvpRefs = storeToRefs(pvpStore)
   const reviewRefs = storeToRefs(reviewStore)
   const logRefs = storeToRefs(logStore)
+  const checkInRefs = storeToRefs(checkInStore)
 
   // ===== 核心导航状态 =====
   const gameStarted = ref<boolean>(false)
@@ -99,6 +102,7 @@ export const useGameStore = defineStore('game', () => {
       reviewStore,
       logStore,
       guideStore,
+      checkInStore,
     },
     { gameStarted, activeTab, gameMode, devMode }
   )
@@ -180,6 +184,7 @@ export const useGameStore = defineStore('game', () => {
     ...pvpRefs,
     ...reviewRefs,
     ...logRefs,
+    ...checkInRefs,
     // 公共计算属性（覆盖或补充）
     currentSubjectTheme,
     monsterBonus: computed(() => equipmentStore.monsterBonus),

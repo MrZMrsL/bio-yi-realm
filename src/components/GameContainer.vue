@@ -79,6 +79,10 @@
           @import="importSave"
           @reset="resetGame"
         />
+
+        <div v-if="activePanel === 'checkin'" class="panel-checkin">
+          <CheckInPanel />
+        </div>
         </div>
       </div>
     </Transition>
@@ -100,6 +104,7 @@ import DiscoveryNotifications from './game/DiscoveryNotifications.vue'
 import PanelHeader from './game/PanelHeader.vue'
 import EncyclopediaPanel from './game/EncyclopediaPanel.vue'
 import SettingsPanel from './game/SettingsPanel.vue'
+import CheckInPanel from './checkin/CheckInPanel.vue'
 
 // 异步组件通用 loading 提示
 const AsyncLoading = {
@@ -134,6 +139,13 @@ const activePanel = ref(null)
 onMounted(() => {
   // 首次进入主界面时展示 dashboard 引导
   guideStore.showStep('dashboard-overview')
+
+  // 延迟自动弹出签到面板（避开新手引导弹窗）
+  setTimeout(() => {
+    if (store.canCheckInToday && !guideStore.currentStepId && !activePanel.value) {
+      openPanel('checkin')
+    }
+  }, 900)
 })
 
 const panelTitle = computed(() => {
@@ -148,6 +160,7 @@ const panelTitle = computed(() => {
     shop: '杂货铺',
     achievements: '成就殿堂',
     settings: '设置',
+    checkin: '每日签到',
   }
   return titles[activePanel.value] || ''
 })
@@ -185,6 +198,7 @@ function openPanel(panel) {
       settings: GAME_MODE.SETTINGS,
       encyclopedia: GAME_MODE.ENCYCLOPEDIA,
       leaderboard: GAME_MODE.LEADERBOARD,
+      checkin: GAME_MODE.CHECK_IN,
     }
     if (panelModeMap[panel]) {
       store.enterMode(panelModeMap[panel])
@@ -385,7 +399,10 @@ async function resetGame() {
 .panel-fishing,
 .panel-study,
 .panel-shop,
-.panel-leaderboard {
-  padding: 16px;
+.panel-leaderboard,
+.panel-checkin {
+  padding: 0;
+  height: 100%;
+  overflow-y: auto;
 }
 </style>

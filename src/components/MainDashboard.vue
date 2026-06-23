@@ -12,6 +12,16 @@
       <div class="area-desc">第 {{ store.floor }} 层</div>
     </div>
 
+    <!-- 每日签到 -->
+    <div class="area-card checkin-card" @click="$emit('open-panel', 'checkin')">
+      <div class="area-icon">📅</div>
+      <div class="area-name">每日签到</div>
+      <div class="area-desc">
+        {{ store.canCheckInToday ? '今日奖励待领取' : `连续 ${store.currentStreak} 天` }}
+      </div>
+      <span v-if="store.canCheckInToday" class="area-badge">!</span>
+    </div>
+
     <!-- 图鉴 -->
     <div class="area-card encyclopedia-card" @click="$emit('open-panel', 'encyclopedia')">
       <div class="area-icon">📖</div>
@@ -207,6 +217,13 @@ defineEmits(['open-panel', 'open-pvp', 'open-leaderboard', 'open-weekly-boss', '
 /* 各卡片颜色主题 */
 .dungeon-card {
   border-top: 3px solid #e74c3c;
+}
+.checkin-card {
+  border-top: 3px solid #d4a853;
+  background: linear-gradient(135deg, rgba(212, 168, 83, 0.1), rgba(212, 168, 83, 0.02));
+}
+.checkin-card .area-name {
+  color: #d4a853;
 }
 .encyclopedia-card {
   border-top: 3px solid #e67e22;

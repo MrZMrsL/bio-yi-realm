@@ -21,6 +21,11 @@
       <div class="stat-value">{{ store.gold }}</div>
       <div class="stat-label">🏠 第{{ store.floor }}层</div>
     </div>
+    <div class="stat-box">
+      <div class="stat-title">🔮 灵气</div>
+      <div class="stat-value">{{ store.spirit }}</div>
+      <div class="stat-label">天地精华</div>
+    </div>
     <div v-if="store.statPoints > 0" class="stat-box">
       <div class="stat-title">✨ 属性点</div>
       <div class="stat-value stat-points">{{ store.statPoints }}</div>

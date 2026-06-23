@@ -30,6 +30,7 @@ export const GAME_MODE = {
   ACHIEVEMENTS: 'achievements',
   SETTINGS: 'settings',
   CAPTURE_QUIZ: 'capture_quiz',
+  CHECK_IN: 'check_in',
   DROP: 'drop',
   WON: 'won',
   LOST: 'lost',
@@ -48,6 +49,7 @@ const PANEL_MODES: GameMode[] = [
   GAME_MODE.SETTINGS,
   GAME_MODE.FISHING,
   GAME_MODE.LEADERBOARD,
+  GAME_MODE.CHECK_IN,
 ]
 const RESULT_MODES: GameMode[] = [GAME_MODE.WON, GAME_MODE.LOST, GAME_MODE.FLED, GAME_MODE.DROP]
 const POST_COMBAT_MODES: GameMode[] = [GAME_MODE.IDLE, GAME_MODE.DUNGEON_PREP, GAME_MODE.DUNGEON_ROOMS]
