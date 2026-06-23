@@ -19,4 +19,4 @@ test-focus-result.png
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.sw?edge-test*
