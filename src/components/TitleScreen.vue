@@ -77,15 +77,24 @@ v-if="hasSave && !wantsNewGame"
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useGameStore } from '../stores/game.ts'
 import { useToast } from '../composables/useToast.js'
 import { useDialog } from '../composables/useDialog.js'
+import { useGuideStore } from '../stores/guideStore.ts'
 
 const store = useGameStore()
+const guideStore = useGuideStore()
 const toast = useToast()
 const dialog = useDialog()
 const emit = defineEmits(['start', 'continue'])
+
+onMounted(() => {
+  // 新玩家首次进入标题页时展示欢迎引导
+  if (!store.hasSave()) {
+    guideStore.showStep('welcome')
+  }
+})
 
 const playerNameInput = ref('')
 const nameError = ref(false)

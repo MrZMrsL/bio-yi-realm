@@ -42,8 +42,6 @@ watch(
 function handleStart(playerName) {
   store.playerName = playerName
   store.startGame()
-  // 新玩家首次开始游戏时展示欢迎引导
-  guideStore.showStep('welcome')
 }
 function handleContinue() {
   store.loadGame()

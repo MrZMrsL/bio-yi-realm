@@ -185,6 +185,9 @@ export const useGameStore = defineStore('game', () => {
     ...reviewRefs,
     ...logRefs,
     ...checkInRefs,
+    // 签到方法
+    checkInToday: checkInStore.checkInToday,
+    resetCheckIn: checkInStore.reset,
     // 公共计算属性（覆盖或补充）
     currentSubjectTheme,
     monsterBonus: computed(() => equipmentStore.monsterBonus),

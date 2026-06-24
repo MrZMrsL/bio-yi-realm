@@ -141,11 +141,16 @@ onMounted(() => {
   guideStore.showStep('dashboard-overview')
 
   // 延迟自动弹出签到面板（避开新手引导弹窗）
-  setTimeout(() => {
-    if (store.canCheckInToday && !guideStore.currentStepId && !activePanel.value) {
+  // 如果引导弹窗还在，会轮询重试，直到引导结束且用户未打开其他面板
+  function tryOpenCheckIn() {
+    if (!store.canCheckInToday || activePanel.value) return
+    if (!guideStore.currentStepId) {
       openPanel('checkin')
+      return
     }
-  }, 900)
+    setTimeout(tryOpenCheckIn, 600)
+  }
+  setTimeout(tryOpenCheckIn, 900)
 })
 
 const panelTitle = computed(() => {
