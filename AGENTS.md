@@ -254,7 +254,10 @@ npm run test:e2e
 
 ### 工程与发布
 
-6. **H5 部署到 GitHub Pages**
+6. ~~**H5 部署到 GitHub Pages**~~（已完成）
+   - `.github/workflows/deploy.yml` 自动部署
+   - push 到 master 后自动跑测试、构建 H5、部署到 Pages
+   - 访问地址：`https://mrzmrsL.github.io/bio-yi-realm/`
 7. **微信小程序真机调试**
 8. **清理旧 `生化易界-vue` 目录**（需重启或关闭占用进程后手动删除）
 
