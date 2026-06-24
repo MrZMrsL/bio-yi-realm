@@ -1,6 +1,11 @@
 <script setup>
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
+import { provide } from 'vue'
 import { flushSaveIfNeeded } from './services/saveService.js'
+import { usePwaUpdate } from './composables/usePwaUpdate.js'
+
+const pwaUpdate = usePwaUpdate()
+provide('pwaUpdate', pwaUpdate)
 
 onLaunch(() => {
   console.log('App Launch')
