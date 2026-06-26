@@ -339,24 +339,32 @@ async function resetGame() {
 <style scoped>
 #game-container {
   width: 100%;
-  max-width: 480px;
+  max-width: 100%;
   height: 100vh;
   height: 100dvh;
+  max-height: 100dvh;
   background: #16213e;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  margin: 0 auto;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
+  #game-container {
+    max-width: 480px;
+  }
+}
+
+@media (min-width: 1024px) {
   #game-container {
     max-width: 520px;
-    height: 90vh;
-    height: 90dvh;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    height: 95vh;
+    height: 95dvh;
+    border-radius: 20px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -364,7 +372,15 @@ async function resetGame() {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 380px) {
+  #main-content {
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .panel-overlay {

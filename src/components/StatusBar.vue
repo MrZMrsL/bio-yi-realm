@@ -42,36 +42,44 @@ const store = useGameStore()
 
 <style scoped>
 #status-bar {
-  display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 10px;
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
   background: #0f3460;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
 .stat-box {
-  flex: 1;
   min-width: 0;
+  text-align: center;
 }
 
 .stat-title {
-  font-size: 11px;
+  font-size: 10px;
   color: #a0a0a0;
   margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
   color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-bar {
-  height: 6px;
+  height: 5px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
-  margin-top: 4px;
+  margin-top: 3px;
   position: relative;
   overflow: hidden;
 }
@@ -92,19 +100,38 @@ const store = useGameStore()
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 9px;
+  font-size: 8px;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .stat-label {
-  margin-top: 4px;
+  margin-top: 3px;
   color: #a0a0a0;
-  font-size: 11px;
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stat-points {
   color: #d4a853;
   font-weight: bold;
+}
+
+@media (max-width: 400px) {
+  #status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 6px;
+    padding: 8px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  }
+
+  .stat-box {
+    flex: 0 0 30%;
+    min-width: 0;
+  }
 }
 </style>

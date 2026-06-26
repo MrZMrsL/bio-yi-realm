@@ -150,8 +150,9 @@ function onContinue() {
   align-items: center;
   justify-content: flex-start;
   overflow-y: auto;
-  padding: 20px 16px 40px;
-  gap: 12px;
+  padding: 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  gap: 10px;
 }
 
 /* 星空粒子层 — 简化版静态星星 */
@@ -184,31 +185,31 @@ function onContinue() {
 
 .title-container {
   text-align: center;
-  margin-top: 10vh;
+  margin-top: 6vh;
   position: relative;
   z-index: 1;
 }
 
 .game-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: bold;
   color: #d4a853;
   text-shadow: 0 2px 10px rgba(212, 168, 83, 0.3);
   letter-spacing: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .game-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: #a0a0a0;
-  letter-spacing: 4px;
+  letter-spacing: 3px;
 }
 
 .title-desc-box {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
   max-width: 440px;
   width: 100%;
   position: relative;
@@ -216,10 +217,10 @@ function onContinue() {
 }
 
 .title-desc-box .desc-paragraph {
-  font-size: 13px;
-  line-height: 1.7;
+  font-size: 12px;
+  line-height: 1.6;
   color: #b0b0b0;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .title-desc-box .desc-paragraph:last-child {
@@ -229,7 +230,7 @@ function onContinue() {
 .title-features {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   max-width: 440px;
   width: 100%;
   position: relative;
@@ -239,20 +240,22 @@ function onContinue() {
 .feature-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .feature-icon {
-  font-size: 20px;
+  font-size: 18px;
   filter: drop-shadow(0 1px 3px rgba(212, 168, 83, 0.3));
+  flex-shrink: 0;
 }
 
 .feature-text {
-  font-size: 13px;
+  font-size: 12px;
   color: #c0c0c0;
+  line-height: 1.4;
 }
 
 .feature-text strong {
@@ -260,9 +263,9 @@ function onContinue() {
 }
 
 .start-btn {
-  margin-top: 16px;
-  padding: 14px 48px;
-  font-size: 18px;
+  margin-top: 14px;
+  padding: 13px 40px;
+  font-size: 17px;
   font-weight: bold;
   color: #1a1a2e;
   background: linear-gradient(135deg, #d4a853, #e8c67a);
@@ -275,6 +278,7 @@ function onContinue() {
     box-shadow 0.25s ease;
   position: relative;
   z-index: 1;
+  min-height: 48px;
 }
 
 .start-btn:hover {
@@ -287,9 +291,9 @@ function onContinue() {
 }
 
 .continue-btn {
-  margin-top: 12px;
-  padding: 14px 48px;
-  font-size: 18px;
+  margin-top: 10px;
+  padding: 13px 40px;
+  font-size: 17px;
   font-weight: bold;
   color: #fff;
   background: linear-gradient(135deg, #4a90d9, #6ba5e7);
@@ -302,6 +306,7 @@ function onContinue() {
     box-shadow 0.25s ease;
   position: relative;
   z-index: 1;
+  min-height: 48px;
 }
 
 .continue-btn:hover {
@@ -311,6 +316,37 @@ function onContinue() {
 
 .continue-btn:active {
   transform: translateY(0);
+}
+
+@media (min-width: 480px) {
+  .title-container {
+    margin-top: 8vh;
+  }
+
+  .game-title {
+    font-size: 32px;
+  }
+
+  .game-subtitle {
+    font-size: 14px;
+  }
+
+  .title-desc-box {
+    padding: 16px;
+  }
+
+  .title-desc-box .desc-paragraph {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .feature-row {
+    padding: 10px 12px;
+  }
+
+  .feature-text {
+    font-size: 13px;
+  }
 }
 
 /* 名字输入 */

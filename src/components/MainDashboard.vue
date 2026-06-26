@@ -147,7 +147,7 @@ defineEmits(['open-panel', 'open-pvp', 'open-leaderboard', 'open-weekly-boss', '
 /* 区域网格 */
 .area-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
@@ -155,63 +155,103 @@ defineEmits(['open-panel', 'open-pvp', 'open-leaderboard', 'open-weekly-boss', '
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  padding: 20px 16px;
+  padding: 18px 10px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.area-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(212, 168, 83, 0.4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+.area-card:active {
+  transform: scale(0.97);
 }
 
-.area-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #d4a853, #e8c67a);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
+@media (hover: hover) {
+  .area-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(212, 168, 83, 0.4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
 
-.area-card:hover::before {
-  opacity: 1;
+  .area-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #d4a853, #e8c67a);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .area-card:hover::before {
+    opacity: 1;
+  }
 }
 
 .area-icon {
-  font-size: 36px;
-  margin-bottom: 8px;
+  font-size: 32px;
+  margin-bottom: 6px;
+  line-height: 1;
 }
 
 .area-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
   color: #e0e0e0;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .area-desc {
-  font-size: 12px;
+  font-size: 11px;
   color: #888;
+  line-height: 1.3;
 }
 
 .area-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   background: #e74c3c;
   color: white;
   font-size: 10px;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 10px;
   font-weight: bold;
+}
+
+@media (max-width: 360px) {
+  .area-grid {
+    gap: 10px;
+  }
+
+  .area-card {
+    padding: 14px 8px;
+    border-radius: 14px;
+    min-height: 80px;
+  }
+
+  .area-icon {
+    font-size: 28px;
+    margin-bottom: 4px;
+  }
+
+  .area-name {
+    font-size: 13px;
+  }
+
+  .area-desc {
+    font-size: 10px;
+  }
 }
 
 /* 各卡片颜色主题 */

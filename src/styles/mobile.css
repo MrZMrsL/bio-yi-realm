@@ -1,11 +1,13 @@
 /* 移动端适配全局补丁
  * 针对小屏幕设备优化主要面板布局，防止溢出和提升可点击区域。
+ * 组件自身已包含基础响应式样式，这里只保留需要全局覆盖的移动专项补丁。
  */
 
 @media (max-width: 480px) {
   /* 减小程序全局 padding */
   #main-content {
     padding: 12px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .panel-achievements,
@@ -15,56 +17,9 @@
   .panel-fishing,
   .panel-study,
   .panel-shop,
-  .panel-leaderboard {
+  .panel-leaderboard,
+  .panel-checkin {
     padding: 12px !important;
-  }
-
-  /* 标题屏幕 */
-  .title-screen {
-    padding: 16px !important;
-  }
-
-  .title-container .game-title {
-    font-size: 26px !important;
-  }
-
-  .title-desc-box {
-    padding: 12px !important;
-  }
-
-  .title-desc-box .desc-paragraph {
-    font-size: 12px !important;
-  }
-
-  .feature-row {
-    padding: 8px 10px !important;
-  }
-
-  .feature-text {
-    font-size: 12px !important;
-  }
-
-  .start-btn,
-  .continue-btn {
-    padding: 12px 32px !important;
-    font-size: 16px !important;
-  }
-
-  /* 主面板卡片 */
-  .area-card {
-    padding: 14px 10px !important;
-  }
-
-  .area-icon {
-    font-size: 28px !important;
-  }
-
-  .area-name {
-    font-size: 13px !important;
-  }
-
-  .area-desc {
-    font-size: 11px !important;
   }
 
   /* 战斗面板 */
@@ -83,11 +38,13 @@
   .btn-skip {
     padding: 10px 14px !important;
     font-size: 14px !important;
+    min-height: 44px;
   }
 
   .btn-answer {
     padding: 14px 18px !important;
     font-size: 16px !important;
+    min-height: 48px;
   }
 
   .quiz-panel {
@@ -194,6 +151,7 @@
   .farm-btn {
     min-width: 60px;
     padding: 6px 8px !important;
+    min-height: 36px;
   }
 
   /* 排行榜 */
@@ -261,23 +219,6 @@
 }
 
 @media (max-width: 360px) {
-  .area-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
-  }
-
-  .area-card {
-    padding: 12px 8px !important;
-  }
-
-  .area-icon {
-    font-size: 24px !important;
-  }
-
-  .area-name {
-    font-size: 12px !important;
-  }
-
   .leaderboard-thead,
   .leaderboard-row {
     grid-template-columns: 32px 1fr 1fr 36px 64px 36px !important;

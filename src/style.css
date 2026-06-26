@@ -12,6 +12,7 @@ html,
 body,
 #app {
   height: 100%;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -22,10 +23,14 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   width: 100%;
+  height: 100%;
+  height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: center;

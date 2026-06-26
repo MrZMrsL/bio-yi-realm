@@ -17,8 +17,9 @@ const emit = defineEmits(['back'])
 .panel-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 12px 14px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
   background: #0f3460;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
@@ -28,11 +29,13 @@ const emit = defineEmits(['back'])
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: #d4a853;
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.2s;
+  flex-shrink: 0;
+  min-height: 36px;
 }
 
 .btn-back:hover {
@@ -40,8 +43,11 @@ const emit = defineEmits(['back'])
 }
 
 .panel-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
   color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

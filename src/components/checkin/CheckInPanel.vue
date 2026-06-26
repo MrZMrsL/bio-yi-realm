@@ -222,9 +222,15 @@ function handleCheckIn() {
 /* 7 天奖励网格 */
 .reward-calendar {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 24px;
+}
+
+@media (min-width: 480px) {
+  .reward-calendar {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .reward-day {
@@ -234,6 +240,11 @@ function handleCheckIn() {
   padding: 10px 6px;
   text-align: center;
   transition: all 0.25s ease;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .reward-day.is-today {
@@ -254,20 +265,20 @@ function handleCheckIn() {
 .day-number {
   font-size: 11px;
   color: #888;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .day-rewards {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 4px;
-  min-height: 24px;
-  margin-bottom: 6px;
+  gap: 3px;
+  min-height: 22px;
+  margin-bottom: 4px;
 }
 
 .day-reward-icon {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .day-status {
@@ -288,7 +299,7 @@ function handleCheckIn() {
 /* 操作区 */
 .action-section {
   text-align: center;
-  padding-bottom: 20px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
 .check-in-btn {
@@ -303,15 +314,18 @@ function handleCheckIn() {
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(212, 168, 83, 0.4);
   transition: all 0.25s ease;
-}
-
-.check-in-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(212, 168, 83, 0.6);
+  min-height: 48px;
 }
 
 .check-in-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .check-in-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(212, 168, 83, 0.6);
+  }
 }
 
 .check-in-btn:disabled {
@@ -329,7 +343,17 @@ function handleCheckIn() {
 
 @media (max-width: 360px) {
   .reward-calendar {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .reward-day {
+    padding: 8px 4px;
+    min-height: 70px;
+  }
+
+  .day-reward-icon {
+    font-size: 13px;
   }
 }
 </style>
